@@ -4,17 +4,19 @@
  * @file IconManager.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-01-29
- * @version 0.1
- * @brief 加载 ttf格式图标文件和管理图标资源
+ * @version 0.2
+ * @brief 加载图标字体文件和管理图标资源（基于 FreeType）
  *
  * 支持：
- * - 加载 TTF格式 图标文件 作为默认图标
+ * - 加载 TTF/OTF/TTC 格式图标文件作为默认图标
  * - 解析 codepoints 映射文件（JSON 或 TXT 格式）
  * - 通过图标名称获取 Unicode 码点
  * - 管理多个 IconFont 图标库
-    - 默认加载ui/assets/icons/xxx.ttf 和 codepoints 文件
-    cmrc::ui_fonts 库中预置了 MaterialSymbols 图标字体
-    使用stb_truetype进行字体渲染不再引入stbttf库
+ * - 默认加载 ui/assets/icons/xxx.ttf 和 codepoints 文件
+ * - cmrc::ui_fonts 库中预置了 MaterialSymbols 图标字体
+ *
+ * 2026-02-10 更新说明：
+ *  统一使用 FreeType 进行字体渲染（与 FontManager 保持一致）
  *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
@@ -30,7 +32,8 @@
 #include <array>
 #include <chrono>
 #include <algorithm>
-#include <stb_truetype.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 #include <SDL3/SDL.h>
 #include <Eigen/Core>
 #include "../singleton/Logger.hpp"
@@ -43,8 +46,8 @@ class DeviceManager;
 
 struct FontData
 {
-    std::vector<unsigned char> buffer;
-    stbtt_fontinfo info;
+    std::vector<unsigned char> buffer; // 字体数据（FreeType 需要持久内存）
+    FT_Face face;                      // FreeType Face
     int fontSize;
 };
 
@@ -65,15 +68,16 @@ struct CachedTextureEntry
 };
 
 /**
- * @brief IconFont 管理器
+ * @brief IconFont 管理器（基于 FreeType）
  *
  * 负责加载和管理 IconFont 字体及其 codepoints 映射
+ * 与 FontManager 共享相同的 FreeType 渲染管线
  *
  * 使用示例：
  * @code
  * IconManager::LoadIconFont("default", "assets/fonts/iconfont.ttf", "assets/fonts/codepoints.txt", 16);
  * uint32_t homeIcon = IconManager::GetCodepoint("default", "home");
- * auto* font = IconManager::GetFont("default");
+ * auto* face = IconManager::GetFont("default");
  * @endcode
  */
 class IconManager
@@ -81,7 +85,16 @@ class IconManager
 public:
     explicit IconManager(DeviceManager* deviceManager) : m_deviceManager(deviceManager)
     {
-        Logger::info("IconManager initialized");
+        FT_Error error = FT_Init_FreeType(&m_ftLibrary);
+        if (error)
+        {
+            Logger::error("[IconManager] Failed to initialize FreeType: error {}", error);
+            m_ftLibrary = nullptr;
+        }
+        else
+        {
+            Logger::info("[IconManager] FreeType initialized");
+        }
     }
     ~IconManager() { shutdown(); }
     IconManager(const IconManager&) = delete;
@@ -130,9 +143,9 @@ public:
     /**
      * @brief 获取字体信息
      * @param fontName 字体库名称
-     * @return stbtt_fontinfo 指针，未找到返回 nullptr
+     * @return FT_Face 指针，未找到返回 nullptr
      */
-    stbtt_fontinfo* getFont(std::string_view fontName);
+    FT_Face getFont(std::string_view fontName);
 
     /**
      * @brief 检查图标是否存在
@@ -243,6 +256,7 @@ private:
                                                           uint32_t height);
 
     DeviceManager* m_deviceManager;
+    FT_Library m_ftLibrary = nullptr;
 
     StringMap<FontData> m_fonts;
     StringMap<CodepointMap> m_codepoints;

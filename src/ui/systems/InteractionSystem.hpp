@@ -505,6 +505,12 @@ private:
             // 标记为 Dirty
             Registry::EmplaceOrReplace<ui::components::LayoutDirtyTag>(entity);
             ui::utils::MarkRenderDirty(entity);
+
+            // 触发文本改变回调
+            if (edit.onTextChanged)
+            {
+                edit.onTextChanged(edit.buffer);
+            }
         }
     }
 
@@ -516,25 +522,36 @@ private:
             if (!Registry::AnyOf<components::TextEditTag>(entity)) continue;
 
             auto& edit = view.get<components::TextEdit>(entity);
-            if (policies::HasFlag(edit.inputMode, policies::TextFlag::ReadOnly)) continue;
-
-            auto& textComp = view.get<components::Text>(entity);
 
             // Get modifier keys
             SDL_Keymod modState = SDL_GetModState();
             bool ctrl = (modState & SDL_KMOD_CTRL) != 0;
             bool shift = (modState & SDL_KMOD_SHIFT) != 0;
 
-            // Clipboard operations
+            // ---- ReadOnly 安全操作（复制 / 全选）----
             if (ctrl && key == SDLK_C)
             {
-                // Copy
+                // Copy（ReadOnly 也允许）
                 if (edit.hasSelection)
                 {
                     copyToClipboard(edit);
                 }
+                continue;
             }
-            else if (ctrl && key == SDLK_X)
+            if (ctrl && key == SDLK_A)
+            {
+                // Select All（ReadOnly 也允许）
+                selectAll(edit);
+                ui::utils::MarkRenderDirty(entity);
+                continue;
+            }
+
+            // ---- 以下操作需要可编辑 ----
+            if (policies::HasFlag(edit.inputMode, policies::TextFlag::ReadOnly)) continue;
+
+            auto& textComp = view.get<components::Text>(entity);
+
+            if (ctrl && key == SDLK_X)
             {
                 // Cut
                 if (edit.hasSelection)
@@ -544,7 +561,11 @@ private:
                     textComp.content = edit.buffer;
                     Registry::EmplaceOrReplace<ui::components::LayoutDirtyTag>(entity);
                     ui::utils::MarkRenderDirty(entity);
-                }
+                    // 触发文本改变回调
+                    if (edit.onTextChanged)
+                    {
+                        edit.onTextChanged(edit.buffer);
+                    }                }
             }
             else if (ctrl && key == SDLK_V)
             {
@@ -553,12 +574,12 @@ private:
                 textComp.content = edit.buffer;
                 Registry::EmplaceOrReplace<ui::components::LayoutDirtyTag>(entity);
                 ui::utils::MarkRenderDirty(entity);
-            }
-            else if (ctrl && key == SDLK_A)
-            {
-                // Select All
-                selectAll(edit);
-                ui::utils::MarkRenderDirty(entity);
+
+                // 触发文本改变回调
+                if (edit.onTextChanged)
+                {
+                    edit.onTextChanged(edit.buffer);
+                }
             }
             else if (key == SDLK_BACKSPACE)
             {
@@ -575,6 +596,12 @@ private:
                 textComp.content = edit.buffer;
                 Registry::EmplaceOrReplace<ui::components::LayoutDirtyTag>(entity);
                 ui::utils::MarkRenderDirty(entity);
+
+                // 触发文本改变回调
+                if (edit.onTextChanged)
+                {
+                    edit.onTextChanged(edit.buffer);
+                }
             }
             else if (key == SDLK_DELETE)
             {
@@ -590,6 +617,12 @@ private:
                 textComp.content = edit.buffer;
                 Registry::EmplaceOrReplace<ui::components::LayoutDirtyTag>(entity);
                 ui::utils::MarkRenderDirty(entity);
+
+                // 触发文本改变回调
+                if (edit.onTextChanged)
+                {
+                    edit.onTextChanged(edit.buffer);
+                }
             }
             else if (key == SDLK_LEFT)
             {
@@ -707,6 +740,7 @@ private:
                 const auto multiFlag = static_cast<uint8_t>(policies::TextFlag::Multiline);
                 if ((modeVal & multiFlag) != 0)
                 {
+                    // 多行模式：插入换行符
                     if (edit.buffer.size() + 1 <= edit.maxLength)
                     {
                         if (edit.hasSelection)
@@ -718,6 +752,35 @@ private:
                         textComp.content = edit.buffer;
                         Registry::EmplaceOrReplace<ui::components::LayoutDirtyTag>(entity);
                         ui::utils::MarkRenderDirty(entity);
+
+                        // 触发文本改变回调
+                        if (edit.onTextChanged)
+                        {
+                            edit.onTextChanged(edit.buffer);
+                        }
+                    }
+                }
+                else
+                {
+                    // 单行模式：触发提交回调
+                    if (edit.onSubmit)
+                    {
+                        edit.onSubmit();
+                    }
+
+                    // 如果有选中内容，删除选中文本
+                    if (edit.hasSelection)
+                    {
+                        deleteSelection(edit);
+                        textComp.content = edit.buffer;
+                        Registry::EmplaceOrReplace<ui::components::LayoutDirtyTag>(entity);
+                        ui::utils::MarkRenderDirty(entity);
+
+                        // 触发文本改变回调
+                        if (edit.onTextChanged)
+                        {
+                            edit.onTextChanged(edit.buffer);
+                        }
                     }
                 }
             }

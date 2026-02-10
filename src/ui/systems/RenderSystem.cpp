@@ -19,6 +19,8 @@
 #include "../renderers/TextRenderer.hpp"
 #include "../renderers/IconRenderer.hpp"
 #include "../renderers/ScrollBarRenderer.hpp"
+#include "../renderers/SliderRenderer.hpp"
+#include "../renderers/ProgressBarRenderer.hpp"
 #include "../managers/IconManager.hpp"
 
 namespace ui::systems
@@ -427,6 +429,8 @@ void RenderSystem::initializeRenderers()
     // 优先级小的先渲染（背景 -> 文本 -> 图标 -> 滚动条）
 
     m_renderers.push_back(std::make_unique<renderers::ShapeRenderer>());
+    m_renderers.push_back(std::make_unique<renderers::ProgressBarRenderer>());
+    m_renderers.push_back(std::make_unique<renderers::SliderRenderer>());
     m_renderers.push_back(std::make_unique<renderers::TextRenderer>());
     if (m_iconManager) m_renderers.push_back(std::make_unique<renderers::IconRenderer>(m_iconManager.get()));
 
@@ -502,7 +506,7 @@ void RenderSystem::collectRenderData(entt::entity entity, core::RenderContext& c
     }
 
     // Shift to positive range for unsigned sorting (int32_min -> 0)
-    uint64_t encodedZ = static_cast<uint64_t>(static_cast<int64_t>(zOrder) + 2147483648LL);
+    auto encodedZ = static_cast<uint64_t>(static_cast<int64_t>(zOrder) + 2147483648LL);
 
     // 使用渲染器收集数据
     for (auto& renderer : m_renderers)

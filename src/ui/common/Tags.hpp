@@ -213,4 +213,20 @@ struct AnimatingTag
     using is_tags_tag = void;
 };
 
+/**
+ * @brief Slider 标记
+ */
+struct SliderTag
+{
+    using is_tags_tag = void;
+};
+
+/**
+ * @brief ProgressBar 标记
+ */
+struct ProgressBarTag
+{
+    using is_tags_tag = void;
+};
+
 } // namespace ui::components

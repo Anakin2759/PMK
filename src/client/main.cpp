@@ -25,7 +25,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     utils::functions::SetConsoleToUTF8();
     try
     {
-        auto app = ui::factory::CreateApplication(argc, argv);
+        auto app = ui::factory::CreateApplication(std::span<char*>(argv, argc));
 
         // 创建菜单对话框
         client::view::CreateMenuDialog();

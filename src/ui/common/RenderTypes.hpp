@@ -20,7 +20,7 @@ struct alignas(16) UiPushConstants
     float shadow_offset_x; // 阴影 X 偏移
     float shadow_offset_y; // 阴影 Y 偏移
     float opacity;         // 整体透明度
-    float padding;         // 填充到 16 字节倍数
+    float padding;         // 标志位：>0.5 表示纹理为预乘 Alpha（用于文本/图标）
 };
 /**
  * @brief 顶点结构

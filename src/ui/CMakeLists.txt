@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.20)
 OPTION(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 OPTION(BUILD_STATIC_LIBS "Build using static libraries" ON)
 
+# Find DXC compiler for shader compilation
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+find_package(DXC REQUIRED)
+
 
 
 
@@ -61,6 +65,8 @@ set(UI_HEADERS
     interface/IRenderer.hpp
     core/RenderContext.hpp
     renderers/ShapeRenderer.hpp
+    renderers/SliderRenderer.hpp
+    renderers/ProgressBarRenderer.hpp
     renderers/TextRenderer.hpp
     renderers/IconRenderer.hpp
     renderers/ScrollBarRenderer.hpp
@@ -95,6 +101,60 @@ target_include_directories(ui
     ${CMAKE_CURRENT_SOURCE_DIR}/ui
 )
 
+# ===========================
+# Shader Compilation
+# ===========================
+set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/shader")
+set(SHADER_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/shader")
+
+# Compile vertex shader for both Vulkan and D3D12
+add_custom_command(
+    OUTPUT 
+        "${SHADER_OUTPUT_DIR}/vert.spv"
+        "${SHADER_OUTPUT_DIR}/vert.dxil"
+    COMMAND ${DXC_EXECUTABLE}
+        -spirv -T vs_6_0 -E main_vs -fspv-target-env=vulkan1.3
+        -Fo "${SHADER_OUTPUT_DIR}/vert.spv"
+        "${SHADER_SOURCE_DIR}/vert.hlsl"
+    COMMAND ${DXC_EXECUTABLE}
+        -T vs_6_6 -E main_vs
+        -Fo "${SHADER_OUTPUT_DIR}/vert.dxil"
+        "${SHADER_SOURCE_DIR}/vert.hlsl"
+    DEPENDS "${SHADER_SOURCE_DIR}/vert.hlsl" "${SHADER_SOURCE_DIR}/common.hlsl"
+    WORKING_DIRECTORY "${SHADER_SOURCE_DIR}"
+    COMMENT "Compiling vertex shader (SPIR-V + DXIL)"
+    VERBATIM
+)
+
+# Compile fragment shader for both Vulkan and D3D12
+add_custom_command(
+    OUTPUT 
+        "${SHADER_OUTPUT_DIR}/frag.spv"
+        "${SHADER_OUTPUT_DIR}/frag.dxil"
+    COMMAND ${DXC_EXECUTABLE}
+        -spirv -T ps_6_0 -E main_ps -fspv-target-env=vulkan1.3
+        -Fo "${SHADER_OUTPUT_DIR}/frag.spv"
+        "${SHADER_SOURCE_DIR}/frag.hlsl"
+    COMMAND ${DXC_EXECUTABLE}
+        -T ps_6_6 -E main_ps
+        -Fo "${SHADER_OUTPUT_DIR}/frag.dxil"
+        "${SHADER_SOURCE_DIR}/frag.hlsl"
+    DEPENDS "${SHADER_SOURCE_DIR}/frag.hlsl" "${SHADER_SOURCE_DIR}/common.hlsl"
+    WORKING_DIRECTORY "${SHADER_SOURCE_DIR}"
+    COMMENT "Compiling fragment shader (SPIR-V + DXIL)"
+    VERBATIM
+)
+
+# Create target for shader compilation
+add_custom_target(ui_shaders
+    DEPENDS
+        "${SHADER_OUTPUT_DIR}/vert.spv"
+        "${SHADER_OUTPUT_DIR}/vert.dxil"
+        "${SHADER_OUTPUT_DIR}/frag.spv"
+        "${SHADER_OUTPUT_DIR}/frag.dxil"
+    COMMENT "Building UI shaders"
+)
+
 cmrc_add_resource_library(ui_fonts
     ALIAS fonts              # 在 C++ 中调用的别名
     NAMESPACE ui_fonts          # C++ 命名空间
@@ -105,6 +165,9 @@ cmrc_add_resource_library(ui_fonts
     assets/shader/frag.dxil
 
 )
+
+# Ensure shaders are compiled before embedding into resources
+add_dependencies(ui_fonts ui_shaders)
 
 # cmrc_add_resource_library(ui_swiftshader
 #     ALIAS swiftshader             # 在 C++ 中调用的别名
@@ -138,6 +201,7 @@ target_link_libraries(ui PRIVATE
     ui_icons
     spdlog::spdlog_header_only
     freetype
+    harfbuzz
 )
 target_compile_features(ui PUBLIC cxx_std_23)
 

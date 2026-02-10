@@ -541,12 +541,17 @@ private:
             drawY += size.y() - textSize.y();
         }
 
+        // 对齐到整数像素，避免亚像素偏移导致线性滤波在预乘 Alpha 纹理上产生暗边
+        drawX = std::round(drawX);
+        drawY = std::round(drawY);
+
         render::UiPushConstants pushConstants{};
         pushConstants.screen_size[0] = context.screenWidth;
         pushConstants.screen_size[1] = context.screenHeight;
         pushConstants.rect_size[0] = textSize.x();
         pushConstants.rect_size[1] = textSize.y();
         pushConstants.opacity = opacity;
+        pushConstants.padding = 1.0F; // 标记纹理为预乘 Alpha
 
         context.batchManager->beginBatch(textTexture, context.currentScissor, pushConstants);
         context.batchManager->addRect({drawX, drawY}, textSize, {1.0f, 1.0f, 1.0f, 1.0f});

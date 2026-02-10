@@ -27,7 +27,7 @@ namespace ui::factory
  * @param argv 命令行参数数组
  * @return UI 应用程序实例
  */
-Application CreateApplication(int argc, char* argv[]);
+Application CreateApplication(std::span<char*> argv);
 /**
  * @brief 创建一个基础的 UI 组件实体
  * @param alias 组件别名
@@ -74,5 +74,9 @@ entt::entity CreateTextBrowser(std::string_view initialText = "",
  * @return entt::entity 创建的实体
  */
 entt::entity CreateCheckBox(const std::string& label, bool checked = false, std::string_view alias = "");
+
+// Slider / ProgressBar
+entt::entity CreateSlider(std::string_view alias = "");
+entt::entity CreateProgressBar(std::string_view alias = "");
 
 } // namespace ui::factory

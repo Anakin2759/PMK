@@ -115,6 +115,21 @@ private:
         pushConstants.radius[2] = bg->borderRadius.z();
         pushConstants.radius[3] = bg->borderRadius.w();
 
+        // Debug log
+        if (auto* baseInfo = Registry::TryGet<components::BaseInfo>(entity))
+        {
+            if (bg->borderRadius.x() > 0.0f || bg->borderRadius.y() > 0.0f || bg->borderRadius.z() > 0.0f ||
+                bg->borderRadius.w() > 0.0f)
+            {
+                Logger::debug("[ShapeRenderer] Entity '{}': borderRadius=({:.1f}, {:.1f}, {:.1f}, {:.1f})",
+                              baseInfo->alias,
+                              bg->borderRadius.x(),
+                              bg->borderRadius.y(),
+                              bg->borderRadius.z(),
+                              bg->borderRadius.w());
+            }
+        }
+
         // 处理阴影
         const auto* shadow = Registry::TryGet<components::Shadow>(entity);
         if (shadow && shadow->enabled == policies::Feature::Enabled)

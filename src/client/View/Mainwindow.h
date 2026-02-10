@@ -51,56 +51,57 @@ inline void CreateMainWindow() // NOLINT
     // 输入框 - 填充剩余宽度
     auto chatInput = ui::factory::CreateLineEdit("", "Say something...", "chatInput");
 
-    chatInput | SizePolicy(ui::policies::Size::HFill | ui::policies::Size::VFixed) |
-        BackgroundColor({0.15F, 0.15F, 0.18F, 0.9F}) | BorderRadius(3.0F) | BorderColor({0.3F, 0.3F, 0.35F, 1.0F}) |
-        BorderThickness(1.0F) | FontSize(13.0F);
-
     // 发送按钮 - 固定宽度 (使用回车图标)
     auto sendBtn = ui::factory::CreateButton("", "sendBtn");
+
+    // 发送消息的共享逻辑
+    auto sendMessage = [chatInput, messageArea]()
+    {
+        // 获取输入框内容
+        std::string content = ui::text::GetTextEditContent(chatInput);
+        if (!content.empty())
+        {
+            try
+            {
+                LOG_INFO("发送聊天消息: {}", content);
+
+                // 追加新消息到 TextBrowser
+                const std::string fullMsg = "[Me]: " + content;
+                std::string currentHistory = ui::text::GetTextEditContent(messageArea);
+
+                if (!currentHistory.empty())
+                {
+                    currentHistory += "\n";
+                }
+                currentHistory += fullMsg;
+
+                // 更新显示内容
+                ui::text::SetTextEditContent(messageArea, currentHistory);
+                ui::text::SetTextContent(messageArea, currentHistory);
+
+                // 清空输入框
+                ui::text::SetTextEditContent(chatInput, "");
+                ui::text::SetTextContent(chatInput, "");
+
+                // 文本内容变化但尺寸不变，只需标记渲染脏
+                ui::utils::MarkRenderDirty(chatInput);
+                ui::utils::MarkRenderDirty(messageArea);
+            }
+            catch (const std::exception& e)
+            {
+                LOG_ERROR("Chat Error: {}", e.what());
+            }
+        }
+    };
+
+    chatInput | SizePolicy(ui::policies::Size::HFill | ui::policies::Size::VFixed) |
+        BackgroundColor({0.15F, 0.15F, 0.18F, 0.9F}) | BorderRadius(3.0F) | BorderColor({0.3F, 0.3F, 0.35F, 1.0F}) |
+        BorderThickness(1.0F) | FontSize(13.0F) | OnSubmit(sendMessage);
 
     sendBtn | Icon("MaterialSymbols", 0xe31b, ui::policies::IconFlag::Default, 20.0F, 0.0F) |
         SizePolicy(ui::policies::Size::HFixed | ui::policies::Size::VFill) | Size(40.0F, 0.0F) |
         BackgroundColor({0.2F, 0.5F, 0.8F, 1.0F}) | BorderRadius(4.0F) | BorderColor({0.3F, 0.6F, 1.0F, 1.0F}) |
-        BorderThickness(1.0F) |
-        OnClick(
-            [chatInput, messageArea]()
-            {
-                // 获取输入框内容
-                std::string content = ui::text::GetTextEditContent(chatInput);
-                if (!content.empty())
-                {
-                    try
-                    {
-                        LOG_INFO("发送聊天消息: {}", content);
-
-                        // 追加新消息到 TextBrowser
-                        const std::string fullMsg = "[Me]: " + content;
-                        std::string currentHistory = ui::text::GetTextEditContent(messageArea);
-
-                        if (!currentHistory.empty())
-                        {
-                            currentHistory += "\n";
-                        }
-                        currentHistory += fullMsg;
-
-                        // 更新显示内容
-                        ui::text::SetTextEditContent(messageArea, currentHistory);
-                        ui::text::SetTextContent(messageArea, currentHistory);
-
-                        // 清空输入框
-                        ui::text::SetTextEditContent(chatInput, "");
-                        ui::text::SetTextContent(chatInput, "");
-
-                        // 文本内容变化但尺寸不变，只需标记渲染脏
-                        ui::utils::MarkRenderDirty(chatInput);
-                        ui::utils::MarkRenderDirty(messageArea);
-                    }
-                    catch (const std::exception& e)
-                    {
-                        LOG_ERROR("Chat Error: {}", e.what());
-                    }
-                }
-            });
+        BorderThickness(1.0F) | OnClick(sendMessage);
 
     inputRow | AddChild(chatInput) | AddChild(sendBtn);
 

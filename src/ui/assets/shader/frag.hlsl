@@ -6,10 +6,14 @@
 // =========================================================================
 
 // 圆角矩形 SDF
+// radius 布局: (x:左上, y:右上, z:右下, w:左下)
+// 屏幕坐标系 Y 轴朝下: p.y<0 = 上半部分, p.y>0 = 下半部分
 float sdRoundedBox(float2 p, float2 b, float4 r)
 {
+    // p.x>0 → 右侧 → (右上, 右下); p.x<0 → 左侧 → (左上, 左下)
     float2 q_radius = (p.x > 0.0) ? r.yz : r.xw;
-    float actual_r = (p.y > 0.0) ? q_radius.x : q_radius.y;
+    // p.y>0 → 下半 → 取 .y (右下/左下); p.y<0 → 上半 → 取 .x (右上/左上)
+    float actual_r = (p.y > 0.0) ? q_radius.y : q_radius.x;
 
     float2 q = abs(p) - b + actual_r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - actual_r;
@@ -60,8 +64,11 @@ float4 main_ps(PSInput input) : SV_Target
     // 主体 alpha
     float body_alpha = color.a * body_mask;
 
-    // 预乘
-    float3 body_rgb = color.rgb * body_alpha;
+    // _padding > 0.5 表示纹理已经是预乘 Alpha（如文本位图），
+    // 此时 color.rgb 已包含 alpha 信息，只需乘以 body_mask 即可
+    float3 body_rgb = (_padding > 0.5)
+        ? color.rgb * body_mask   // 预乘纹理：避免二次预乘
+        : color.rgb * body_alpha; // 直通纹理：手动预乘
 
     // ------------------------------------------------------------
     // 5. 阴影颜色（预乘 Alpha，纯黑）

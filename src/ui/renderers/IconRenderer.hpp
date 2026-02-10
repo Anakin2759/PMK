@@ -41,7 +41,7 @@ public:
     explicit IconRenderer(managers::IconManager* iconManager) : m_iconManager(iconManager) {}
 
     bool canHandle(entt::entity entity) const override { return Registry::AnyOf<components::Icon>(entity); }
-    
+
     void collect(entt::entity entity, core::RenderContext& context) override
     {
         if (context.batchManager == nullptr)
@@ -137,12 +137,17 @@ public:
                 drawPos.y() = contentPos.y() + std::max(0.0F, (contentSize.y() - actualIconSize.y()) * 0.5F);
             }
 
+            // 对齐到整数像素
+            drawPos.x() = std::round(drawPos.x());
+            drawPos.y() = std::round(drawPos.y());
+
             render::UiPushConstants pushConstants{};
             pushConstants.screen_size[0] = context.screenWidth;
             pushConstants.screen_size[1] = context.screenHeight;
             pushConstants.rect_size[0] = actualIconSize.x();
             pushConstants.rect_size[1] = actualIconSize.y();
             pushConstants.opacity = context.alpha;
+            pushConstants.padding = 1.0F; // 标记纹理为预乘 Alpha
 
             context.batchManager->beginBatch(iconTexture, context.currentScissor, pushConstants);
             context.batchManager->addRect(drawPos, actualIconSize, tint, uvMin, uvMax);

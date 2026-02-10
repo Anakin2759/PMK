@@ -50,7 +50,7 @@ public:
      * @param width 窗口宽度
      * @param height 窗口高度
      */
-    explicit Application(int argc, char* argv[]);
+    explicit Application( std::span<char*> arg);
     // 阻止拷贝和移动（通常 Application 是独占资源）
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;

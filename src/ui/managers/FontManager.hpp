@@ -26,6 +26,9 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#include <hb.h>
+#include <hb-ft.h>
+
 #include <vector>
 #include <string>
 #include <string_view>
@@ -52,6 +55,19 @@ struct GlyphInfo
 };
 
 /**
+ * @brief HarfBuzz 成形后的字形位置信息
+ */
+struct ShapedGlyph
+{
+    uint32_t glyphId = 0;  // 字形索引
+    float xOffset = 0.0F;  // X 偏移（像素）
+    float yOffset = 0.0F;  // Y 偏移（像素）
+    float xAdvance = 0.0F; // X 前进量（像素）
+    float yAdvance = 0.0F; // Y 前进量（像素）
+    uint32_t cluster = 0;  // 对应的字符簇索引
+};
+
+/**
  * @brief 字体管理器，封装 FreeType2 功能
  */
 class FontManager
@@ -73,6 +89,11 @@ public:
 
     ~FontManager()
     {
+        if (m_hbFont)
+        {
+            hb_font_destroy(m_hbFont);
+            m_hbFont = nullptr;
+        }
         if (m_ftFace)
         {
             FT_Done_Face(m_ftFace);
@@ -131,6 +152,9 @@ public:
 
         m_fontSize = fontSize;
         m_loaded = true;
+
+        // 创建 HarfBuzz font
+        createHarfBuzzFont();
 
         Logger::info("[FontManager] Font loaded: {} at {}px", m_ftFace->family_name, fontSize);
         return true;
@@ -411,15 +435,8 @@ public:
             return result;
         }
 
-        // 创建 RGBA 位图
-        result.resize(static_cast<size_t>(outWidth) * static_cast<size_t>(outHeight) * 4);
-        for (int idx = 0; idx < outWidth * outHeight; ++idx)
-        {
-            result[(idx * 4) + 0] = red;
-            result[(idx * 4) + 1] = green;
-            result[(idx * 4) + 2] = blue;
-            result[(idx * 4) + 3] = 0;
-        }
+        // 创建 RGBA 位图（初始化为透明）
+        result.resize(static_cast<size_t>(outWidth) * static_cast<size_t>(outHeight) * 4, 0);
 
         // 混合字形
         for (const auto& layout : layouts)
@@ -438,8 +455,19 @@ public:
 
                     int pixelIndex = (by * outWidth + bx) * 4;
                     uint8_t srcAlpha = glyph.bitmap[(yOff * glyph.width) + xOff];
-                    auto newAlpha = static_cast<uint8_t>(srcAlpha * alpha / 255);
-                    result[pixelIndex + 3] = std::max(result[pixelIndex + 3], newAlpha);
+                    auto finalAlpha = static_cast<uint8_t>(srcAlpha * alpha / 255);
+
+                    // 使用 over 操作符混合（适用于重叠字形）
+                    uint8_t dstA = result[pixelIndex + 3];
+                    if (finalAlpha > dstA)
+                    {
+                        // 输出预乘 Alpha（Premultiplied Alpha）
+                        // 避免 GPU 线性滤波在 straight alpha 空间插值导致暗边
+                        result[pixelIndex + 0] = static_cast<uint8_t>(red * finalAlpha / 255);
+                        result[pixelIndex + 1] = static_cast<uint8_t>(green * finalAlpha / 255);
+                        result[pixelIndex + 2] = static_cast<uint8_t>(blue * finalAlpha / 255);
+                        result[pixelIndex + 3] = finalAlpha;
+                    }
                 }
             }
         }
@@ -451,6 +479,141 @@ public:
         }
 
         return result;
+    }
+
+    /**
+     * @brief 使用 HarfBuzz 对文本进行成形（shaping）
+     * @param text UTF-8 文本
+     * @param textLen 文本长度
+     * @return 成形后的字形位置数组
+     */
+    std::vector<ShapedGlyph> shapeText(const char* text, size_t textLen)
+    {
+        std::vector<ShapedGlyph> result;
+
+        if (!m_hbFont || !text || textLen == 0)
+        {
+            return result;
+        }
+
+        // 创建 HarfBuzz buffer
+        hb_buffer_t* buf = hb_buffer_create();
+        hb_buffer_add_utf8(buf, text, static_cast<int>(textLen), 0, static_cast<int>(textLen));
+        hb_buffer_set_direction(buf, HB_DIRECTION_LTR);
+        hb_buffer_set_script(buf, HB_SCRIPT_COMMON);
+        hb_buffer_set_language(buf, hb_language_from_string("en", -1));
+
+        // 执行成形
+        hb_shape(m_hbFont, buf, nullptr, 0);
+
+        // 获取结果
+        unsigned int glyphCount = 0;
+        hb_glyph_info_t* glyphInfos = hb_buffer_get_glyph_infos(buf, &glyphCount);
+        hb_glyph_position_t* glyphPositions = hb_buffer_get_glyph_positions(buf, &glyphCount);
+
+        result.reserve(glyphCount);
+        for (unsigned int i = 0; i < glyphCount; ++i)
+        {
+            ShapedGlyph glyph;
+            glyph.glyphId = glyphInfos[i].codepoint;
+            glyph.cluster = glyphInfos[i].cluster;
+            glyph.xOffset = static_cast<float>(glyphPositions[i].x_offset) / 64.0F;
+            glyph.yOffset = static_cast<float>(glyphPositions[i].y_offset) / 64.0F;
+            glyph.xAdvance = static_cast<float>(glyphPositions[i].x_advance) / 64.0F;
+            glyph.yAdvance = static_cast<float>(glyphPositions[i].y_advance) / 64.0F;
+            result.push_back(glyph);
+        }
+
+        hb_buffer_destroy(buf);
+        return result;
+    }
+
+    /**
+     * @brief 根据字形索引渲染字形
+     * @param glyphId 字形索引（由 HarfBuzz 提供）
+     * @param fontSize 字体大小（像素），0 表示使用默认大小
+     * @return 字形信息
+     */
+    GlyphInfo renderGlyphByIndex(uint32_t glyphId, float fontSize = 0.0F)
+    {
+        GlyphInfo info;
+
+        if (!m_ftFace) return info;
+
+        // 使用指定字体大小或默认大小
+        float targetSize = (fontSize > 0.0F) ? fontSize : m_fontSize;
+
+        // 检查缓存
+        uint64_t cacheKey = makeGlyphCacheKey(static_cast<int>(glyphId), targetSize);
+        auto it = m_glyphCache.find(cacheKey);
+        if (it != m_glyphCache.end())
+        {
+            return it->second;
+        }
+
+        // 临时设置字体大小
+        bool needRestore = (std::abs(targetSize - m_fontSize) > 0.1F);
+        float oldSize = m_fontSize;
+        if (needRestore)
+        {
+            setPixelSize(targetSize);
+        }
+
+        // 加载字形
+        FT_Error error = FT_Load_Glyph(m_ftFace, glyphId, FT_LOAD_DEFAULT);
+        if (error)
+        {
+            Logger::warn("[FontManager] Failed to load glyph index {}: error {}", glyphId, error);
+            return info;
+        }
+
+        // 渲染为灰度位图
+        error = FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL);
+        if (error)
+        {
+            Logger::warn("[FontManager] Failed to render glyph index {}: error {}", glyphId, error);
+            return info;
+        }
+
+        FT_GlyphSlot slot = m_ftFace->glyph;
+        FT_Bitmap& bitmap = slot->bitmap;
+
+        info.width = static_cast<int>(bitmap.width);
+        info.height = static_cast<int>(bitmap.rows);
+        info.bearingX = slot->bitmap_left;
+        info.bearingY = slot->bitmap_top;
+        info.advanceX = static_cast<float>(slot->advance.x >> 6);
+
+        // 复制位图数据
+        if (bitmap.buffer && bitmap.width > 0 && bitmap.rows > 0)
+        {
+            size_t dataSize = bitmap.width * bitmap.rows;
+            info.bitmap.resize(dataSize);
+
+            if (bitmap.pitch == static_cast<int>(bitmap.width))
+            {
+                std::memcpy(info.bitmap.data(), bitmap.buffer, dataSize);
+            }
+            else
+            {
+                for (unsigned int row = 0; row < bitmap.rows; ++row)
+                {
+                    std::memcpy(
+                        info.bitmap.data() + row * bitmap.width, bitmap.buffer + row * bitmap.pitch, bitmap.width);
+                }
+            }
+        }
+
+        // 恢复原字体大小
+        if (needRestore)
+        {
+            setPixelSize(oldSize);
+        }
+
+        // 缓存字形
+        m_glyphCache[cacheKey] = info;
+
+        return info;
     }
 
     /**
@@ -513,6 +676,34 @@ public:
 
 private:
     /**
+     * @brief 创建 HarfBuzz font 对象
+     */
+    void createHarfBuzzFont()
+    {
+        if (m_hbFont)
+        {
+            hb_font_destroy(m_hbFont);
+            m_hbFont = nullptr;
+        }
+
+        if (!m_ftFace)
+        {
+            Logger::warn("[FontManager] Cannot create HarfBuzz font: FreeType face not loaded");
+            return;
+        }
+
+        // 使用 hb-ft 桥接创建 HarfBuzz font
+        m_hbFont = hb_ft_font_create(m_ftFace, nullptr);
+        if (!m_hbFont)
+        {
+            Logger::error("[FontManager] Failed to create HarfBuzz font");
+            return;
+        }
+
+        Logger::info("[FontManager] HarfBuzz font created successfully");
+    }
+
+    /**
      * @brief 设置字体像素大小
      */
     void setPixelSize(float size)
@@ -522,6 +713,11 @@ private:
         if (error == 0)
         {
             m_fontSize = size;
+            // 更新 HarfBuzz font 的缩放
+            if (m_hbFont)
+            {
+                hb_ft_font_changed(m_hbFont);
+            }
         }
     }
 
@@ -542,6 +738,9 @@ private:
 
     FT_Library m_ftLibrary = nullptr;
     FT_Face m_ftFace = nullptr;
+
+    // HarfBuzz font 对象
+    hb_font_t* m_hbFont = nullptr;
 
     // 字形缓存（key = (fontSize << 32) | codepoint）
     std::unordered_map<uint64_t, GlyphInfo> m_glyphCache;

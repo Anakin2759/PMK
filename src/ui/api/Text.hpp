@@ -88,6 +88,18 @@ void SetPasswordMode(::entt::entity entity, policies::TextFlag enabled);
  */
 void SetClickCallback(::entt::entity entity, components::on_event<> callback);
 /**
+ * @brief 设置文本提交回调（单行模式按 Enter 触发）
+ * @param entity 实体ID
+ * @param callback 回调函数
+ */
+void SetOnSubmit(::entt::entity entity, components::on_event<> callback);
+/**
+ * @brief 设置文本改变回调
+ * @param entity 实体ID
+ * @param callback 回调函数（参数为新文本内容）
+ */
+void SetOnTextChanged(::entt::entity entity, components::on_event<const std::string&> callback);
+/**
  * @brief 设置行高倍数
  * @param entity 实体ID
  * @param height 行高倍数 (例如 1.2)
@@ -151,6 +163,14 @@ inline auto PasswordMode(policies::TextFlag e)
 inline auto OnClick(ui::components::on_event<> cb)
 {
     return Call<ui::text::SetClickCallback>(std::move(cb));
+}
+inline auto OnSubmit(ui::components::on_event<> cb)
+{
+    return Call<ui::text::SetOnSubmit>(std::move(cb));
+}
+inline auto OnTextChanged(ui::components::on_event<const std::string&> cb)
+{
+    return Call<ui::text::SetOnTextChanged>(std::move(cb));
 }
 inline auto LineHeight(float h)
 {

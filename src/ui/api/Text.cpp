@@ -98,6 +98,26 @@ void SetClickCallback(::entt::entity entity, components::on_event<> callback)
     clickable.enabled = policies::Feature::Enabled;
 }
 
+void SetOnSubmit(::entt::entity entity, components::on_event<> callback)
+{
+    if (!Registry::Valid(entity)) return;
+    auto* textEdit = Registry::TryGet<components::TextEdit>(entity);
+    if (textEdit != nullptr)
+    {
+        textEdit->onSubmit = std::move(callback);
+    }
+}
+
+void SetOnTextChanged(::entt::entity entity, components::on_event<const std::string&> callback)
+{
+    if (!Registry::Valid(entity)) return;
+    auto* textEdit = Registry::TryGet<components::TextEdit>(entity);
+    if (textEdit != nullptr)
+    {
+        textEdit->onTextChanged = std::move(callback);
+    }
+}
+
 void SetLineHeight(::entt::entity entity, float height)
 {
     if (!Registry::Valid(entity)) return;

@@ -257,6 +257,10 @@ struct TextEdit
     size_t selectionStart = 0; // 选择起始位置（字节索引）
     size_t selectionEnd = 0;   // 选择结束位置（字节索引）
     bool hasSelection = false; // 是否有选中内容
+
+    // Callbacks
+    on_event<> onSubmit;                      // 按回车键时触发（单行模式）
+    on_event<const std::string&> onTextChanged; // 文本内容改变时触发
 };
 
 // ===================== 图像组件 =====================

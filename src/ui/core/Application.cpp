@@ -18,7 +18,7 @@ static constexpr uint32_t MAX_FRAME_TIME_MS = 250; // 防止卡顿时长时间�
 static constexpr uint32_t LOOP_DELAY_MS = 1;       // 主循环延迟，防止100% CPU占用
 namespace ui
 {
-Application::Application([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) // NOLINT
+Application::Application( std::span<char*> arg) // NOLINT
 {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
     {

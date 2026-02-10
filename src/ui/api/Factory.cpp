@@ -13,14 +13,12 @@
 #include "../singleton/Dispatcher.hpp"
 #include <SDL3/SDL_video.h>
 
-#include "Icon.hpp"
-
 namespace ui::factory
 {
 
-Application CreateApplication(int argc, char* argv[])
+Application CreateApplication(std::span<char*> argv)
 {
-    return Application(argc, argv);
+    return Application(argv);
 }
 
 entt::entity CreateBaseWidget(std::string_view alias)
@@ -287,6 +285,33 @@ entt::entity CreateCheckBox(const std::string& label, bool checked, std::string_
     text.content = label;
     text.alignment = ui::policies::Alignment::LEFT | ui::policies::Alignment::VCENTER;
     Registry::Get<components::Size>(entity).sizePolicy = ui::policies::Size::Auto;
+    return entity;
+}
+
+entt::entity CreateSlider(std::string_view alias)
+{
+    auto entity = CreateBaseWidget(alias);
+    Registry::Emplace<components::SliderInfo>(entity);
+    // 默认尺寸：横向滑块高度 28
+    auto& size = Registry::Get<components::Size>(entity);
+    size.size = {200.0F, 28.0F};
+    size.sizePolicy = ui::policies::Size::Fixed;
+    Registry::Emplace<components::LayoutInfo>(entity);
+    Registry::EmplaceOrReplace<components::LayoutDirtyTag>(entity);
+    Registry::Emplace<components::SliderTag>(entity);
+    return entity;
+}
+
+entt::entity CreateProgressBar(std::string_view alias)
+{
+    auto entity = CreateBaseWidget(alias);
+    Registry::Emplace<components::ProgressBar>(entity);
+    auto& size = Registry::Get<components::Size>(entity);
+    size.size = {200.0F, 14.0F};
+    size.sizePolicy = ui::policies::Size::Fixed;
+    Registry::Emplace<components::LayoutInfo>(entity);
+    Registry::EmplaceOrReplace<components::LayoutDirtyTag>(entity);
+    Registry::Emplace<components::ProgressBarTag>(entity);
     return entity;
 }
 
