@@ -94,6 +94,7 @@ add_subdirectory(third_party/googletest)
 add_subdirectory(third_party/yoga)
 add_subdirectory(third_party/eigen-5.0.0)
 add_subdirectory(third_party/freetype)
+add_subdirectory(third_party/harfbuzz)
 
 
 

@@ -42,7 +42,7 @@ class TextRenderer : public core::IRenderer
 public:
     TextRenderer() = default;
 
-    bool canHandle(entt::entity entity) const override
+    [[nodiscard]] bool canHandle(entt::entity entity) const override
     {
         return Registry::
             AnyOf<components::TextTag, components::ButtonTag, components::LabelTag, components::TextEditTag>(entity);
@@ -50,7 +50,7 @@ public:
 
     void collect(entt::entity entity, core::RenderContext& context) override
     {
-        if (!context.fontManager || !context.textTextureCache || !context.batchManager)
+        if (context.fontManager == nullptr || context.textTextureCache == nullptr || context.batchManager == nullptr)
         {
             return;
         }
@@ -86,6 +86,9 @@ private:
     void renderText(entt::entity entity, const components::Text& textComp, core::RenderContext& context)
     {
         Eigen::Vector4f color(textComp.color.red, textComp.color.green, textComp.color.blue, textComp.color.alpha);
+
+        // 获取字体大小（0 表示使用默认值）
+        float fontSize = textComp.fontSize;
 
         policies::TextWrap wrapMode = textComp.wordWrap;
         float wrapWidth = textComp.wrapWidth;
@@ -139,12 +142,19 @@ private:
                            wrapMode,
                            wrapWidth,
                            context.alpha,
+                           fontSize,
                            context);
         }
         else
         {
-            addText(
-                textComp.content, context.position, context.size, color, textComp.alignment, context.alpha, context);
+            addText(textComp.content,
+                    context.position,
+                    context.size,
+                    color,
+                    textComp.alignment,
+                    context.alpha,
+                    fontSize,
+                    context);
         }
     }
 
@@ -153,6 +163,9 @@ private:
                         const components::TextEdit& textEdit,
                         core::RenderContext& context)
     {
+        // 获取字体大小
+        float fontSize = textComp.fontSize;
+
         // 计算文本区域（考虑内边距）
         Eigen::Vector2f textPos = context.position;
         Eigen::Vector2f textSize = context.size;
@@ -213,7 +226,7 @@ private:
             const policies::Alignment align = policies::Alignment::LEFT | policies::Alignment::VCENTER;
             if (!visibleText.empty())
             {
-                addText(visibleText, textPos, textSize, color, align, context.alpha, textEditContext);
+                addText(visibleText, textPos, textSize, color, align, context.alpha, fontSize, textEditContext);
             }
 
             // 绘制光标 (仅当获焦时)
@@ -316,6 +329,7 @@ private:
                                 color,
                                 policies::Alignment::LEFT,
                                 context.alpha,
+                                fontSize,
                                 textEditContext);
                     }
                     y += lineHeight;
@@ -394,6 +408,7 @@ private:
                                 color,
                                 policies::Alignment::LEFT,
                                 context.alpha,
+                                fontSize,
                                 textEditContext);
                     }
                     y += lineHeight;
@@ -487,6 +502,7 @@ private:
                  const Eigen::Vector4f& color,
                  policies::Alignment alignment,
                  float opacity,
+                 float fontSize,
                  core::RenderContext& context)
     {
         if (!context.fontManager->isLoaded() || text.empty()) return;
@@ -494,7 +510,8 @@ private:
         uint32_t textWidth = 0;
         uint32_t textHeight = 0;
 
-        SDL_GPUTexture* textTexture = context.textTextureCache->getOrUpload(text, color, textWidth, textHeight);
+        SDL_GPUTexture* textTexture =
+            context.textTextureCache->getOrUpload(text, color, textWidth, textHeight, fontSize);
 
         if (textTexture == nullptr) return;
 
@@ -543,6 +560,7 @@ private:
                         policies::TextWrap wrapMode,
                         float wrapWidth,
                         float opacity,
+                        float fontSize,
                         core::RenderContext& context)
     {
         if (!context.fontManager->isLoaded() || text.empty() || wrapWidth <= 0.0F) return;
@@ -582,7 +600,8 @@ private:
         {
             if (!line.empty())
             {
-                addText(line, {pos.x(), y}, {wrapWidth, lineHeight}, color, horizontalAlign, opacity, context);
+                addText(
+                    line, {pos.x(), y}, {wrapWidth, lineHeight}, color, horizontalAlign, opacity, fontSize, context);
             }
             y += lineHeight;
         }

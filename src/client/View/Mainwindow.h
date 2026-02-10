@@ -39,7 +39,7 @@ inline void CreateMainWindow() // NOLINT
     messageArea | SizePolicy(ui::policies::Size::FillParent) | TextContent(initialMessages) |
         TextWordWrap(ui::policies::TextWrap::Char) | TextWrapWidth(490.0F) |
         TextAlignment(ui::policies::Alignment::TOP_LEFT) | Padding(4.0F) | BackgroundColor({0.08F, 0.08F, 0.1F, 0.5F}) |
-        BorderRadius(3.0F) | BorderColor({0.3F, 0.3F, 0.35F, 0.8F}) | BorderThickness(1.0F);
+        BorderRadius(3.0F) | BorderColor({0.3F, 0.3F, 0.35F, 0.8F}) | BorderThickness(1.0F) | FontSize(13.0F);
 
     chatContainer | AddChild(messageArea);
 
@@ -53,7 +53,7 @@ inline void CreateMainWindow() // NOLINT
 
     chatInput | SizePolicy(ui::policies::Size::HFill | ui::policies::Size::VFixed) |
         BackgroundColor({0.15F, 0.15F, 0.18F, 0.9F}) | BorderRadius(3.0F) | BorderColor({0.3F, 0.3F, 0.35F, 1.0F}) |
-        BorderThickness(1.0F);
+        BorderThickness(1.0F) | FontSize(13.0F);
 
     // 发送按钮 - 固定宽度 (使用回车图标)
     auto sendBtn = ui::factory::CreateButton("", "sendBtn");

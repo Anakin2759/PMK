@@ -44,6 +44,10 @@ TaskHandle TimerCallback(uint32_t interval, std::move_only_function<void()> func
  * @param handle 任务句柄
  */
 void CancelQueuedTask(TaskHandle handle);
+
+// 判断根据别名判断实体是否存在
+bool IsEntityExist(const std::string& alias);
+
 } // namespace ui::utils
 
 namespace ui::chains
@@ -52,4 +56,5 @@ inline auto WindowFlag(policies::WindowFlag flag)
 {
     return Call<ui::utils::SetWindowFlag>(flag);
 }
+
 } // namespace ui::chains

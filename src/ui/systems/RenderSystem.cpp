@@ -367,7 +367,7 @@ void RenderSystem::ensureInitialized()
         {
             auto fontFile = filesystem.open(fontPath);
             m_fontManager->loadFromMemory(
-                reinterpret_cast<const uint8_t*>(fontFile.begin()), static_cast<size_t>(fontFile.size()), 24.0F);
+                reinterpret_cast<const uint8_t*>(fontFile.begin()), static_cast<size_t>(fontFile.size()), 14.0F);
         }
     }
 

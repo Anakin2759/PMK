@@ -29,16 +29,20 @@ namespace ui::managers
 class PipelineCache
 {
 public:
-    PipelineCache(DeviceManager& deviceManager) : m_deviceManager(deviceManager) {}
+    explicit PipelineCache(DeviceManager& deviceManager) : m_deviceManager(&deviceManager) {}
     ~PipelineCache() { cleanup(); }
+    PipelineCache(const PipelineCache&) = default;
+    PipelineCache& operator=(const PipelineCache&) = default;
+    PipelineCache(PipelineCache&&) = default;
+    PipelineCache& operator=(PipelineCache&&) = default;
 
     void loadShaders()
     {
-        SDL_GPUDevice* device = m_deviceManager.getDevice();
+        SDL_GPUDevice* device = m_deviceManager->getDevice();
         if (device == nullptr) return;
 
         // 根据驱动类型选择着色器格式
-        const std::string& driver = m_deviceManager.getDriverName();
+        const std::string& driver = m_deviceManager->getDriverName();
         bool isVulkan = (driver == "vulkan");
 
         if (isVulkan)
@@ -68,7 +72,7 @@ public:
 
     void createPipeline(SDL_Window* sdlWindow)
     {
-        SDL_GPUDevice* device = m_deviceManager.getDevice();
+        SDL_GPUDevice* device = m_deviceManager->getDevice();
         if (device == nullptr || m_vertexShader == nullptr || m_fragmentShader == nullptr)
         {
             return;
@@ -213,10 +217,10 @@ private:
         shaderInfo.num_uniform_buffers = 1u;
 
         return wrappers::MakeGpuResource<wrappers::UniqueGPUShader>(
-            m_deviceManager.getDevice(), SDL_CreateGPUShader, &shaderInfo);
+            m_deviceManager->getDevice(), SDL_CreateGPUShader, &shaderInfo);
     }
 
-    DeviceManager& m_deviceManager;
+    DeviceManager* m_deviceManager;
     wrappers::UniqueGPUGraphicsPipeline m_pipeline;
     wrappers::UniqueGPUShader m_vertexShader;
     wrappers::UniqueGPUShader m_fragmentShader;

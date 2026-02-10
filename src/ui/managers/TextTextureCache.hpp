@@ -82,13 +82,16 @@ public:
      */
     size_t size() const { return m_cache.size(); }
 
-    SDL_GPUTexture*
-        getOrUpload(const std::string& text, const Eigen::Vector4f& color, uint32_t& outWidth, uint32_t& outHeight)
+    SDL_GPUTexture* getOrUpload(const std::string& text,
+                                const Eigen::Vector4f& color,
+                                uint32_t& outWidth,
+                                uint32_t& outHeight,
+                                float fontSize = 0.0F)
     {
         SDL_GPUDevice* device = m_deviceManager.getDevice();
         if (device == nullptr || !m_fontManager.isLoaded()) return nullptr;
 
-        std::string cacheKey = buildCacheKey(text, color);
+        std::string cacheKey = buildCacheKey(text, color, fontSize);
 
         // 尝试从缓存获取
         if (SDL_GPUTexture* cachedTexture = tryGetFromCache(cacheKey, outWidth, outHeight))
@@ -97,7 +100,7 @@ public:
         }
 
         // 缓存未命中，创建新纹理
-        return createAndCacheTexture(text, color, cacheKey, outWidth, outHeight);
+        return createAndCacheTexture(text, color, cacheKey, outWidth, outHeight, fontSize);
     }
 
 private:
@@ -118,10 +121,10 @@ private:
     /**
      * @brief 构建缓存键
      */
-    std::string buildCacheKey(const std::string& text, const Eigen::Vector4f& color) const
+    std::string buildCacheKey(const std::string& text, const Eigen::Vector4f& color, float fontSize) const
     {
         return text + "_" + std::to_string(color.x()) + "_" + std::to_string(color.y()) + "_" +
-               std::to_string(color.z()) + "_" + std::to_string(color.w());
+               std::to_string(color.z()) + "_" + std::to_string(color.w()) + "_" + std::to_string(fontSize);
     }
 
     /**
@@ -151,7 +154,8 @@ private:
                                           const Eigen::Vector4f& color,
                                           const std::string& cacheKey,
                                           uint32_t& outWidth,
-                                          uint32_t& outHeight)
+                                          uint32_t& outHeight,
+                                          float fontSize)
     {
         SDL_GPUDevice* device = m_deviceManager.getDevice();
 
@@ -164,7 +168,7 @@ private:
             evictLRU();
         }
 
-        // 渲染文本位图
+        // 渲染文本位图（传入 fontSize）
         int bitmapWidth = 0;
         int bitmapHeight = 0;
         std::vector<uint8_t> bitmap = m_fontManager.renderTextBitmap(text,
@@ -173,7 +177,8 @@ private:
                                                                      static_cast<uint8_t>(color.z() * 255),
                                                                      static_cast<uint8_t>(color.w() * 255),
                                                                      bitmapWidth,
-                                                                     bitmapHeight);
+                                                                     bitmapHeight,
+                                                                     fontSize);
 
         if (bitmap.empty() || bitmapWidth == 0 || bitmapHeight == 0)
         {

@@ -262,7 +262,7 @@ private:
             if (batch.texture != nullptr)
             {
                 SDL_GPUTextureSamplerBinding texSamplerBinding = {};
-                texSamplerBinding.texture = batch.texture;
+                texSamplerBinding.texture = static_cast<SDL_GPUTexture*>(batch.texture);
                 texSamplerBinding.sampler = m_pipelineCache.getSampler();
                 SDL_BindGPUFragmentSamplers(renderPass, 0, &texSamplerBinding, 1);
             }

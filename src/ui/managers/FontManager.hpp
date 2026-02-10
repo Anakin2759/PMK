@@ -238,19 +238,32 @@ public:
     /**
      * @brief 渲染单个字形到灰度位图
      * @param codepoint Unicode 码点
+     * @param fontSize 字体大小（像素），0 表示使用默认大小
      * @return 字形信息
      */
-    GlyphInfo renderGlyph(int codepoint)
+    GlyphInfo renderGlyph(int codepoint, float fontSize = 0.0F)
     {
         GlyphInfo info;
 
         if (!m_ftFace) return info;
 
-        // 检查缓存
-        auto it = m_glyphCache.find(codepoint);
+        // 使用指定字体大小或默认大小
+        float targetSize = (fontSize > 0.0F) ? fontSize : m_fontSize;
+
+        // 检查缓存（包含字体大小）
+        uint64_t cacheKey = makeGlyphCacheKey(codepoint, targetSize);
+        auto it = m_glyphCache.find(cacheKey);
         if (it != m_glyphCache.end())
         {
             return it->second;
+        }
+
+        // 临时设置字体大小
+        bool needRestore = (std::abs(targetSize - m_fontSize) > 0.1F);
+        float oldSize = m_fontSize;
+        if (needRestore)
+        {
+            setPixelSize(targetSize);
         }
 
         // 加载字形
@@ -301,8 +314,14 @@ public:
             }
         }
 
+        // 恢复原字体大小
+        if (needRestore)
+        {
+            setPixelSize(oldSize);
+        }
+
         // 缓存字形
-        m_glyphCache[codepoint] = info;
+        m_glyphCache[cacheKey] = info;
 
         return info;
     }
@@ -322,10 +341,17 @@ public:
      * @param alpha A 通道 (0-255)
      * @param outWidth 输出位图宽度
      * @param outHeight 输出位图高度
+     * @param fontSize 字体大小（像素），0 表示使用默认大小
      * @return RGBA 位图数据
      */
-    std::vector<uint8_t> renderTextBitmap(
-        const std::string& text, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, int& outWidth, int& outHeight)
+    std::vector<uint8_t> renderTextBitmap(const std::string& text,
+                                          uint8_t red,
+                                          uint8_t green,
+                                          uint8_t blue,
+                                          uint8_t alpha,
+                                          int& outWidth,
+                                          int& outHeight,
+                                          float fontSize = 0.0F)
     {
         std::vector<uint8_t> result;
 
@@ -333,6 +359,15 @@ public:
         {
             outWidth = outHeight = 0;
             return result;
+        }
+
+        // 使用指定字体大小或默认大小
+        float targetSize = (fontSize > 0.0F) ? fontSize : m_fontSize;
+        bool needRestore = (std::abs(targetSize - m_fontSize) > 0.1F);
+        float oldSize = m_fontSize;
+        if (needRestore)
+        {
+            setPixelSize(targetSize);
         }
 
         // 布局所有字形
@@ -352,7 +387,7 @@ public:
             size_t charLen = decodeUTF8(view.substr(bytePos), codepoint);
             if (charLen == 0) break;
 
-            GlyphInfo glyph = renderGlyph(codepoint);
+            GlyphInfo glyph = renderGlyph(codepoint, targetSize);
             layouts.push_back({glyph, cursorX});
             cursorX += glyph.advanceX;
             bytePos += charLen;
@@ -360,6 +395,7 @@ public:
 
         if (layouts.empty())
         {
+            if (needRestore) setPixelSize(oldSize);
             outWidth = outHeight = 0;
             return result;
         }
@@ -406,6 +442,12 @@ public:
                     result[pixelIndex + 3] = std::max(result[pixelIndex + 3], newAlpha);
                 }
             }
+        }
+
+        // 恢复原字体大小
+        if (needRestore)
+        {
+            setPixelSize(oldSize);
         }
 
         return result;
@@ -470,6 +512,29 @@ public:
     }
 
 private:
+    /**
+     * @brief 设置字体像素大小
+     */
+    void setPixelSize(float size)
+    {
+        if (!m_ftFace || size <= 0.0F) return;
+        FT_Error error = FT_Set_Pixel_Sizes(m_ftFace, 0, static_cast<FT_UInt>(size));
+        if (error == 0)
+        {
+            m_fontSize = size;
+        }
+    }
+
+    /**
+     * @brief 生成字形缓存键（包含字体大小）
+     */
+    static uint64_t makeGlyphCacheKey(int codepoint, float fontSize)
+    {
+        // 将字体大小转换为整数（精度 0.1px）
+        uint32_t sizeKey = static_cast<uint32_t>(fontSize * 10.0F);
+        return (static_cast<uint64_t>(sizeKey) << 32) | static_cast<uint32_t>(codepoint);
+    }
+
     bool m_loaded = false;
     float m_fontSize = 16.0F;
 
@@ -478,8 +543,8 @@ private:
     FT_Library m_ftLibrary = nullptr;
     FT_Face m_ftFace = nullptr;
 
-    // 字形缓存
-    std::unordered_map<int, GlyphInfo> m_glyphCache;
+    // 字形缓存（key = (fontSize << 32) | codepoint）
+    std::unordered_map<uint64_t, GlyphInfo> m_glyphCache;
 };
 
 } // namespace ui::managers
