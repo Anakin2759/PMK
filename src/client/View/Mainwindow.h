@@ -58,7 +58,7 @@ inline void CreateMainWindow() // NOLINT
     // 发送按钮 - 固定宽度 (使用回车图标)
     auto sendBtn = ui::factory::CreateButton("", "sendBtn");
 
-    sendBtn | Icon("MaterialSymbols", 0xe31b, ui::policies::IconFlag::Default, 20.0f, 0.0f) |
+    sendBtn | Icon("MaterialSymbols", 0xe31b, ui::policies::IconFlag::Default, 20.0F, 0.0F) |
         SizePolicy(ui::policies::Size::HFixed | ui::policies::Size::VFill) | Size(40.0F, 0.0F) |
         BackgroundColor({0.2F, 0.5F, 0.8F, 1.0F}) | BorderRadius(4.0F) | BorderColor({0.3F, 0.6F, 1.0F, 1.0F}) |
         BorderThickness(1.0F) |

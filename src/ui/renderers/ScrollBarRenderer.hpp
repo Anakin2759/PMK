@@ -89,40 +89,62 @@ private:
             // 确保滑块位置不超出轨道
             thumbPos = std::clamp(thumbPos, 0.0F, trackHeight - thumbSize);
 
-            // 先绘制轨道背景（可选，增强可见性）
-            float barWidth = 10.0F; // 加宽到 10px，更容易看见和操作
+            // 滚动条样式参数
+            float barWidth = 10.0F;
             float trackWidth = 12.0F;
-            Eigen::Vector2f trackPos(pos.x() + size.x() - trackWidth - 2.0F, pos.y());
+            float trackPadding = 2.0F;
+
+            // 轨道位置和大小
+            Eigen::Vector2f trackPos(pos.x() + size.x() - trackWidth - trackPadding, pos.y());
             Eigen::Vector2f trackSize(trackWidth, size.y());
 
+            // 根据交互状态调整轨道颜色
+            Eigen::Vector4f trackColor = {0.2F, 0.2F, 0.2F, 0.3F}; // 默认半透明深色
+            if (scrollArea.trackHovered || scrollArea.scrollbarHovered || scrollArea.scrollbarPressed)
+            {
+                trackColor = {0.25F, 0.25F, 0.25F, 0.5F}; // 悬停时更明显
+            }
+
+            // 绘制轨道背景
             render::UiPushConstants trackPushConstants{};
             trackPushConstants.screen_size[0] = context.screenWidth;
             trackPushConstants.screen_size[1] = context.screenHeight;
             trackPushConstants.rect_size[0] = trackSize.x();
             trackPushConstants.rect_size[1] = trackSize.y();
-            trackPushConstants.radius[0] = 0.0F;
-            trackPushConstants.radius[1] = 0.0F;
-            trackPushConstants.radius[2] = 0.0F;
-            trackPushConstants.radius[3] = 0.0F;
+            trackPushConstants.radius[0] = 6.0F; // 圆角轨道
+            trackPushConstants.radius[1] = 6.0F;
+            trackPushConstants.radius[2] = 6.0F;
+            trackPushConstants.radius[3] = 6.0F;
             trackPushConstants.opacity = alpha;
             trackPushConstants.shadow_soft = 0.0F;
             trackPushConstants.shadow_offset_x = 0.0F;
             trackPushConstants.shadow_offset_y = 0.0F;
 
-            // 绘制半透明的深色轨道背景
             context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, trackPushConstants);
-            context.batchManager->addRect(trackPos, trackSize, {0.2F, 0.2F, 0.2F, 0.5F});
+            context.batchManager->addRect(trackPos, trackSize, trackColor);
+
+            // 滑块位置和大小
+            Eigen::Vector2f barPos(pos.x() + size.x() - barWidth - trackPadding - 1.0F, pos.y() + thumbPos + 2.0F);
+            Eigen::Vector2f barSize(barWidth, thumbSize - 4.0F); // 稍微小一点，留出间隙
+
+            // 根据交互状态调整滑块颜色
+            Eigen::Vector4f thumbColor = {0.6F, 0.6F, 0.6F, 0.7F}; // 默认中灰色
+            if (scrollArea.scrollbarPressed)
+            {
+                thumbColor = {0.5F, 0.5F, 0.5F, 0.95F}; // 按下时更暗更不透明
+            }
+            else if (scrollArea.scrollbarHovered)
+            {
+                thumbColor = {0.7F, 0.7F, 0.7F, 0.85F}; // 悬停时更亮
+            }
 
             // 绘制滑块
-            Eigen::Vector2f barPos(pos.x() + size.x() - barWidth - 3.0F, pos.y() + thumbPos);
-            Eigen::Vector2f barSize(barWidth, thumbSize);
-
             render::UiPushConstants pushConstants{};
             pushConstants.screen_size[0] = context.screenWidth;
             pushConstants.screen_size[1] = context.screenHeight;
             pushConstants.rect_size[0] = barSize.x();
             pushConstants.rect_size[1] = barSize.y();
-            pushConstants.radius[0] = 5.0F; // 增大圆角
+            pushConstants.radius[0] = 5.0F;
             pushConstants.radius[1] = 5.0F;
             pushConstants.radius[2] = 5.0F;
             pushConstants.radius[3] = 5.0F;
@@ -132,8 +154,7 @@ private:
             pushConstants.shadow_offset_y = 0.0F;
 
             context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConstants);
-            // 使用更明亮且不透明的灰色，确保可见性
-            context.batchManager->addRect(barPos, barSize, {0.7F, 0.7F, 0.7F, 0.9F});
+            context.batchManager->addRect(barPos, barSize, thumbColor);
         }
     }
 };

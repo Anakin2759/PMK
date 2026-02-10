@@ -49,6 +49,14 @@ namespace ui::systems
 class StateSystem : public ui::interface::EnableRegister<StateSystem>
 {
 public:
+    // 滚动条命中类型
+    enum class ScrollbarHitType : std::uint8_t
+    {
+        NONE,  // 未命中
+        THUMB, // 命中滑块
+        TRACK  // 命中轨道
+    };
+
     void registerHandlersImpl()
     {
         // 窗口事件
@@ -195,6 +203,9 @@ public:
             handleScrollbarDrag(event, state);
             return;
         }
+
+        // 更新滚动条悬停状态
+        updateScrollbarHoverStates(event);
 
         handleHoverUpdate(event, state);
     }
@@ -654,6 +665,97 @@ public:
     }
 
 private:
+    /**
+     * @brief 更新所有可见 ScrollArea 的滚动条悬停状态
+     */
+    void updateScrollbarHoverStates(const events::HitPointerMove& event)
+    {
+        auto& state = Registry::ctx().get<globalcontext::StateContext>();
+        auto view = Registry::View<components::ScrollArea, components::Size, components::VisibleTag>();
+
+        for (auto entity : view)
+        {
+            auto& scrollArea = view.get<components::ScrollArea>(entity);
+
+            // 记录旧的悬停状态（用于后面判断是否需要重绘）
+            const bool wasHovered = scrollArea.scrollbarHovered || scrollArea.trackHovered;
+
+            // 如果正在拖拽此滚动条，跳过悬停状态更新（保持按下状态）
+            if (state.isDraggingScrollbar && state.dragScrollEntity == entity)
+            {
+                continue;
+            }
+
+            // 重置状态
+            scrollArea.scrollbarHovered = false;
+            scrollArea.trackHovered = false;
+
+            // 检查是否应该显示滚动条
+            if (policies::HasFlag(scrollArea.scrollBar, policies::ScrollBar::NoVisibility))
+            {
+                continue;
+            }
+
+            const auto& sizeComp = view.get<components::Size>(entity);
+            Vec2 pos = HitTestSystem::getAbsolutePosition(entity);
+            Vec2 size = sizeComp.size;
+
+            float viewportHeight = size.y();
+            if (const auto* padding = Registry::TryGet<components::Padding>(entity))
+            {
+                viewportHeight = std::max(0.0F, size.y() - padding->values.x() - padding->values.z());
+            }
+
+            bool hasVerticalScroll =
+                (scrollArea.scroll == policies::Scroll::Vertical || scrollArea.scroll == policies::Scroll::Both);
+
+            if (!hasVerticalScroll || scrollArea.contentSize.y() <= viewportHeight)
+            {
+                continue;
+            }
+
+            // 计算滚动条几何信息
+            float trackHeight = size.y();
+            float visibleRatio = viewportHeight / scrollArea.contentSize.y();
+            float thumbSize = std::max(20.0F, trackHeight * visibleRatio);
+            float maxScroll = std::max(0.0F, scrollArea.contentSize.y() - viewportHeight);
+            float scrollRatio =
+                maxScroll > 0.0F ? std::clamp(scrollArea.scrollOffset.y() / maxScroll, 0.0F, 1.0F) : 0.0F;
+            float thumbPos = (trackHeight - thumbSize) * scrollRatio;
+            thumbPos = std::clamp(thumbPos, 0.0F, trackHeight - thumbSize);
+
+            float trackWidth = 12.0F;
+            float trackPadding = 2.0F;
+            float barWidth = 10.0F;
+
+            // 检查轨道悬停
+            float trackX = pos.x() + size.x() - trackWidth - trackPadding;
+            float trackY = pos.y();
+            if (event.raw.position.x() >= trackX && event.raw.position.x() <= trackX + trackWidth &&
+                event.raw.position.y() >= trackY && event.raw.position.y() <= trackY + trackHeight)
+            {
+                scrollArea.trackHovered = true;
+
+                // 检查滑块悬停
+                float barX = pos.x() + size.x() - barWidth - trackPadding - 1.0F;
+                float barY = pos.y() + thumbPos + 2.0F;
+                float barH = thumbSize - 4.0F;
+
+                if (event.raw.position.x() >= barX && event.raw.position.x() <= barX + barWidth &&
+                    event.raw.position.y() >= barY && event.raw.position.y() <= barY + barH)
+                {
+                    scrollArea.scrollbarHovered = true;
+                }
+            }
+
+            // 如果状态改变，标记需要重绘
+            if (wasHovered != (scrollArea.scrollbarHovered || scrollArea.trackHovered))
+            {
+                ui::utils::MarkRenderDirty(entity);
+            }
+        }
+    }
+
     void handleScrollbarDrag(const events::HitPointerMove& event, globalcontext::StateContext& state)
     {
         float deltaPix = state.isVerticalDrag ? (event.raw.position.y() - state.dragStartMousePos.y())
@@ -685,6 +787,7 @@ private:
             currentOffset = std::clamp(startOffset + offsetDelta, 0.0F, maxScroll);
 
             Registry::EmplaceOrReplace<components::LayoutDirtyTag>(state.dragScrollEntity);
+            ui::utils::MarkRenderDirty(state.dragScrollEntity);
         }
     }
 
@@ -714,15 +817,19 @@ private:
     {
         entt::entity scrollEntity = entt::null;
         bool isVertical = true;
+        bool clickedOnThumb = false;
         entt::entity current = event.hitEntity;
 
+        // 向上遍历层级查找 ScrollArea
         while (current != entt::null && Registry::Valid(current))
         {
             if (Registry::AnyOf<components::ScrollArea>(current))
             {
-                if (checkScrollbarHit(current, event.raw.position, isVertical))
+                auto hitType = checkScrollbarHit(current, event.raw.position, isVertical);
+                if (hitType != ScrollbarHitType::NONE)
                 {
                     scrollEntity = current;
+                    clickedOnThumb = (hitType == ScrollbarHitType::THUMB);
                     break;
                 }
             }
@@ -732,16 +839,27 @@ private:
 
         if (scrollEntity != entt::null)
         {
-            state.isDraggingScrollbar = true;
-            state.dragScrollEntity = scrollEntity;
-            state.dragStartMousePos = event.raw.position;
-            state.isVerticalDrag = isVertical;
-
             auto& scroll = Registry::Get<components::ScrollArea>(scrollEntity);
-            state.dragStartScrollOffset = scroll.scrollOffset;
 
-            calculateScrollbarGeometry(scrollEntity, isVertical, state.dragTrackLength, state.dragThumbSize);
+            if (clickedOnThumb)
+            {
+                // 点击滑块 - 开始拖拽
+                scroll.scrollbarPressed = true;
+                state.isDraggingScrollbar = true;
+                state.dragScrollEntity = scrollEntity;
+                state.dragStartMousePos = event.raw.position;
+                state.isVerticalDrag = isVertical;
+                state.dragStartScrollOffset = scroll.scrollOffset;
 
+                calculateScrollbarGeometry(scrollEntity, isVertical, state.dragTrackLength, state.dragThumbSize);
+            }
+            else
+            {
+                // 点击轨道 - 跳转到点击位置
+                handleTrackClick(scrollEntity, event.raw.position, isVertical);
+            }
+
+            ui::utils::MarkRenderDirty(scrollEntity);
             return true;
         }
         return false;
@@ -781,9 +899,16 @@ private:
         // 先保存当前激活实体，点击逻辑需要在释放清理之前完成
         const entt::entity releasedEntity = state.activeEntity;
 
-        // 如果正在拖拽滚动条，停止拖拽
+        // 如果正在拖拽滚动条，停止拖拽并清除按下状态
         if (state.isDraggingScrollbar)
         {
+            if (Registry::Valid(state.dragScrollEntity))
+            {
+                auto& scrollArea = Registry::Get<components::ScrollArea>(state.dragScrollEntity);
+                scrollArea.scrollbarPressed = false;
+                ui::utils::MarkRenderDirty(state.dragScrollEntity);
+            }
+
             state.isDraggingScrollbar = false;
             state.dragScrollEntity = entt::null;
             // 不 return，允许释放 activeEntity（如果有）
@@ -835,19 +960,23 @@ private:
     }
 
     /**
-     * @brief 检查点是否在滚动条滑块内（简化版，逻辑需与 ScrollBarRenderer 保持一致）
+     * @brief 检查点是否在滚动条内，并返回命中类型
+     * @param entity 实体
+     * @param mousePos 鼠标位置
+     * @param outIsVertical 输出是否为垂直滚动条
+     * @return ScrollbarHitType 命中类型（None/Thumb/Track）
      */
-    bool checkScrollbarHit(entt::entity entity, const Vec2& mousePos, bool& outIsVertical)
+    ScrollbarHitType checkScrollbarHit(entt::entity entity, const Vec2& mousePos, bool& outIsVertical)
     {
         const auto* scrollArea = Registry::TryGet<components::ScrollArea>(entity);
         if (scrollArea == nullptr || policies::HasFlag(scrollArea->scrollBar, policies::ScrollBar::NoVisibility))
         {
-            return false;
+            return ScrollbarHitType::NONE;
         }
-        if (!policies::HasFlag(scrollArea->scrollBar, policies::ScrollBar::Draggable)) return false;
+        if (!policies::HasFlag(scrollArea->scrollBar, policies::ScrollBar::Draggable)) return ScrollbarHitType::NONE;
 
         const auto* sizeComp = Registry::TryGet<components::Size>(entity);
-        if (sizeComp == nullptr) return false;
+        if (sizeComp == nullptr) return ScrollbarHitType::NONE;
 
         Vec2 pos = HitTestSystem::getAbsolutePosition(entity);
         Vec2 size = sizeComp->size;
@@ -861,6 +990,8 @@ private:
         }
 
         float trackWidth = 12.0F;
+        float trackPadding = 2.0F;
+        float barWidth = 10.0F;
 
         // 检查垂直滚动条
         bool hasVertical =
@@ -876,24 +1007,34 @@ private:
             float thumbPos = (trackHeight - thumbSize) * scrollRatio;
             thumbPos = std::clamp(thumbPos, 0.0F, trackHeight - thumbSize);
 
-            // 检查滑块区域（稍微放宽点击判定区域到整个轨道宽度）
-            float rectX = pos.x() + size.x() - trackWidth;
-            float rectY = pos.y() + thumbPos;
-            float rectW = trackWidth;
-            float rectH = thumbSize;
+            // 先检查轨道区域
+            float trackX = pos.x() + size.x() - trackWidth - trackPadding;
+            float trackY = pos.y();
 
-            if (mousePos.x() >= rectX && mousePos.x() <= rectX + rectW && mousePos.y() >= rectY &&
-                mousePos.y() <= rectY + rectH)
+            if (mousePos.x() >= trackX && mousePos.x() <= trackX + trackWidth && mousePos.y() >= trackY &&
+                mousePos.y() <= trackY + trackHeight)
             {
                 outIsVertical = true;
-                return true;
+
+                // 再检查是否命中滑块
+                float barX = pos.x() + size.x() - barWidth - trackPadding - 1.0F;
+                float barY = pos.y() + thumbPos + 2.0F;
+                float barH = thumbSize - 4.0F;
+
+                if (mousePos.x() >= barX && mousePos.x() <= barX + barWidth && mousePos.y() >= barY &&
+                    mousePos.y() <= barY + barH)
+                {
+                    return ScrollbarHitType::THUMB;
+                }
+
+                // 命中轨道但不是滑块
+                return ScrollbarHitType::TRACK;
             }
         }
 
-        // 检查水平滚动条 (如果需要支持水平滚动条，在此添加逻辑)
-        // 目前 ScrollBarRenderer 似乎只实现了简单垂直滚动条逻辑，StateSystem 暂且同步
+        // TODO: 水平滚动条支持可在此添加
 
-        return false;
+        return ScrollbarHitType::NONE;
     }
 
     void calculateScrollbarGeometry(entt::entity entity, bool isVertical, float& outTrackLen, float& outThumbSize)
@@ -913,6 +1054,56 @@ private:
         outTrackLen = isVertical ? sizeComp.size.y() : sizeComp.size.x();
         float visibleRatio = std::max(0.001F, viewportSize / std::max(1.0F, contentSize));
         outThumbSize = std::max(20.0F, outTrackLen * visibleRatio);
+    }
+
+    /**
+     * @brief 处理点击轨道跳转
+     * @param entity 滚动区域实体
+     * @param mousePos 鼠标位置
+     * @param isVertical 是否为垂直滚动条
+     */
+    void handleTrackClick(entt::entity entity, const Vec2& mousePos, bool isVertical)
+    {
+        auto& scrollArea = Registry::Get<components::ScrollArea>(entity);
+        const auto& sizeComp = Registry::Get<components::Size>(entity);
+
+        Vec2 pos = HitTestSystem::getAbsolutePosition(entity);
+        Vec2 size = sizeComp.size;
+
+        float viewportSize = isVertical ? size.y() : size.x();
+        if (const auto* padding = Registry::TryGet<components::Padding>(entity))
+        {
+            viewportSize -=
+                isVertical ? (padding->values.x() + padding->values.z()) : (padding->values.w() + padding->values.y());
+        }
+
+        float contentSize = isVertical ? scrollArea.contentSize.y() : scrollArea.contentSize.x();
+        float maxScroll = std::max(0.0F, contentSize - viewportSize);
+
+        if (maxScroll <= 0.0F) return;
+
+        // 计算点击位置相对于轨道的比例
+        float trackLen = isVertical ? size.y() : size.x();
+        float clickPos = isVertical ? (mousePos.y() - pos.y()) : (mousePos.x() - pos.x());
+
+        // 设置滚动位置（点击位置对应滑块中心）
+        float& scrollOffset = isVertical ? scrollArea.scrollOffset.y() : scrollArea.scrollOffset.x();
+
+        // 计算滑块大小
+        float visibleRatio = viewportSize / contentSize;
+        float thumbSize = std::max(20.0F, trackLen * visibleRatio);
+
+        // 将点击位置映射到内容位置（考虑滑块会占用一定空间）
+        float scrollableTrack = trackLen - thumbSize;
+        float targetThumbPos = clickPos - (thumbSize * 0.5F); // 使滑块中心对齐点击位置
+        targetThumbPos = std::clamp(targetThumbPos, 0.0F, scrollableTrack);
+
+        float targetRatio = scrollableTrack > 0.0F ? (targetThumbPos / scrollableTrack) : 0.0F;
+        scrollOffset = targetRatio * maxScroll;
+        scrollOffset = std::clamp(scrollOffset, 0.0F, maxScroll);
+
+        Registry::EmplaceOrReplace<components::LayoutDirtyTag>(entity);
+        ui::utils::MarkRenderDirty(entity);
     }
 
     // ===================================================================

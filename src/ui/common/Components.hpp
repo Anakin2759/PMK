@@ -189,7 +189,11 @@ struct ScrollArea
     policies::Scroll scroll = policies::Scroll::Vertical; // 滚动方向
     policies::ScrollBar scrollBar = policies::ScrollBar::Draggable;
     policies::ScrollAnchor anchor = policies::ScrollAnchor::Top; // 滚动锚定策略
-    //
+
+    // 滚动条交互状态
+    bool scrollbarHovered{false}; // 滚动条滑块是否悬停
+    bool scrollbarPressed{false}; // 滚动条滑块是否按下
+    bool trackHovered{false};     // 滚动条轨道是否悬停
 };
 
 // ===================== 布局组件 =====================

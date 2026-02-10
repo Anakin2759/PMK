@@ -59,7 +59,7 @@ public:
         if (Registry::AnyOf<components::TextTag, components::ButtonTag, components::LabelTag>(entity))
         {
             const auto* textComp = Registry::TryGet<components::Text>(entity);
-            if (textComp && !textComp->content.empty())
+            if (textComp != nullptr && !textComp->content.empty())
             {
                 renderText(entity, *textComp, context);
             }
