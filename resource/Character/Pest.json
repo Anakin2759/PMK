@@ -1,0 +1,10 @@
+{
+    "name": "Pest",
+    "type": "Character",
+    "attributes": {
+        "strength": 8,
+        "agility": 7,
+        "intelligence": 6
+    }
+    
+}

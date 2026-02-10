@@ -1,0 +1,72 @@
+# 编译生成的文件
+*.o
+*.obj
+*.exe
+*.so
+*.dylib
+*.a
+*.lib
+
+# 构建目录
+build/
+out/
+dist/
+bin/
+Release/
+x64/
+x86/
+
+# CMake 生成的文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+.cache/
+
+# IDE 和编辑器文件
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+.VSCodeCounter/
+
+# 操作系统生成的文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+*.bak
+
+# 包管理器
+node_modules/
+npm-debug.log*
+
+# 密钥和证书文件
+*.pem
+*.key
+*.p12
+*.pfx
+
+# 压缩文件（通常不需要版本控制）
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# 自定义忽略
+# 添加您特定需要忽略的文件或目录
+others/

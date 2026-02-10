@@ -1,0 +1,129 @@
+---
+Checks: >
+  -*,
+  cert-*,
+  bugprone-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  hicpp-*,
+  misc-*,
+  concurrency-*,
+  -bugprone-easily-swappable-parameters,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -performance-avoid-endl,
+  -hicpp-avoid-c-arrays,
+  -hicpp-no-array-decay,
+  -hicpp-uppercase-literal-suffix,
+  -hicpp-braces-around-statements,
+  -fuchsia-default-arguments-calls,
+  -fuchsia-header-anon-namespaces,
+  -fuchsia-multiple-inheritance,
+  -misc-non-private-member-variables-in-classes,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -readability-convert-member-functions-to-static
+CheckOptions:
+  # === Naming Conventions ===
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  - key: readability-identifier-naming.MethodCase
+    value: camelBack
+
+
+  - key: readability-identifier-naming.VariableCase
+    value: camelBack
+  - key: readability-identifier-naming.ParameterCase
+    value: camelBack
+  - key: readability-identifier-naming.ParameterIgnoredRegexp
+    value: '^pro_.*'
+  - key: readability-identifier-naming.MemberCase
+    value: camelBack
+  - key: readability-identifier-naming.MemberIgnoredRegexp
+    value: '^pro_.*'
+  - key: readability-identifier-naming.PrivateMemberPrefix
+    value: m_
+  # const 变量使用普通命名 (camelBack)
+  - key: readability-identifier-naming.ConstantCase
+    value: camelBack
+  # constexpr 变量使用全大写
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.StaticConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.StaticConstexprCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.ClassIgnoredRegexp
+    value: '^(type|impl|tag|proxy|base)$'
+
+  # === Modern C++ ===
+  - key: modernize-use-nullptr.NullMacros
+    value: NULL
+  - key: modernize-use-auto.MinTypeNameLength
+    value: '5'
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+
+  # === Performance ===
+  - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: 'true'
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'entt::entity;entt::registry'
+
+  # === Readability ===
+  - key: readability-function-size.LineThreshold
+    value: '100'
+  - key: readability-function-size.StatementThreshold
+    value: '80'
+  - key: readability-function-size.BranchThreshold
+    value: '15'
+  - key: readability-function-size.ParameterThreshold
+    value: '8'
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: '1'
+
+  # === Special Member Functions (for RAII types) ===
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: 'true'
+  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
+    value: 'true'
+
+  # === Include Cleaner ===
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: mimalloc-new-delete.h
+
+# Only check project headers
+HeaderFilterRegex: '^(?!.*(third_party|external|vendor))(?!.*[\\/](third_party|external|vendor)).*'
+
+# Enable warnings as errors in CI
+# WarningsAsErrors: '*'
+
+# Don't show warnings from system headers
+SystemHeaders: false
+
+# Don't inherit .clang-tidy from parent folders
+InheritParentConfig: false
+
+# Compiler args for correct parsing
+ExtraArgs:
+  - -std=c++23
+  - -DASIO_STANDALONE
+  - -DUNICODE
+  - -D_UNICODE
+  - -Wno-unknown-pragmas
+  - -fexceptions          

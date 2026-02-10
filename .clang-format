@@ -1,0 +1,115 @@
+---
+# 基于微软 C++ 编码风格的 clang-format 配置
+# Microsoft C++ coding conventions
+
+# 基础语言和标准
+Language: Cpp
+Standard: Latest
+
+
+# 缩进配置
+IndentWidth: 4                          # 缩进宽度 4 个空格
+TabWidth: 4                             # Tab 宽度
+UseTab: Never                           # 不使用 Tab，使用空格
+IndentCaseLabels: true                  # case 标签缩进
+IndentPPDirectives: None                # 预处理指令不缩进
+IndentWrappedFunctionNames: true      # 包装的函数名缩进
+
+# 大括号风格（微软风格）
+BreakBeforeBraces: Allman               # Allman 风格大括号（微软常用）
+
+
+# 列宽和换行
+ColumnLimit: 120                        # 行长度限制
+BreakBeforeBinaryOperators: None        # 二元运算符不换行
+BreakBeforeTernaryOperators: true       # 三元运算符前换行
+BreakConstructorInitializers: BeforeColon  # 构造函数初始化列表在冒号前换行
+BreakInheritanceList: BeforeColon       # 继承列表在冒号前换行
+
+# 函数和参数
+AllowShortFunctionsOnASingleLine: Inline   # 只允许内联函数在单行
+AllowShortIfStatementsOnASingleLine: WithoutElse # 不允许短 if 语句在单行
+AllowShortLoopsOnASingleLine: false     # 不允许短循环在单行
+AllowShortCaseLabelsOnASingleLine: false # 不允许短 case 标签在单行
+AllowShortBlocksOnASingleLine: Never    # 不允许短代码块在单行
+
+# 函数参数和调用
+AllowAllParametersOfDeclarationOnNextLine: true  # 允许所有参数在下一行
+BinPackParameters: false                # 不紧凑排列参数
+BinPackArguments: false                 # 不紧凑排列实参
+
+# 对齐方式
+AlignAfterOpenBracket: Align            # 开括号后对齐
+AlignConsecutiveAssignments: false      # 不对齐连续赋值
+AlignConsecutiveDeclarations: false     # 不对齐连续声明
+AlignOperands: true                     # 对齐操作数
+AlignTrailingComments: true             # 对齐尾随注释
+
+# 空格配置
+SpaceAfterCStyleCast: false             # C 风格转换后无空格
+SpaceAfterTemplateKeyword: true         # template 关键字后有空格
+SpaceBeforeAssignmentOperators: true    # 赋值运算符前有空格
+SpaceBeforeParens: ControlStatements    # 控制语句前有空格
+SpaceInEmptyParentheses: false          # 空括号内无空格
+SpacesInAngles: false                   # 尖括号内无空格
+SpacesInCStyleCastParentheses: false    # C 风格转换括号内无空格
+SpacesInParentheses: false              # 括号内无空格
+SpacesInSquareBrackets: false           # 方括号内无空格
+
+# 指针和引用对齐
+PointerAlignment: Left                  # 指针对齐到左侧 (int* ptr)
+ReferenceAlignment: Left                # 引用对齐到左侧 (int& ref)
+
+# 访问修饰符
+AccessModifierOffset: -4                # 访问修饰符向左偏移 4 个空格
+
+# 命名空间
+NamespaceIndentation: None              # 命名空间内容不缩进
+CompactNamespaces: false                # 不压缩命名空间
+
+# 空行
+KeepEmptyLinesAtTheStartOfBlocks: false # 不保留块开始的空行
+MaxEmptyLinesToKeep: 1                  # 最多保留 1 个空行
+
+# 排序
+SortIncludes: false                      # 排序 #include
+SortUsingDeclarations: true             # 排序 using 声明
+
+# 其他格式化选项
+AllowAllArgumentsOnNextLine: true       # 允许所有参数在下一行
+AllowAllConstructorInitializersOnNextLine: true  # 允许所有构造函数初始化器在下一行
+AlwaysBreakAfterReturnType: None        # 返回类型后不换行
+AlwaysBreakBeforeMultilineStrings: false # 多行字符串前不换行
+AlwaysBreakTemplateDeclarations: Yes    # 模板声明总是换行
+
+# 构造函数初始化器
+ConstructorInitializerAllOnOneLineOrOnePerLine: false  # 构造函数初始化器可以混合排列
+ConstructorInitializerIndentWidth: 4    # 构造函数初始化器缩进宽度
+
+# 继续行缩进
+ContinuationIndentWidth: 4              # 继续行缩进宽度
+
+# 包含排序
+IncludeBlocks: Preserve                 # 保留包含块的分组
+IncludeCategories:
+  - Regex: '^".*'                       # 项目头文件
+    Priority: 1
+  - Regex: '^<.*\.h>'                   # C 标准库头文件
+    Priority: 2
+  - Regex: '^<.*>'                      # C++ 标准库头文件
+    Priority: 3
+
+# 宏定义
+MacroBlockBegin: ''
+MacroBlockEnd: ''
+
+# 注释
+ReflowComments: true                    # 重新格式化注释
+
+# 原始字符串
+RawStringFormats:
+  - Language: Cpp
+    Delimiters:
+      - cc
+      - cpp
+    CanonicalDelimiter: cc

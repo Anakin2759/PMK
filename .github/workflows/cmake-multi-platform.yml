@@ -1,0 +1,30 @@
+name: CMake Windows Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # ================= CMake 配置 =================
+    - name: Configure CMake
+      shell: pwsh
+      run: cmake -B build -S . -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=Release
+
+    # ================= Build =================
+    - name: Build
+      shell: pwsh
+      run: cmake --build build --config Release
+
+    # # ================= Test =================
+    # - name: Test
+    #   shell: pwsh
+    #   working-directory: build
+    #   run: ctest --build-config Release

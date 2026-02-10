@@ -1,0 +1,17 @@
+If:
+  PathExclude: [third_party/.*]
+
+CompileFlags:
+  CompilationDatabase: build
+  Compiler: clang-cl
+  Add:
+    - "--std=c++23"
+    - "-Wno-unused-parameter"
+    - "-Wno-missing-field-initializers"
+
+Diagnostics:
+  Suppress:
+    - "unused-parameter"
+
+Index:
+  Background: Build
