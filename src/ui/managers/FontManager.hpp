@@ -4,11 +4,16 @@
  * @file FontManager.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-01-30
- * @version 0.1
- * @brief STB TrueType 字体管理器
+ * @version 0.2
+ * @brief 字体管理器（基于 FreeType2）
  *
- * 使用 stb_truetype 替代 SDL_ttf 进行字体渲染
-    - 默认加载 ui/assets/fonts/ 下的 TTF 字体文件
+ * 使用 FreeType2 进行高质量字形渲染，配合纹理图集缓存
+ * - 默认加载 ui/assets/fonts/ 下的字体文件
+ * - 支持 TTF, OTF, TTC 等多种字体格式
+ * - 字形位图采用抗锯齿灰度渲染
+ *
+ * 2026-02-10 更新说明：
+ *  从 stb_truetype 迁移到 FreeType2，支持更好的渲染质量和字体格式
  *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
@@ -18,44 +23,73 @@
 
 #pragma once
 
-#include <stb_truetype.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 #include <vector>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <memory>
 #include <cstdint>
 #include <cmath>
+#include "../singleton/Logger.hpp"
 
 namespace ui::managers
 {
 
 /**
- * @brief 字形信息结构
+ * @brief 字形信息结构（FreeType 版本）
  */
 struct GlyphInfo
 {
     int width = 0;               // 位图宽度
-    int height = 0;              // 位图宽高
-    int xOffset = 0;             // 水平偏移
-    int yOffset = 0;             // 垂直偏移
-    float advanceX = 0.0F;       // 水平前进量 (位图像素)
+    int height = 0;              // 位图高度
+    int bearingX = 0;            // 水平偏移（左侧基准）
+    int bearingY = 0;            // 垂直偏移（基线到字形顶部）
+    float advanceX = 0.0F;       // 水平前进量（像素）
     std::vector<uint8_t> bitmap; // 灰度位图数据
 };
 
 /**
- * @brief 字体管理器，封装 stb_truetype 功能
+ * @brief 字体管理器，封装 FreeType2 功能
  */
 class FontManager
 {
 public:
-    FontManager() = default;
-    ~FontManager() = default;
+    FontManager()
+    {
+        FT_Error error = FT_Init_FreeType(&m_ftLibrary);
+        if (error)
+        {
+            Logger::error("[FontManager] Failed to initialize FreeType: error {}", error);
+            m_ftLibrary = nullptr;
+        }
+        else
+        {
+            Logger::info("[FontManager] FreeType initialized successfully");
+        }
+    }
 
+    ~FontManager()
+    {
+        if (m_ftFace)
+        {
+            FT_Done_Face(m_ftFace);
+            m_ftFace = nullptr;
+        }
+        if (m_ftLibrary)
+        {
+            FT_Done_FreeType(m_ftLibrary);
+            m_ftLibrary = nullptr;
+        }
+    }
+
+    // 禁止拷贝和移动
     FontManager(const FontManager&) = delete;
     FontManager& operator=(const FontManager&) = delete;
-    FontManager(FontManager&&) noexcept = default;
-    FontManager& operator=(FontManager&&) = default;
+    FontManager(FontManager&&) = delete;
+    FontManager& operator=(FontManager&&) = delete;
 
     /**
      * @brief 从内存加载字体
@@ -64,56 +98,70 @@ public:
      * @param fontSize 字体大小（像素）
      * @return 加载成功返回 true
      */
-    bool loadFromMemory(const uint8_t* fontData, size_t dataSize, float fontSize, float oversampleScale = 1.0F)
+    bool loadFromMemory(const uint8_t* fontData, size_t dataSize, float fontSize)
     {
-        m_fontSize = fontSize;
-        m_oversampleScale = oversampleScale;
-
-        // 复制字体数据，因为 stbtt_fontinfo 需要持久的内存
-        m_fontData.resize(dataSize);
-        std::memcpy(m_fontData.data(), fontData, dataSize);
-
-        // 初始化字体
-        const int offset = stbtt_GetFontOffsetForIndex(m_fontData.data(), 0);
-        if (stbtt_InitFont(&m_fontInfo, m_fontData.data(), offset) == 0)
+        if (!m_ftLibrary)
         {
+            Logger::error("[FontManager] FreeType not initialized");
             return false;
         }
 
-        // 计算缩放因子
-        m_scale = stbtt_ScaleForPixelHeight(&m_fontInfo, fontSize * m_oversampleScale);
+        // 复制字体数据（FreeType 需要持久内存）
+        m_fontData.resize(dataSize);
+        std::memcpy(m_fontData.data(), fontData, dataSize);
 
-        // 获取字体度量
-        stbtt_GetFontVMetrics(&m_fontInfo, &m_ascent, &m_descent, &m_lineGap);
+        // 加载字体 Face
+        FT_Error error =
+            FT_New_Memory_Face(m_ftLibrary, m_fontData.data(), static_cast<FT_Long>(dataSize), 0, &m_ftFace);
+        if (error)
+        {
+            Logger::error("[FontManager] Failed to load font face: error {}", error);
+            return false;
+        }
 
+        // 设置像素大小
+        error = FT_Set_Pixel_Sizes(m_ftFace, 0, static_cast<FT_UInt>(fontSize));
+        if (error)
+        {
+            Logger::error("[FontManager] Failed to set pixel size: error {}", error);
+            FT_Done_Face(m_ftFace);
+            m_ftFace = nullptr;
+            return false;
+        }
+
+        m_fontSize = fontSize;
         m_loaded = true;
+
+        Logger::info("[FontManager] Font loaded: {} at {}px", m_ftFace->family_name, fontSize);
         return true;
     }
 
     /**
      * @brief 检查字体是否已加载
      */
-    [[nodiscard]] bool isLoaded() const { return m_loaded; }
-
-    [[nodiscard]] float getOversampleScale() const { return m_oversampleScale; }
+    [[nodiscard]] bool isLoaded() const { return m_loaded && m_ftFace != nullptr; }
 
     /**
-     * @brief 获取字体高度（行高）- 逻辑像素
+     * @brief 获取字体大小
+     */
+    [[nodiscard]] float getFontSize() const { return m_fontSize; }
+
+    /**
+     * @brief 获取字体高度（行高）- 像素
      */
     [[nodiscard]] int getFontHeight() const
     {
-        if (!m_loaded) return 0;
-        return static_cast<int>(
-            std::ceil((static_cast<float>(m_ascent - m_descent + m_lineGap) * m_scale) / m_oversampleScale));
+        if (!m_ftFace) return 0;
+        return static_cast<int>(m_ftFace->size->metrics.height >> 6);
     }
 
     /**
-     * @brief 获取基线位置 - 逻辑像素
+     * @brief 获取基线位置（ascender）- 像素
      */
     [[nodiscard]] int getBaseline() const
     {
-        if (!m_loaded) return 0;
-        return static_cast<int>(std::ceil((static_cast<float>(m_ascent) * m_scale) / m_oversampleScale));
+        if (!m_ftFace) return 0;
+        return static_cast<int>(m_ftFace->size->metrics.ascender >> 6);
     }
 
     /**
@@ -125,41 +173,52 @@ public:
      */
     int measureString(const char* text, size_t textLen, int maxWidth, size_t* outMeasuredLength)
     {
-        if (!m_loaded || text == nullptr || textLen == 0)
+        if (!m_ftFace || text == nullptr || textLen == 0)
         {
-            if (outMeasuredLength != nullptr) *outMeasuredLength = 0;
+            if (outMeasuredLength) *outMeasuredLength = 0;
             return 0;
         }
 
         float totalWidth = 0.0F;
         size_t bytePos = 0;
         std::string_view view(text, textLen);
+        FT_UInt prevGlyphIndex = 0;
+        bool useKerning = FT_HAS_KERNING(m_ftFace);
 
         while (bytePos < textLen)
         {
-            // 解码 UTF-8 字符
             int codepoint = 0;
             size_t charLen = decodeUTF8(view.substr(bytePos), codepoint);
             if (charLen == 0) break;
 
-            // 获取字形的水平度量
-            int advanceWidth = 0;
-            int leftSideBearing = 0;
-            stbtt_GetCodepointHMetrics(&m_fontInfo, codepoint, &advanceWidth, &leftSideBearing);
+            FT_UInt glyphIndex = FT_Get_Char_Index(m_ftFace, static_cast<FT_ULong>(codepoint));
 
-            // 逻辑宽度 (浮点数累加，避免每字符取整导致的误差累积)
-            float glyphWidth = (static_cast<float>(advanceWidth) * m_scale) / m_oversampleScale;
-
-            if (maxWidth > 0 && totalWidth + glyphWidth > static_cast<float>(maxWidth))
+            // 应用字距调整（kerning）
+            if (useKerning && prevGlyphIndex != 0 && glyphIndex != 0)
             {
-                break;
+                FT_Vector delta;
+                FT_Get_Kerning(m_ftFace, prevGlyphIndex, glyphIndex, FT_KERNING_DEFAULT, &delta);
+                totalWidth += static_cast<float>(delta.x >> 6);
             }
 
-            totalWidth += glyphWidth;
+            // 加载字形获取 advance
+            if (FT_Load_Glyph(m_ftFace, glyphIndex, FT_LOAD_DEFAULT) == 0)
+            {
+                float advance = static_cast<float>(m_ftFace->glyph->advance.x >> 6);
+
+                if (maxWidth > 0 && totalWidth + advance > static_cast<float>(maxWidth))
+                {
+                    break;
+                }
+
+                totalWidth += advance;
+            }
+
+            prevGlyphIndex = glyphIndex;
             bytePos += charLen;
         }
 
-        if (outMeasuredLength != nullptr)
+        if (outMeasuredLength)
         {
             *outMeasuredLength = bytePos;
         }
@@ -185,37 +244,61 @@ public:
     {
         GlyphInfo info;
 
-        if (!m_loaded) return info;
+        if (!m_ftFace) return info;
 
         // 检查缓存
-        auto iterator = m_glyphCache.find(codepoint);
-        if (iterator != m_glyphCache.end())
+        auto it = m_glyphCache.find(codepoint);
+        if (it != m_glyphCache.end())
         {
-            return iterator->second;
+            return it->second;
         }
 
-        // 渲染字形位图
-        int fx0{};
-        int fy0{};
-        int fx1{};
-        int fy1{};
-        stbtt_GetCodepointBitmapBox(&m_fontInfo, codepoint, m_scale, m_scale, &fx0, &fy0, &fx1, &fy1);
-
-        info.width = fx1 - fx0;
-        info.height = fy1 - fy0;
-        info.xOffset = fx0;
-        info.yOffset = fy0;
-
-        int advanceWidth = 0;
-        int leftSideBearing = 0;
-        stbtt_GetCodepointHMetrics(&m_fontInfo, codepoint, &advanceWidth, &leftSideBearing);
-        info.advanceX = static_cast<float>(advanceWidth) * m_scale;
-
-        if (info.width > 0 && info.height > 0)
+        // 加载字形
+        FT_UInt glyphIndex = FT_Get_Char_Index(m_ftFace, static_cast<FT_ULong>(codepoint));
+        FT_Error error = FT_Load_Glyph(m_ftFace, glyphIndex, FT_LOAD_DEFAULT);
+        if (error)
         {
-            info.bitmap.resize(static_cast<size_t>(info.width) * static_cast<size_t>(info.height));
-            stbtt_MakeCodepointBitmap(
-                &m_fontInfo, info.bitmap.data(), info.width, info.height, info.width, m_scale, m_scale, codepoint);
+            Logger::warn("[FontManager] Failed to load glyph for codepoint {}: error {}", codepoint, error);
+            return info;
+        }
+
+        // 渲染为灰度位图
+        error = FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL);
+        if (error)
+        {
+            Logger::warn("[FontManager] Failed to render glyph for codepoint {}: error {}", codepoint, error);
+            return info;
+        }
+
+        FT_GlyphSlot slot = m_ftFace->glyph;
+        FT_Bitmap& bitmap = slot->bitmap;
+
+        info.width = static_cast<int>(bitmap.width);
+        info.height = static_cast<int>(bitmap.rows);
+        info.bearingX = slot->bitmap_left;
+        info.bearingY = slot->bitmap_top;
+        info.advanceX = static_cast<float>(slot->advance.x >> 6);
+
+        // 复制位图数据
+        if (bitmap.buffer && bitmap.width > 0 && bitmap.rows > 0)
+        {
+            size_t dataSize = bitmap.width * bitmap.rows;
+            info.bitmap.resize(dataSize);
+
+            if (bitmap.pitch == static_cast<int>(bitmap.width))
+            {
+                // 连续内存，直接拷贝
+                std::memcpy(info.bitmap.data(), bitmap.buffer, dataSize);
+            }
+            else
+            {
+                // 不连续，逐行拷贝
+                for (unsigned int row = 0; row < bitmap.rows; ++row)
+                {
+                    std::memcpy(
+                        info.bitmap.data() + row * bitmap.width, bitmap.buffer + row * bitmap.pitch, bitmap.width);
+                }
+            }
         }
 
         // 缓存字形
@@ -225,9 +308,18 @@ public:
     }
 
     /**
-     * @brief 渲染整个文本到 RGBA 位图
+     * @brief 获取超采样缩放因子（FreeType 不需要超采样，始终返回 1.0）
+     * @note 保留此接口以兼容旧的渲染管线
+     */
+    [[nodiscard]] float getOversampleScale() const { return 1.0F; }
+
+    /**
+     * @brief 渲染整个文本到 RGBA 位图（兼容旧接口）
      * @param text UTF-8 文本
-     * @param color RGBA 颜色 (0-255)
+     * @param red R 通道 (0-255)
+     * @param green G 通道 (0-255)
+     * @param blue B 通道 (0-255)
+     * @param alpha A 通道 (0-255)
      * @param outWidth 输出位图宽度
      * @param outHeight 输出位图高度
      * @return RGBA 位图数据
@@ -243,43 +335,17 @@ public:
             return result;
         }
 
-        const auto layout = calculateTextLayout(text);
-        if (layout.glyphs.empty())
+        // 布局所有字形
+        struct GlyphLayout
         {
-            outWidth = outHeight = 0;
-            return result;
-        }
-
-        int finalBaselineY = 0;
-        computeBitmapDimensions(layout, outWidth, outHeight, finalBaselineY);
-
-        initializeBitmap(result, outWidth, outHeight, red, green, blue);
-        blendGlyphs(result, outWidth, outHeight, layout, finalBaselineY, alpha);
-
-        return result;
-    }
-
-private:
-    struct TextLayout
-    {
-        std::vector<GlyphInfo> glyphs;
-        std::vector<float> xPositions;
-        int minX = 0;
-        int maxX = 0;
-        int minY = 0;
-        int maxY = 0;
-        float finalCursorX = 0.0F;
-    };
-
-    TextLayout calculateTextLayout(const std::string& text)
-    {
-        TextLayout layout;
+            GlyphInfo glyph;
+            float xPos = 0.0F;
+        };
+        std::vector<GlyphLayout> layouts;
         float cursorX = 0.0F;
-        bool first = true;
 
         size_t bytePos = 0;
         std::string_view view(text);
-
         while (bytePos < text.size())
         {
             int codepoint = 0;
@@ -287,104 +353,71 @@ private:
             if (charLen == 0) break;
 
             GlyphInfo glyph = renderGlyph(codepoint);
-            layout.glyphs.push_back(glyph);
-            layout.xPositions.push_back(cursorX);
-
-            int gMinX = static_cast<int>(std::floor(cursorX)) + glyph.xOffset;
-            int gMaxX = gMinX + glyph.width;
-            int gMinY = glyph.yOffset;
-            int gMaxY = gMinY + glyph.height;
-
-            if (first)
-            {
-                layout.minX = gMinX;
-                layout.maxX = gMaxX;
-                layout.minY = gMinY;
-                layout.maxY = gMaxY;
-                first = false;
-            }
-            else
-            {
-                layout.minX = std::min(layout.minX, gMinX);
-                layout.maxX = std::max(layout.maxX, gMaxX);
-                layout.minY = std::min(layout.minY, gMinY);
-                layout.maxY = std::max(layout.maxY, gMaxY);
-            }
-
+            layouts.push_back({glyph, cursorX});
             cursorX += glyph.advanceX;
             bytePos += charLen;
         }
-        layout.finalCursorX = cursorX;
-        return layout;
-    }
 
-    void computeBitmapDimensions(const TextLayout& layout, int& outWidth, int& outHeight, int& outBaselineY) const
-    {
-        // 宽度：覆盖所有像素，并且至少包含逻辑宽度(cursorX)，始于0
-        outWidth = std::max(static_cast<int>(std::ceil(layout.finalCursorX)), layout.maxX);
-
-        // 高度：确保容纳所有像素，同时保持基线对其
-        int fontAscentPixels = static_cast<int>(std::ceil(static_cast<float>(m_ascent) * m_scale));
-        int fontHeight = static_cast<int>(std::ceil(static_cast<float>(m_ascent - m_descent + m_lineGap) * m_scale));
-
-        int baselineY = fontAscentPixels;
-        int topOverflow = (layout.minY + baselineY < 0) ? -(layout.minY + baselineY) : 0;
-        int bottomOverflow = (layout.maxY + baselineY > fontHeight) ? (layout.maxY + baselineY - fontHeight) : 0;
-
-        outHeight = fontHeight + topOverflow + bottomOverflow;
-        outBaselineY = baselineY + topOverflow;
-    }
-
-    void initializeBitmap(std::vector<uint8_t>& result, int width, int height, uint8_t r, uint8_t g, uint8_t b)
-    {
-        // 创建 RGBA 位图 (初始化为颜色值，Alpha 为 0)
-        // 使用直通 Alpha (Straight Alpha) 而非预乘 Alpha，以避免两次混合导致的变暗问题
-        // 同时填充 RGB 通道以避免 bilinear filtering 时的边缘黑边
-        result.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * 4);
-        for (int i = 0; i < width * height; ++i)
+        if (layouts.empty())
         {
-            result[(i * 4) + 0] = r;
-            result[(i * 4) + 1] = g;
-            result[(i * 4) + 2] = b;
-            result[(i * 4) + 3] = 0;
+            outWidth = outHeight = 0;
+            return result;
         }
-    }
 
-    void blendGlyphs(std::vector<uint8_t>& result,
-                     int outWidth,
-                     int outHeight,
-                     const TextLayout& layout,
-                     int finalBaselineY,
-                     uint8_t alpha)
-    {
-        for (size_t i = 0; i < layout.glyphs.size(); ++i)
+        int baseline = getBaseline();
+        int fontHeight = getFontHeight();
+        outWidth = static_cast<int>(std::ceil(cursorX));
+        outHeight = fontHeight;
+
+        if (outWidth <= 0 || outHeight <= 0)
         {
-            const GlyphInfo& glyph = layout.glyphs[i];
-            const int xPos = static_cast<int>(std::floor(layout.xPositions[i])) + glyph.xOffset;
-            const int yPos = finalBaselineY + glyph.yOffset;
+            outWidth = outHeight = 0;
+            return result;
+        }
 
-            for (int yOffset = 0; yOffset < glyph.height; ++yOffset)
+        // 创建 RGBA 位图
+        result.resize(static_cast<size_t>(outWidth) * static_cast<size_t>(outHeight) * 4);
+        for (int idx = 0; idx < outWidth * outHeight; ++idx)
+        {
+            result[(idx * 4) + 0] = red;
+            result[(idx * 4) + 1] = green;
+            result[(idx * 4) + 2] = blue;
+            result[(idx * 4) + 3] = 0;
+        }
+
+        // 混合字形
+        for (const auto& layout : layouts)
+        {
+            const auto& glyph = layout.glyph;
+            int xPos = static_cast<int>(std::floor(layout.xPos)) + glyph.bearingX;
+            int yPos = baseline - glyph.bearingY;
+
+            for (int yOff = 0; yOff < glyph.height; ++yOff)
             {
-                for (int xOffset = 0; xOffset < glyph.width; ++xOffset)
+                for (int xOff = 0; xOff < glyph.width; ++xOff)
                 {
-                    const int bitmapX = xPos + xOffset;
-                    const int bitmapY = yPos + yOffset;
+                    int bx = xPos + xOff;
+                    int by = yPos + yOff;
+                    if (bx < 0 || bx >= outWidth || by < 0 || by >= outHeight) continue;
 
-                    if (bitmapX < 0 || bitmapX >= outWidth || bitmapY < 0 || bitmapY >= outHeight) continue;
-
-                    const int pixelIndex = (bitmapY * outWidth + bitmapX) * 4;
-                    const uint8_t srcAlpha = glyph.bitmap[(yOffset * glyph.width) + xOffset];
-
-                    // 使用 MAX 混合 Alpha，防止重叠字符相互擦除
-                    const uint8_t curAlpha = result[pixelIndex + 3];
-                    const auto newAlpha = static_cast<uint8_t>(srcAlpha * alpha / 255);
-                    const uint8_t finalAlpha = std::max(curAlpha, newAlpha);
-
-                    // 仅更新 Alpha通道 (Straight Alpha)
-                    result[pixelIndex + 3] = finalAlpha;
+                    int pixelIndex = (by * outWidth + bx) * 4;
+                    uint8_t srcAlpha = glyph.bitmap[(yOff * glyph.width) + xOff];
+                    auto newAlpha = static_cast<uint8_t>(srcAlpha * alpha / 255);
+                    result[pixelIndex + 3] = std::max(result[pixelIndex + 3], newAlpha);
                 }
             }
         }
+
+        return result;
+    }
+
+    /**
+     * @brief 清空字形缓存
+     */
+    void clearCache()
+    {
+        m_glyphCache.clear();
+        Logger::info("[FontManager] Glyph cache cleared");
     }
 
     /**
@@ -436,17 +469,14 @@ private:
         return 0;
     }
 
+private:
     bool m_loaded = false;
     float m_fontSize = 16.0F;
-    float m_scale = 1.0F;
-    float m_oversampleScale = 1.0F;
 
     std::vector<uint8_t> m_fontData;
-    stbtt_fontinfo m_fontInfo = {};
 
-    int m_ascent = 0;
-    int m_descent = 0;
-    int m_lineGap = 0;
+    FT_Library m_ftLibrary = nullptr;
+    FT_Face m_ftFace = nullptr;
 
     // 字形缓存
     std::unordered_map<int, GlyphInfo> m_glyphCache;

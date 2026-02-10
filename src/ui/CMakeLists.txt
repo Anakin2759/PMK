@@ -137,6 +137,7 @@ target_link_libraries(ui PRIVATE
     ui_fonts
     ui_icons
     spdlog::spdlog_header_only
+    freetype
 )
 target_compile_features(ui PUBLIC cxx_std_23)
 
