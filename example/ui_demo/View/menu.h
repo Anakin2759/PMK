@@ -29,7 +29,7 @@ inline void CreateMenuDialog()
     // 创建菜单对话框
     auto menuDialog = ui::factory::CreateDialog("PestManKill Menu", "menuDialog");
 
-    menuDialog | Size(160.0F, 300.0F) | BackgroundColor({0.15F, 0.15F, 0.15F, 0.95F}) | BorderRadius(12.0F)
+    menuDialog | Size(200.0F, 300.0F) | BackgroundColor({0.15F, 0.15F, 0.15F, 0.95F}) | BorderRadius(12.0F)
         | LayoutDirection(ui::policies::LayoutDirection::VERTICAL) | Spacing(15.0F) | Padding(20.0F);
 
     // 创建标题标签

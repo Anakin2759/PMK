@@ -40,6 +40,13 @@ public:
     ui::interface::SystemPhase getPhase() { return ui::interface::SystemPhase::INPUT; }
 
 private:
+    /**
+     * @brief SDL 事件监听回调，桥接平台窗口事件到系统内部
+     * @param userdata 用户数据指针
+     * @param event SDL 事件指针
+     * @return true 继续处理事件
+     * @return false 停止处理事件
+     */
     static bool SDLCALL platformEventWatch(void* userdata, SDL_Event* event)
     {
         (void)userdata;
@@ -48,7 +55,12 @@ private:
         handlePlatformWindowEvent(*event);
         return true;
     }
-
+    /**
+     * @brief 是否相关的窗口事件类型
+     * @param eventType SDL 事件类型
+     * @return true 相关事件
+     * @return false 不相关事件
+     */
     static bool isRelevantPlatformWindowEvent(Uint32 eventType)
     {
         return eventType == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || eventType == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
@@ -86,7 +98,9 @@ private:
                 ui::events::WindowMoved{windowEvent.windowID, windowEvent.data1, windowEvent.data2});
         }
     }
-
+    /**
+     * @brief 触发立即的布局和渲染刷新，通常在窗口尺寸或显示属性变化时调用
+     */
     static void triggerImmediateLayoutAndRenderRefresh()
     {
         RuntimeFacade::current().trigger<ui::events::UpdateLayout>(ui::events::UpdateLayout{});

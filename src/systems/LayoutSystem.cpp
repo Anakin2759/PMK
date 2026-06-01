@@ -706,20 +706,26 @@ void UpdateEntityLayoutFromYoga(entt::entity entity, YGNodeRef node)
 
     if (auto* sizeComp = Registry::TryGet<components::Size>(entity); sizeComp != nullptr)
     {
-        const bool widthChanged = (!std::isnan(width) && width > 0.0F && sizeComp->size.x() != width);
-        const bool heightChanged = (!std::isnan(height) && height > 0.0F && sizeComp->size.y() != height);
-
-        if (widthChanged || heightChanged)
+        // FIXED 节点的 size 由用户显式指定，不应被 Yoga 溢出计算结果覆盖；
+        // Yoga 已用该精确值约束了子节点布局，position 回写不受影响。
+        const bool isFixed = policies::HasFlag(sizeComp->sizePolicy, policies::Size::FIXED);
+        if (!isFixed)
         {
-            if (widthChanged)
+            const bool widthChanged = (!std::isnan(width) && width > 0.0F && sizeComp->size.x() != width);
+            const bool heightChanged = (!std::isnan(height) && height > 0.0F && sizeComp->size.y() != height);
+
+            if (widthChanged || heightChanged)
             {
-                sizeComp->size.x() = width;
+                if (widthChanged)
+                {
+                    sizeComp->size.x() = width;
+                }
+                if (heightChanged)
+                {
+                    sizeComp->size.y() = height;
+                }
+                isDirty = true;
             }
-            if (heightChanged)
-            {
-                sizeComp->size.y() = height;
-            }
-            isDirty = true;
         }
     }
 

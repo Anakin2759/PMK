@@ -5,6 +5,7 @@
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
 #include "common/components/Window.hpp"
+#include "common/Policies.hpp"
 #include "common/Tags.hpp"
 #include "singleton/Dispatcher.hpp"
 #include "core/RuntimeFacade.hpp"
@@ -902,9 +903,31 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
     }
 
     auto& size = reg.get<components::Size>(entity);
-    size.size.x() = logicalWidth;
-    size.size.y() = logicalHeight;
-    ui::utils::MarkLayoutAndVisualChanged(entity);
+    bool sizeChanged = false;
+
+    const bool preserveFixedSize = reg.any_of<components::DialogTag>(entity);
+    const bool widthFixed = preserveFixedSize && policies::HasFlag(size.sizePolicy, policies::Size::H_FIXED);
+    const bool heightFixed = preserveFixedSize && policies::HasFlag(size.sizePolicy, policies::Size::V_FIXED);
+
+    if (!widthFixed && size.size.x() != logicalWidth)
+    {
+        size.size.x() = logicalWidth;
+        sizeChanged = true;
+    }
+    if (!heightFixed && size.size.y() != logicalHeight)
+    {
+        size.size.y() = logicalHeight;
+        sizeChanged = true;
+    }
+
+    if (sizeChanged)
+    {
+        ui::utils::MarkLayoutAndVisualChanged(entity);
+    }
+    else
+    {
+        ui::utils::MarkVisualChanged(entity);
+    }
 }
 
 void StateSystem::WindowStateHelpers::handleMoved(StateSystem& system, const events::WindowMoved& event)

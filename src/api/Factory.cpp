@@ -488,7 +488,8 @@ entt::entity CreateDialog(std::string_view title, std::string_view alias)
         return entt::null;
     }
 
-    platform::InitCustomWindow(sdlWindow);
+    SDL_SetWindowBordered(sdlWindow, false);
+    platform::EnableTransparency(sdlWindow);
     reg.remove<components::VisibleTag>(entity);
     auto& dialogLayout = reg.emplace<components::LayoutInfo>(entity);
     dialogLayout.direction = policies::LayoutDirection::VERTICAL;

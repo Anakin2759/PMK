@@ -180,8 +180,11 @@ inline void SyncWindowSize(entt::entity entity, SDL_Window* sdlWindow)
     }
 }
 
-inline void SyncWindowSizeConstraints(const components::Window& windowComp, SDL_Window* sdlWindow)
+inline void SyncWindowSizeConstraints(entt::entity entity, const components::Window& windowComp, SDL_Window* sdlWindow)
 {
+    const auto& registry = RuntimeFacade::current().enttRegistry();
+    const auto* sizeComp = registry.try_get<components::Size>(entity);
+
     int currentMinW = 0;
     int currentMinH = 0;
     int currentMaxW = 0;
@@ -189,8 +192,19 @@ inline void SyncWindowSizeConstraints(const components::Window& windowComp, SDL_
     SDL_GetWindowMinimumSize(sdlWindow, &currentMinW, &currentMinH);
     SDL_GetWindowMaximumSize(sdlWindow, &currentMaxW, &currentMaxH);
 
-    const int newMinW = static_cast<int>(windowComp.minSize.x());
-    const int newMinH = static_cast<int>(windowComp.minSize.y());
+    int newMinW = static_cast<int>(windowComp.minSize.x());
+    int newMinH = static_cast<int>(windowComp.minSize.y());
+    if (sizeComp != nullptr)
+    {
+        if (policies::HasFlag(sizeComp->sizePolicy, policies::Size::H_FIXED) && sizeComp->size.x() > 0.0F)
+        {
+            newMinW = std::min(newMinW, static_cast<int>(std::round(sizeComp->size.x())));
+        }
+        if (policies::HasFlag(sizeComp->sizePolicy, policies::Size::V_FIXED) && sizeComp->size.y() > 0.0F)
+        {
+            newMinH = std::min(newMinH, static_cast<int>(std::round(sizeComp->size.y())));
+        }
+    }
     const int newMaxW = (windowComp.maxSize.x() < FLT_MAX) ? static_cast<int>(windowComp.maxSize.x()) : 0;
     const int newMaxH = (windowComp.maxSize.y() < FLT_MAX) ? static_cast<int>(windowComp.maxSize.y()) : 0;
 
@@ -286,7 +300,7 @@ inline void SyncWindowProperties(entt::entity entity, components::Window& window
     SyncWindowDisplayMetrics(windowComp, sdlWindow);
     SyncWindowTitle(entity, windowComp, sdlWindow);
     SyncWindowPosition(entity, sdlWindow);
-    SyncWindowSizeConstraints(windowComp, sdlWindow);
+    SyncWindowSizeConstraints(entity, windowComp, sdlWindow);
     SyncWindowSize(entity, sdlWindow);
     SyncWindowResizable(windowComp, sdlWindow);
     SyncWindowFrameless(windowComp, sdlWindow);
