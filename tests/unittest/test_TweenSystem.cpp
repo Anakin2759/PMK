@@ -142,7 +142,7 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
             UiRuntimeScope const altScope(alternateRuntime);
 
             // The alternate runtime is empty: facade-routed entt::registry must report so.
-            EXPECT_FALSE(RuntimeFacade::current().enttRegistry().valid(defaultEntity));
+            EXPECT_FALSE(RuntimeFacade::current().registry().valid(defaultEntity));
 
             // Triggering UpdateEvent in the alternate runtime must NOT advance the default
             // runtime animation — the handler is bound to default's dispatcher.

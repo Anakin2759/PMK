@@ -9,14 +9,14 @@ namespace ui::query
 
 bool IsValid(entity ent) noexcept
 {
-    return RuntimeFacade::current().enttRegistry().valid(ent);
+    return RuntimeFacade::current().registry().valid(ent);
 }
 
 Result<entity> FindByAlias(std::string_view alias)
 {
     if (alias.empty()) return MakeError(UiErrc::INVALID_ARGUMENT);
 
-    auto& reg = RuntimeFacade::current().enttRegistry();
+    auto& reg = RuntimeFacade::current().registry();
     for (auto ent : reg.view<components::BaseInfo>())
     {
         if (reg.get<components::BaseInfo>(ent).alias == alias) return ent;
@@ -26,7 +26,7 @@ Result<entity> FindByAlias(std::string_view alias)
 
 std::string GetAlias(entity ent)
 {
-    auto& reg = RuntimeFacade::current().enttRegistry();
+    auto& reg = RuntimeFacade::current().registry();
     if (!reg.valid(ent)) return {};
     const auto* info = reg.try_get<components::BaseInfo>(ent);
     return info != nullptr ? info->alias : std::string{};

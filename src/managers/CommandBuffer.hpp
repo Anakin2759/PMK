@@ -54,14 +54,18 @@ public:
      * @brief 执行渲染批次
      * @param batches 渲染批次列表
      */
-    void execute(
-        SDL_Window* window, int width, int height, float dpiScale, const std::pmr::vector<render::RenderBatch>& batches)
+    void execute(SDL_Window* window,
+                 int width,
+                 int height,
+                 float dpiScale,
+                 const SDL_FColor& clearColor,
+                 const std::pmr::vector<render::RenderBatch>& batches)
     {
         SDL_GPUDevice* device = m_deviceManager.getDevice();
         if (device == nullptr) return;
 
         auto [totalVertexCount, totalIndexCount] = calculateBatchTotals(batches);
-        if (totalVertexCount == 0 || totalIndexCount == 0) return;
+        const bool hasGeometry = totalVertexCount > 0 && totalIndexCount > 0;
 
         uint32_t totalVertexSize = totalVertexCount * sizeof(render::Vertex);
         uint32_t totalIndexSize = totalIndexCount * sizeof(uint16_t);
@@ -70,13 +74,13 @@ public:
         FrameResource& currentFrame = currentFrameResource();
 
         // 确保缓冲区足够大
-        if (!resizeBuffers(device, currentFrame, totalVertexSize, totalIndexSize))
+        if (hasGeometry && !resizeBuffers(device, currentFrame, totalVertexSize, totalIndexSize))
         {
             Logger::error("Failed to resize buffers.");
             return;
         }
 
-        if (!uploadToTransferBuffer(device, batches, totalVertexSize))
+        if (hasGeometry && !uploadToTransferBuffer(device, batches, totalVertexSize))
         {
             Logger::error("Failed to map transfer buffer.");
             return;
@@ -86,7 +90,10 @@ public:
         if (cmdBuf == nullptr) return;
 
         SDL_GPUTexture* swapchainTexture = nullptr;
-        if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmdBuf, window, &swapchainTexture, nullptr, nullptr))
+        uint32_t swapchainWidth = 0;
+        uint32_t swapchainHeight = 0;
+        if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+            cmdBuf, window, &swapchainTexture, &swapchainWidth, &swapchainHeight))
         {
             Logger::warn("Swapchain texture not ready yet.");
             SDL_CancelGPUCommandBuffer(cmdBuf);
@@ -99,8 +106,24 @@ public:
             return;
         }
 
-        recordCopyPass(cmdBuf, currentFrame, totalVertexSize, totalIndexSize);
-        recordRenderPass(cmdBuf, swapchainTexture, width, height, dpiScale, currentFrame, batches);
+        const int renderWidth = swapchainWidth > 0 ? static_cast<int>(swapchainWidth) : width;
+        const int renderHeight = swapchainHeight > 0 ? static_cast<int>(swapchainHeight) : height;
+        if (renderWidth != width || renderHeight != height)
+        {
+            Logger::info("[Scaling][CommandBuffer] requested=({}, {}) swapchain=({}, {})",
+                         width,
+                         height,
+                         renderWidth,
+                         renderHeight);
+        }
+
+        if (hasGeometry)
+        {
+            recordCopyPass(cmdBuf, currentFrame, totalVertexSize, totalIndexSize);
+        }
+
+        recordRenderPass(
+            cmdBuf, swapchainTexture, renderWidth, renderHeight, dpiScale, clearColor, currentFrame, batches);
 
         // 提交命令缓冲区
         SDL_SubmitGPUCommandBuffer(cmdBuf);
@@ -217,17 +240,29 @@ private:
                           int width,
                           int height,
                           float dpiScale,
+                          const SDL_FColor& clearColor,
                           const FrameResource& currentFrame,
                           const std::pmr::vector<render::RenderBatch>& batches)
     {
         SDL_GPUColorTargetInfo colorTarget = {};
         colorTarget.texture = swapchainTexture;
-        // 透明清屏色，确保圆角裁剪区域透明
-        colorTarget.clear_color = {.r = 0.0F, .g = 0.0F, .b = 0.0F, .a = 0.0F};
+        colorTarget.clear_color = clearColor;
         colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
         colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+        colorTarget.cycle = true;
 
         SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdBuf, &colorTarget, 1, nullptr);
+
+        if (renderPass == nullptr)
+        {
+            return;
+        }
+
+        if (batches.empty())
+        {
+            SDL_EndGPURenderPass(renderPass);
+            return;
+        }
 
         SDL_BindGPUGraphicsPipeline(renderPass, m_pipelineCache.getPipeline());
 

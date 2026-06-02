@@ -136,13 +136,14 @@ private:
             return;
         }
 
-        const float trackHeight = size.y();
+        const float trackHeight = std::max(0.0F, size.y());
         const float visibleRatio = viewportHeight / scrollArea.contentSize.y();
-        const float thumbSize = std::max(20.0F, trackHeight * visibleRatio);
+        const float thumbSize = std::min(trackHeight, std::max(20.0F, trackHeight * visibleRatio));
         const float maxScroll = std::max(0.0F, scrollArea.contentSize.y() - viewportHeight);
         const float scrollRatio =
             maxScroll > 0.0F ? std::clamp(scrollArea.scrollOffset.y() / maxScroll, 0.0F, 1.0F) : 0.0F;
-        const float thumbPos = std::clamp((trackHeight - thumbSize) * scrollRatio, 0.0F, trackHeight - thumbSize);
+        const float scrollableTrack = std::max(0.0F, trackHeight - thumbSize);
+        const float thumbPos = std::clamp(scrollableTrack * scrollRatio, 0.0F, scrollableTrack);
 
         const float barWidth = 10.0F;
         const float trackWidth = 12.0F;
@@ -153,7 +154,7 @@ private:
         drawRoundedRect(trackPos, trackSize, verticalTrackColor(entity), 6.0F, alpha, context);
 
         const Eigen::Vector2f barPos(pos.x() + size.x() - barWidth - trackPadding - 1.0F, pos.y() + thumbPos + 2.0F);
-        const Eigen::Vector2f barSize(barWidth, thumbSize - 4.0F);
+        const Eigen::Vector2f barSize(barWidth, std::max(0.0F, thumbSize - 4.0F));
         drawRoundedRect(barPos, barSize, verticalThumbColor(entity), 5.0F, alpha, context);
     }
 
@@ -173,19 +174,21 @@ private:
         const float trackHeight = 12.0F;
         const float trackPadding = 2.0F;
         const float barHeight = 10.0F;
-        const float visibleRatio = size.x() / scrollArea.contentSize.x();
-        const float thumbSize = std::max(20.0F, size.x() * visibleRatio);
-        const float maxScroll = std::max(0.0F, scrollArea.contentSize.x() - size.x());
+        const float trackWidth = std::max(0.0F, size.x());
+        const float visibleRatio = trackWidth / scrollArea.contentSize.x();
+        const float thumbSize = std::min(trackWidth, std::max(20.0F, trackWidth * visibleRatio));
+        const float maxScroll = std::max(0.0F, scrollArea.contentSize.x() - trackWidth);
         const float scrollRatio =
             maxScroll > 0.0F ? std::clamp(scrollArea.scrollOffset.x() / maxScroll, 0.0F, 1.0F) : 0.0F;
-        const float thumbPos = std::clamp((size.x() - thumbSize) * scrollRatio, 0.0F, size.x() - thumbSize);
+        const float scrollableTrack = std::max(0.0F, trackWidth - thumbSize);
+        const float thumbPos = std::clamp(scrollableTrack * scrollRatio, 0.0F, scrollableTrack);
 
         const Eigen::Vector2f trackPos(pos.x(), pos.y() + size.y() - trackHeight - trackPadding);
-        const Eigen::Vector2f trackSize(size.x(), trackHeight);
+        const Eigen::Vector2f trackSize(trackWidth, trackHeight);
         drawRoundedRect(trackPos, trackSize, {0.2F, 0.2F, 0.2F, 0.3F}, 6.0F, alpha, context);
 
         const Eigen::Vector2f barPos(pos.x() + thumbPos + 1.0F, pos.y() + size.y() - barHeight - trackPadding - 1.0F);
-        const Eigen::Vector2f barSize(thumbSize - 4.0F, barHeight - 2.0F);
+        const Eigen::Vector2f barSize(std::max(0.0F, thumbSize - 4.0F), barHeight - 2.0F);
         drawRoundedRect(barPos, barSize, {0.6F, 0.6F, 0.6F, 0.7F}, 5.0F, alpha, context);
     }
 

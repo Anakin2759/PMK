@@ -104,6 +104,14 @@ struct WindowResized
     int height;
 };
 
+enum class WindowMetricChangeSource : uint8_t
+{
+    PIXEL_SIZE_CHANGED,
+    RESIZED,
+    EXPOSED,
+    DISPLAY_SCALE_CHANGED,
+};
+
 /**
  * @brief 窗口像素尺寸变化事件
  * [IMMEDIATE] 使用 trigger
@@ -111,9 +119,20 @@ struct WindowResized
 struct WindowPixelSizeChanged
 {
     using is_event_tag = void;
-    uint32_t windowID;
-    int width;
-    int height;
+    uint32_t windowID = 0;
+    int width = 0;
+    int height = 0;
+    WindowMetricChangeSource source = WindowMetricChangeSource::PIXEL_SIZE_CHANGED;
+};
+
+/**
+ * @brief 窗口暴露/重绘请求事件
+ * [BUFFERED] 使用 enqueue
+ */
+struct WindowExposed
+{
+    using is_event_tag = void;
+    uint32_t windowID = 0;
 };
 
 /**

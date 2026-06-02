@@ -124,6 +124,8 @@ namespace
 
 /// 缩放边框命中区域宽度（像素），由 SetupCustomTitleBar 设置
 constexpr UINT_PTR SUBCLASS_ID = 1;
+constexpr UINT_PTR DARK_BACKGROUND_SUBCLASS_ID = 2;
+constexpr COLORREF DARK_CLIENT_BACKGROUND_COLOR = RGB(26, 26, 31);
 
 struct SubclassData
 {
@@ -268,6 +270,51 @@ LRESULT CALLBACK CustomFrameProc(
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
+HBRUSH DarkBackgroundBrush()
+{
+    static HBRUSH brush = CreateSolidBrush(DARK_CLIENT_BACKGROUND_COLOR);
+    return brush;
+}
+
+LRESULT CALLBACK DarkBackgroundProc(
+    HWND hWnd,
+    UINT uMsg,
+    WPARAM wParam,
+    LPARAM lParam,
+    [[maybe_unused]] UINT_PTR uIdSubclass,
+    [[maybe_unused]] DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+        case WM_ERASEBKGND:
+        {
+            RECT clientRect{};
+            if (GetClientRect(hWnd, &clientRect) != FALSE)
+            {
+                FillRect(reinterpret_cast<HDC>(wParam), &clientRect, DarkBackgroundBrush()); // NOLINT
+            }
+            return 1;
+        }
+
+        case WM_SIZE:
+        {
+            InvalidateRect(hWnd, nullptr, TRUE);
+            break;
+        }
+
+        case WM_DESTROY:
+        {
+            RemoveWindowSubclass(hWnd, DarkBackgroundProc, DARK_BACKGROUND_SUBCLASS_ID);
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
 /**
  * @brief 获取 SDL 窗口对应的 Win32 HWND
  */
@@ -314,6 +361,39 @@ float GetWindowUiScale(SDL_Window* sdlWindow) noexcept
 float GetPrimaryDisplayUiScale() noexcept
 {
     return GetSdlPrimaryDisplayUiScale();
+}
+
+NativeWindowMetrics GetNativeWindowMetrics(SDL_Window* sdlWindow) noexcept
+{
+    NativeWindowMetrics metrics{};
+    if (sdlWindow == nullptr)
+    {
+        return metrics;
+    }
+
+    if (HWND hwnd = GetHwndFromSDL(sdlWindow); hwnd != nullptr)
+    {
+        RECT clientRect{};
+        if (GetClientRect(hwnd, &clientRect) != FALSE)
+        {
+            metrics.clientWidth = clientRect.right - clientRect.left;
+            metrics.clientHeight = clientRect.bottom - clientRect.top;
+        }
+
+        RECT windowRect{};
+        if (GetWindowRect(hwnd, &windowRect) != FALSE)
+        {
+            metrics.windowWidth = windowRect.right - windowRect.left;
+            metrics.windowHeight = windowRect.bottom - windowRect.top;
+        }
+    }
+
+    SDL_GetWindowBordersSize(sdlWindow,
+                             &metrics.borderTop,
+                             &metrics.borderLeft,
+                             &metrics.borderBottom,
+                             &metrics.borderRight);
+    return metrics;
 }
 
 void SetupCustomTitleBar(SDL_Window* sdlWindow, int borderWidth)
@@ -375,6 +455,15 @@ void EnableTransparency(SDL_Window* sdlWindow, int cornerRadius)
     }
 }
 
+void InstallDarkClientAreaBackground(SDL_Window* sdlWindow)
+{
+    HWND hwnd = GetHwndFromSDL(sdlWindow);
+    if (hwnd == nullptr) return;
+
+    SetWindowSubclass(hwnd, DarkBackgroundProc, DARK_BACKGROUND_SUBCLASS_ID, 0);
+    InvalidateRect(hwnd, nullptr, TRUE);
+}
+
 } // namespace ui::platform
 
 // ============================================================================
@@ -434,6 +523,25 @@ float GetPrimaryDisplayUiScale() noexcept
     return GetSdlPrimaryDisplayUiScale();
 }
 
+NativeWindowMetrics GetNativeWindowMetrics(SDL_Window* sdlWindow) noexcept
+{
+    NativeWindowMetrics metrics{};
+    if (sdlWindow == nullptr)
+    {
+        return metrics;
+    }
+
+    SDL_GetWindowSizeInPixels(sdlWindow, &metrics.clientWidth, &metrics.clientHeight);
+    SDL_GetWindowBordersSize(sdlWindow,
+                             &metrics.borderTop,
+                             &metrics.borderLeft,
+                             &metrics.borderBottom,
+                             &metrics.borderRight);
+    metrics.windowWidth = metrics.clientWidth + metrics.borderLeft + metrics.borderRight;
+    metrics.windowHeight = metrics.clientHeight + metrics.borderTop + metrics.borderBottom;
+    return metrics;
+}
+
 void SetupCustomTitleBar(SDL_Window* sdlWindow, [[maybe_unused]] int borderWidth)
 {
 #ifdef UI_LINUX_X11
@@ -475,6 +583,10 @@ void EnableTransparency([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]]
     // Wayland compositor 原生支持 alpha 合成
 }
 
+void InstallDarkClientAreaBackground([[maybe_unused]] SDL_Window* sdlWindow)
+{
+}
+
 } // namespace ui::platform
 
 // ============================================================================
@@ -505,6 +617,25 @@ float GetPrimaryDisplayUiScale() noexcept
     return GetSdlPrimaryDisplayUiScale();
 }
 
+NativeWindowMetrics GetNativeWindowMetrics(SDL_Window* sdlWindow) noexcept
+{
+    NativeWindowMetrics metrics{};
+    if (sdlWindow == nullptr)
+    {
+        return metrics;
+    }
+
+    SDL_GetWindowSizeInPixels(sdlWindow, &metrics.clientWidth, &metrics.clientHeight);
+    SDL_GetWindowBordersSize(sdlWindow,
+                             &metrics.borderTop,
+                             &metrics.borderLeft,
+                             &metrics.borderBottom,
+                             &metrics.borderRight);
+    metrics.windowWidth = metrics.clientWidth + metrics.borderLeft + metrics.borderRight;
+    metrics.windowHeight = metrics.clientHeight + metrics.borderTop + metrics.borderBottom;
+    return metrics;
+}
+
 void SetupCustomTitleBar([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]] int borderWidth)
 {
     // 空操作：未实现的平台依赖 SDL_WINDOW_BORDERLESS
@@ -513,6 +644,10 @@ void SetupCustomTitleBar([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]
 void EnableTransparency([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]] int cornerRadius)
 {
     // 空操作
+}
+
+void InstallDarkClientAreaBackground([[maybe_unused]] SDL_Window* sdlWindow)
+{
 }
 
 } // namespace ui::platform

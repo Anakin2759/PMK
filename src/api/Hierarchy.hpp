@@ -45,7 +45,7 @@ void AddChild(ui::entity parent, ui::entity child);
 template <typename Func>
 void TraverseChildren(ui::entity parent, Func visitor)
 {
-    auto& reg = RuntimeFacade::current().enttRegistry();
+    auto& reg = RuntimeFacade::current().registry();
     if (!reg.valid(parent)) return;
 
     const auto* hierarchy = reg.try_get<components::Hierarchy>(parent);

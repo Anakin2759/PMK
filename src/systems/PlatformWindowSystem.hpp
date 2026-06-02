@@ -4,25 +4,18 @@
  * @file PlatformWindowSystem.hpp
  * @brief 平台窗口事件桥接系统
  *
- * 从 InteractionSystem 中拆出平台窗口事件监听、窗口同步和补救刷新逻辑。
+ * 从 InteractionSystem 中拆出平台窗口事件监听逻辑。
  *
  * ************************************************************************
  */
 
 #pragma once
 
-#include <cmath>
-
 #include <SDL3/SDL.h>
 
-#include "common/components/Window.hpp"
 #include "common/Events.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "interface/ISystem.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Registry.hpp"
-#include "common/WindowSync.hpp"
-#include "api/Utils.hpp"
 
 namespace ui::systems
 {
@@ -65,68 +58,40 @@ private:
     {
         return eventType == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || eventType == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
             || eventType == SDL_EVENT_WINDOW_RESIZED || eventType == SDL_EVENT_WINDOW_MOVED
-            || eventType == SDL_EVENT_WINDOW_EXPOSED || eventType == SDL_EVENT_WINDOW_SHOWN
-            || eventType == SDL_EVENT_WINDOW_HIDDEN;
+            || eventType == SDL_EVENT_WINDOW_SHOWN
+            || eventType == SDL_EVENT_WINDOW_HIDDEN || eventType == SDL_EVENT_WINDOW_EXPOSED;
     }
 
-    static bool shouldSyncWindowPropertiesImmediately(Uint32 eventType)
+    static void enqueueWindowEvent(const SDL_WindowEvent& windowEvent)
     {
-        return eventType == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || eventType == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
-            || eventType == SDL_EVENT_WINDOW_RESIZED || eventType == SDL_EVENT_WINDOW_MOVED
-            || eventType == SDL_EVENT_WINDOW_EXPOSED || eventType == SDL_EVENT_WINDOW_SHOWN
-            || eventType == SDL_EVENT_WINDOW_HIDDEN;
-    }
-
-    static bool requiresImmediatePlatformRefresh(Uint32 eventType)
-    {
-        return eventType == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || eventType == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
-            || eventType == SDL_EVENT_WINDOW_RESIZED || eventType == SDL_EVENT_WINDOW_EXPOSED;
-    }
-
-    static void dispatchImmediateWindowEvent(const SDL_WindowEvent& windowEvent)
-    {
-        if (windowEvent.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+        if (windowEvent.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
+            || windowEvent.type == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || windowEvent.type == SDL_EVENT_WINDOW_RESIZED)
         {
-            RuntimeFacade::current().trigger<ui::events::WindowPixelSizeChanged>(
-                ui::events::WindowPixelSizeChanged{windowEvent.windowID, windowEvent.data1, windowEvent.data2});
+            auto source = ui::events::WindowMetricChangeSource::DISPLAY_SCALE_CHANGED;
+            if (windowEvent.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+            {
+                source = ui::events::WindowMetricChangeSource::PIXEL_SIZE_CHANGED;
+            }
+            else if (windowEvent.type == SDL_EVENT_WINDOW_RESIZED)
+            {
+                source = ui::events::WindowMetricChangeSource::RESIZED;
+            }
+            RuntimeFacade::current().enqueue<ui::events::WindowPixelSizeChanged>(
+                ui::events::WindowPixelSizeChanged{windowEvent.windowID, windowEvent.data1, windowEvent.data2, source});
             return;
         }
 
         if (windowEvent.type == SDL_EVENT_WINDOW_MOVED)
         {
-            RuntimeFacade::current().trigger<ui::events::WindowMoved>(
+            RuntimeFacade::current().enqueue<ui::events::WindowMoved>(
                 ui::events::WindowMoved{windowEvent.windowID, windowEvent.data1, windowEvent.data2});
+            return;
         }
-    }
-    /**
-     * @brief 触发立即的布局和渲染刷新，通常在窗口尺寸或显示属性变化时调用
-     */
-    static void triggerImmediateLayoutAndRenderRefresh()
-    {
-        RuntimeFacade::current().trigger<ui::events::UpdateLayout>(ui::events::UpdateLayout{});
-        RuntimeFacade::current().trigger<ui::events::UpdateRendering>(ui::events::UpdateRendering{});
-    }
 
-    static void syncWindowMetricsImmediately(uint32_t windowId)
-    {
-        SDL_Window* sdlWindow = SDL_GetWindowFromID(windowId);
-        if (sdlWindow == nullptr) return;
-
-        const auto windowEntity = RuntimeFacade::current().windowLookup().findById(windowId);
-        if (!RuntimeFacade::current().registry().valid(windowEntity)) return;
-
-        auto& windowComp = RuntimeFacade::current().registry().get<components::Window>(windowEntity);
-        const float oldScale = windowComp.displayScale;
-        window_sync::SyncWindowDisplayMetrics(windowComp, sdlWindow);
-
-        constexpr float SCALE_EPSILON = 0.01F;
-        if (std::abs(oldScale - windowComp.displayScale) > SCALE_EPSILON)
+        if (windowEvent.type == SDL_EVENT_WINDOW_EXPOSED)
         {
-            RuntimeFacade::current().trigger<ui::events::WindowDisplayScaleChanged>(
-                ui::events::WindowDisplayScaleChanged{windowId, oldScale, windowComp.displayScale});
+            RuntimeFacade::current().enqueue<ui::events::WindowExposed>(ui::events::WindowExposed{windowEvent.windowID});
         }
-
-        ui::utils::MarkLayoutAndVisualChanged(windowEntity);
     }
 
     static void handlePlatformWindowEvent(const SDL_Event& event)
@@ -134,17 +99,7 @@ private:
         const auto eventType = event.type;
         if (!isRelevantPlatformWindowEvent(eventType)) return;
 
-        if (shouldSyncWindowPropertiesImmediately(eventType))
-        {
-            syncWindowMetricsImmediately(event.window.windowID);
-        }
-
-        dispatchImmediateWindowEvent(event.window);
-
-        if (requiresImmediatePlatformRefresh(eventType))
-        {
-            triggerImmediateLayoutAndRenderRefresh();
-        }
+        enqueueWindowEvent(event.window);
     }
 };
 

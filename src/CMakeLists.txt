@@ -176,6 +176,7 @@ set(UI_SOURCES
     api/Theme.cpp
     api/Shortcut.cpp
     api/Log.cpp
+    api/Timer.cpp
     managers/ImageManager.cpp
     core/PlatformWindow.cpp
     renderers/TableRenderer.cpp

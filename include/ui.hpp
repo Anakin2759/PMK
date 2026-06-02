@@ -43,6 +43,7 @@
 #include "../src/api/Canvas.hpp"
 #include "../src/api/Table.hpp"
 #include "../src/api/Theme.hpp"
+#include "../src/api/Timer.hpp"
 
 #include "../src/core/UiRuntime.hpp"
 // IWYU pragma: end_exports

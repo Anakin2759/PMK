@@ -23,9 +23,9 @@ namespace ui::table
 namespace
 {
 
-[[nodiscard]] entt::registry& CurrentRegistry()
+[[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().enttRegistry();
+    return RuntimeFacade::current().registry();
 }
 
 [[nodiscard]] float MinColumnWidthAt(const components::TableInfo& info, int columnIndex)

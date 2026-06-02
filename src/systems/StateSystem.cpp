@@ -1,13 +1,16 @@
 #include "StateSystem.hpp"
 #include "api/Table.hpp"
 #include "api/Utils.hpp"
+#include "common/AppConfig.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
 #include "common/components/Window.hpp"
 #include "common/Policies.hpp"
 #include "common/Tags.hpp"
+#include "common/WindowSync.hpp"
 #include "singleton/Dispatcher.hpp"
+#include "singleton/Logger.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "HitTestSystem.hpp"
 #include <SDL3/SDL_video.h>
@@ -16,6 +19,23 @@ namespace ui::systems
 
 namespace
 {
+
+[[nodiscard]] const char* WindowMetricSourceName(events::WindowMetricChangeSource source)
+{
+    switch (source)
+    {
+    case events::WindowMetricChangeSource::PIXEL_SIZE_CHANGED:
+        return "pixel";
+    case events::WindowMetricChangeSource::RESIZED:
+        return "logical";
+    case events::WindowMetricChangeSource::EXPOSED:
+        return "exposed";
+    case events::WindowMetricChangeSource::DISPLAY_SCALE_CHANGED:
+        return "display-scale";
+    }
+
+    return "unknown";
+}
 
 [[nodiscard]] Rect GetHorizontalScrollbarTrackRect(entt::entity entity)
 {
@@ -37,12 +57,13 @@ namespace
     const float viewportWidth = ui::utils::GetScrollViewportLength(entity, false);
     const float contentWidth = std::max(1.0F, scrollArea.contentSize.x());
     const float visibleRatio = viewportWidth / contentWidth;
-    const float thumbWidth =
-        std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, entityRect.width() * visibleRatio);
+    const float trackWidth = std::max(0.0F, entityRect.width());
+    const float thumbWidth = std::min(
+        trackWidth, std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, trackWidth * visibleRatio));
     const float maxScroll = std::max(0.0F, contentWidth - viewportWidth);
     const float scrollRatio = maxScroll > 0.0F ? std::clamp(scrollArea.scrollOffset.x() / maxScroll, 0.0F, 1.0F) : 0.0F;
-    const float thumbPos =
-        std::clamp((entityRect.width() - thumbWidth) * scrollRatio, 0.0F, entityRect.width() - thumbWidth);
+    const float scrollableTrack = std::max(0.0F, trackWidth - thumbWidth);
+    const float thumbPos = std::clamp(scrollableTrack * scrollRatio, 0.0F, scrollableTrack);
 
     return {entityRect.x() + thumbPos + 1.0F,
             entityRect.y() + entityRect.height() - BAR_HEIGHT - TRACK_PADDING - 1.0F,
@@ -57,6 +78,7 @@ void StateSystem::registerHandlersImpl()
     // 窗口事件
     m_disp->sink<events::CloseWindow>().connect<&StateSystem::onCloseWindow>(*this);
     m_disp->sink<events::WindowPixelSizeChanged>().connect<&StateSystem::onWindowPixelSizeChanged>(*this);
+    m_disp->sink<events::WindowExposed>().connect<&StateSystem::onWindowExposed>(*this);
     m_disp->sink<events::WindowMoved>().connect<&StateSystem::onWindowMoved>(*this);
 
     // 交互事件
@@ -77,6 +99,7 @@ void StateSystem::unregisterHandlersImpl()
 {
     m_disp->sink<events::CloseWindow>().disconnect<&StateSystem::onCloseWindow>(*this);
     m_disp->sink<events::WindowPixelSizeChanged>().disconnect<&StateSystem::onWindowPixelSizeChanged>(*this);
+    m_disp->sink<events::WindowExposed>().disconnect<&StateSystem::onWindowExposed>(*this);
     m_disp->sink<events::WindowMoved>().disconnect<&StateSystem::onWindowMoved>(*this);
     m_disp->sink<events::HoverEvent>().disconnect<&StateSystem::onHoverEvent>(*this);
     m_disp->sink<events::UnhoverEvent>().disconnect<&StateSystem::onUnhoverEvent>(*this);
@@ -451,11 +474,13 @@ void StateSystem::ScrollbarStateHelpers::calculateGeometry(entt::entity entity,
                                                            float& outTrackLen,
                                                            float& outThumbSize)
 {
-    outTrackLen = isVertical ? ui::utils::GetEntityRect(entity).height() : ui::utils::GetEntityRect(entity).width();
+    outTrackLen = std::max(
+        0.0F, isVertical ? ui::utils::GetEntityRect(entity).height() : ui::utils::GetEntityRect(entity).width());
     const float viewportSize = ui::utils::GetScrollViewportLength(entity, isVertical);
     const float contentSize = std::max(1.0F, ui::utils::GetScrollContentLength(entity, isVertical));
     const float visibleRatio = std::max(0.001F, viewportSize / contentSize);
-    outThumbSize = std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, outTrackLen * visibleRatio);
+    outThumbSize = std::min(
+        outTrackLen, std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, outTrackLen * visibleRatio));
 }
 
 void StateSystem::ScrollbarStateHelpers::handleTrackClick(StateSystem& system,
@@ -474,13 +499,14 @@ void StateSystem::ScrollbarStateHelpers::handleTrackClick(StateSystem& system,
         return;
     }
 
-    const float trackLen = isVertical ? entityRect.height() : entityRect.width();
+    const float trackLen = std::max(0.0F, isVertical ? entityRect.height() : entityRect.width());
     const float clickPos = isVertical ? (mousePos.y() - entityRect.y()) : (mousePos.x() - entityRect.x());
     float& scrollOffset = isVertical ? scrollArea.scrollOffset.y() : scrollArea.scrollOffset.x();
 
     const float visibleRatio = viewportSize / contentSize;
-    const float thumbSize = std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, trackLen * visibleRatio);
-    const float scrollableTrack = trackLen - thumbSize;
+    const float thumbSize = std::min(
+        trackLen, std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, trackLen * visibleRatio));
+    const float scrollableTrack = std::max(0.0F, trackLen - thumbSize);
     float targetThumbPos = clickPos - (thumbSize * 0.5F);
     targetThumbPos = std::clamp(targetThumbPos, 0.0F, scrollableTrack);
 
@@ -870,6 +896,7 @@ void StateSystem::WindowStateHelpers::handleClose(StateSystem& system, const eve
     }
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system,
                                                              const events::WindowPixelSizeChanged& event)
 {
@@ -880,15 +907,50 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
         return;
     }
 
+    SDL_Window* sdlWindow = SDL_GetWindowFromID(event.windowID);
+    auto* window = reg.try_get<components::Window>(entity);
+    const bool hasEventSize = event.width > 0 && event.height > 0;
+
+    if (window != nullptr)
+    {
+        const float displayScale = (std::isfinite(window->displayScale) && window->displayScale > 0.0F) ? window->displayScale : 1.0F;
+        switch (event.source)
+        {
+        case events::WindowMetricChangeSource::PIXEL_SIZE_CHANGED:
+            if (hasEventSize)
+            {
+                window->pixelSize = Vec2{static_cast<float>(event.width), static_cast<float>(event.height)};
+                window->logicalSize =
+                    Vec2{std::max(1.0F, static_cast<float>(event.width) / displayScale),
+                         std::max(1.0F, static_cast<float>(event.height) / displayScale)};
+            }
+            break;
+        case events::WindowMetricChangeSource::RESIZED:
+            if (hasEventSize)
+            {
+                window->logicalSize = Vec2{static_cast<float>(event.width), static_cast<float>(event.height)};
+                window->pixelSize = Vec2{std::max(1.0F, static_cast<float>(event.width) * displayScale),
+                                         std::max(1.0F, static_cast<float>(event.height) * displayScale)};
+            }
+            break;
+        case events::WindowMetricChangeSource::EXPOSED:
+        case events::WindowMetricChangeSource::DISPLAY_SCALE_CHANGED:
+            if (sdlWindow != nullptr)
+            {
+                window_sync::SyncWindowDisplayMetrics(*window, sdlWindow);
+            }
+            break;
+        }
+    }
+
     float logicalWidth = 0.0F;
     float logicalHeight = 0.0F;
-    if (const auto* window = reg.try_get<components::Window>(entity);
-        window != nullptr && window->logicalSize.x() > 0.0F && window->logicalSize.y() > 0.0F)
+    if (window != nullptr && window->logicalSize.x() > 0.0F && window->logicalSize.y() > 0.0F)
     {
         logicalWidth = window->logicalSize.x();
         logicalHeight = window->logicalSize.y();
     }
-    else if (SDL_Window* sdlWindow = SDL_GetWindowFromID(event.windowID))
+    else if (sdlWindow != nullptr)
     {
         int width = 0;
         int height = 0;
@@ -927,6 +989,43 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
     else
     {
         ui::utils::MarkVisualChanged(entity);
+    }
+
+    if (config::AppConfig::instance().debugScaling())
+    {
+        Logger::info("[Scaling][StateSystem] entity={} windowId={} source={} eventSize=({}, {}) rootSize=({:.1f}, {:.1f}) "
+                     "windowLogical=({:.1f}, {:.1f}) windowPixel=({:.1f}, {:.1f}) sizeChanged={}",
+                     static_cast<uint32_t>(entity),
+                     event.windowID,
+                     WindowMetricSourceName(event.source),
+                     event.width,
+                     event.height,
+                     size.size.x(),
+                     size.size.y(),
+                     window != nullptr ? window->logicalSize.x() : 0.0F,
+                     window != nullptr ? window->logicalSize.y() : 0.0F,
+                     window != nullptr ? window->pixelSize.x() : 0.0F,
+                     window != nullptr ? window->pixelSize.y() : 0.0F,
+                     sizeChanged ? "true" : "false");
+    }
+}
+
+void StateSystem::WindowStateHelpers::handleExposed(StateSystem& system, const events::WindowExposed& event)
+{
+    auto& reg = *system.m_reg;
+    const auto entity = RuntimeFacade::current().windowLookup().findById(event.windowID);
+    if (!reg.valid(entity))
+    {
+        return;
+    }
+
+    ui::utils::MarkVisualChanged(entity);
+
+    if (config::AppConfig::instance().debugScaling())
+    {
+        Logger::info("[Scaling][StateSystem] entity={} windowId={} source=exposed repaint=true",
+                     static_cast<uint32_t>(entity),
+                     event.windowID);
     }
 }
 
@@ -1176,6 +1275,14 @@ void StateSystem::onCloseWindow(const events::CloseWindow& event)
 void StateSystem::onWindowPixelSizeChanged(const events::WindowPixelSizeChanged& event)
 {
     WindowStateHelpers::handlePixelSizeChanged(*this, event);
+}
+
+/**
+ * @brief 处理窗口暴露/重绘请求事件
+ */
+void StateSystem::onWindowExposed(const events::WindowExposed& event)
+{
+    WindowStateHelpers::handleExposed(*this, event);
 }
 
 /**

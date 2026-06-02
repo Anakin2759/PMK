@@ -494,7 +494,7 @@ bool HandleClipboardShortcut(
 
 void TextEditingService::handleTextInput(const std::string& rawText)
 {
-    auto& reg = RuntimeFacade::current().enttRegistry();
+    auto& reg = RuntimeFacade::current().registry();
     auto view = reg.view<components::FocusedTag, components::TextEdit, components::Text>();
     for (auto entity : view)
     {
@@ -510,7 +510,7 @@ void TextEditingService::handleTextInput(const std::string& rawText)
 
 void TextEditingService::handleKeyDown(SDL_Keycode key, SDL_Keymod modState)
 {
-    auto& reg = RuntimeFacade::current().enttRegistry();
+    auto& reg = RuntimeFacade::current().registry();
     auto view = reg.view<components::FocusedTag, components::TextEdit, components::Text>();
     for (auto entity : view)
     {

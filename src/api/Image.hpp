@@ -23,9 +23,9 @@
 
 namespace ui::image
 {
-inline entt::registry& CurrentRegistry()
+inline Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().enttRegistry();
+    return RuntimeFacade::current().registry();
 }
 /**
  * @brief 设置 Image 组件的图片路径。路径变更会重置加载状态，触发资源系统重新加载。

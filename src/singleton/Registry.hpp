@@ -190,14 +190,14 @@ public:
     // Legacy PascalCase entrypoints stay for compatibility with existing UI call sites.
     // NOLINTBEGIN(readability-identifier-naming)
     [[deprecated(
-        "Use injected entt::registry& or RuntimeFacade::current().enttRegistry() instead of Registry::Create().")]]
+        "Use injected Registry& or RuntimeFacade::current().registry() instead of Registry::Create().")]]
     static entt::entity Create()
     {
         return current().m_registry.create();
     }
 
     template <ComponentOrUiTag... Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().view(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().view(...) instead of "
                  "Registry::View().")]]
     static auto View()
     {
@@ -205,7 +205,7 @@ public:
     }
 
     template <typename... Owned, typename... Get, typename... Exclude>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().group(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().group(...) instead of "
                  "Registry::Group().")]]
     static auto Group(entt::get_t<Get...> get = {}, entt::exclude_t<Exclude...> exclude = {})
     {
@@ -213,7 +213,7 @@ public:
     }
 
     template <ComponentOrUiTag Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().get(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().get(...) instead of "
                  "Registry::Get().")]]
     static auto Get(::entt::entity entity) -> Type&
     {
@@ -221,7 +221,7 @@ public:
     }
 
     template <ComponentOrUiTag Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().try_get(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().try_get(...) instead of "
                  "Registry::TryGet().")]]
     static auto TryGet(::entt::entity entity) -> Type*
     {
@@ -229,7 +229,7 @@ public:
     }
 
     template <ComponentOrUiTag Type, typename... Args>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().emplace(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().emplace(...) instead of "
                  "Registry::Emplace().")]]
     static decltype(auto) Emplace(::entt::entity entity, Args&&... args)
     {
@@ -237,7 +237,7 @@ public:
     }
 
     template <ComponentOrUiTag Type, typename... Args>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().replace(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().replace(...) instead of "
                  "Registry::Replace().")]]
     static auto Replace(::entt::entity entity, Args&&... args) -> Type&
     {
@@ -245,14 +245,14 @@ public:
     }
 
     template <ComponentOrUiTag Type, typename... Args>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().emplace_or_replace(...) "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().emplace_or_replace(...) "
                  "instead of Registry::EmplaceOrReplace().")]]
     static void EmplaceOrReplace(::entt::entity entity, Args&&... args)
     {
         current().m_registry.emplace_or_replace<Type>(entity, std::forward<Args>(args)...);
     }
     template <ComponentOrUiTag Type, typename... Args>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().get_or_emplace(...) instead "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().get_or_emplace(...) instead "
                  "of Registry::GetOrEmplace().")]]
     static auto GetOrEmplace(::entt::entity entity, Args&&... args) -> Type&
     {
@@ -260,7 +260,7 @@ public:
     }
 
     template <ComponentOrUiTag Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().remove(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().remove(...) instead of "
                  "Registry::Remove().")]]
     static void Remove(::entt::entity entity)
     {
@@ -268,7 +268,7 @@ public:
     }
 
     template <ComponentOrUiTag... Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().any_of(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().any_of(...) instead of "
                  "Registry::AnyOf().")]]
     static auto AnyOf(::entt::entity entity) -> bool
     {
@@ -276,21 +276,21 @@ public:
     }
 
     template <ComponentOrUiTag... Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().all_of(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().all_of(...) instead of "
                  "Registry::AllOf().")]]
     static auto AllOf(::entt::entity entity) -> bool
     {
         return current().m_registry.all_of<Type...>(entity);
     }
 
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().valid(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().valid(...) instead of "
                  "Registry::Valid().")]]
     static bool Valid(::entt::entity entity)
     {
         return current().m_registry.valid(entity);
     }
 
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().destroy(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().destroy(...) instead of "
                  "Registry::Destroy().")]]
     static void Destroy(::entt::entity entity)
     {
@@ -298,14 +298,14 @@ public:
     }
 
     template <ComponentOrUiTag... Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().clear(...) instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().clear(...) instead of "
                  "Registry::Clear().")]]
     static auto Clear()
     {
         return current().m_registry.clear<Type...>();
     }
 
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().clear() instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().clear() instead of "
                  "Registry::Clear().")]]
     static void Clear()
     {
@@ -313,14 +313,14 @@ public:
     }
 
     template <ComponentOrUiTag Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().on_update<Type>() instead of "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().on_update<Type>() instead of "
                  "Registry::OnUpdate().")]]
     static auto OnUpdate()
     {
         return current().m_registry.on_update<Type>();
     }
     template <ComponentOrUiTag Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().on_destroy<Type>() instead "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().on_destroy<Type>() instead "
                  "of Registry::OnDestroy().")]]
     static auto OnDestroy()
     {
@@ -331,7 +331,7 @@ public:
      * @return entt::sink<ComponentConstructedSignature>
      */
     template <ComponentOrUiTag Type>
-    [[deprecated("Use injected entt::registry& or RuntimeFacade::current().enttRegistry().on_construct<Type>() instead "
+    [[deprecated("Use injected Registry& or RuntimeFacade::current().registry().on_construct<Type>() instead "
                  "of Registry::OnConstruct().")]]
     static auto OnConstruct()
     {

@@ -9,12 +9,15 @@
 #include <cstdint>
 #include <ranges>
 #include <stack>
+#include <unordered_map>
 #include "common/components/Window.hpp"
+#include "common/AppConfig.hpp"
 #include "common/WindowSync.hpp"
 #include "singleton/Logger.hpp"
 #include "SDL3/SDL_gpu.h"
 #include "SDL3/SDL_video.h"
 #include "core/RenderContext.hpp"
+#include "core/PlatformWindow.hpp"
 #include "managers/BatchManager.hpp"
 #include "managers/CommandBuffer.hpp"
 #include "managers/DeviceManager.hpp"
@@ -35,6 +38,152 @@
 
 namespace ui::systems
 {
+
+namespace
+{
+
+struct ScalingSnapshot
+{
+    int pixelWidth = 0;
+    int pixelHeight = 0;
+    int logicalWidth = 0;
+    int logicalHeight = 0;
+    int rootWidth = 0;
+    int rootHeight = 0;
+    int batchCount = 0;
+    float dpiScale = 1.0F;
+    float clearAlpha = 1.0F;
+    int nativeClientWidth = 0;
+    int nativeClientHeight = 0;
+    int nativeWindowWidth = 0;
+    int nativeWindowHeight = 0;
+    int borderTop = 0;
+    int borderBottom = 0;
+
+    [[nodiscard]] bool operator==(const ScalingSnapshot& other) const = default;
+};
+
+[[nodiscard]] float ComputeRenderScale(int pixelWidth, int pixelHeight, int logicalWidth, int logicalHeight, float fallback)
+{
+    const bool hasLogicalWidth = logicalWidth > 0;
+    const bool hasLogicalHeight = logicalHeight > 0;
+    const bool hasPixelWidth = pixelWidth > 0;
+    const bool hasPixelHeight = pixelHeight > 0;
+
+    const float scaleX =
+        (hasPixelWidth && hasLogicalWidth) ? static_cast<float>(pixelWidth) / static_cast<float>(logicalWidth) : 0.0F;
+    const float scaleY =
+        (hasPixelHeight && hasLogicalHeight) ? static_cast<float>(pixelHeight) / static_cast<float>(logicalHeight) : 0.0F;
+
+    if (std::isfinite(scaleX) && scaleX > 0.0F && std::isfinite(scaleY) && scaleY > 0.0F)
+    {
+        return std::max(scaleX, scaleY);
+    }
+
+    if (std::isfinite(scaleX) && scaleX > 0.0F)
+    {
+        return scaleX;
+    }
+
+    if (std::isfinite(scaleY) && scaleY > 0.0F)
+    {
+        return scaleY;
+    }
+
+    return (std::isfinite(fallback) && fallback > 0.0F) ? fallback : 1.0F;
+}
+
+[[nodiscard]] SDL_FColor DetermineClearColor(Registry& registry, entt::entity windowEntity)
+{
+    constexpr SDL_FColor OPAQUE_FALLBACK = {.r = 0.10F, .g = 0.10F, .b = 0.12F, .a = 1.0F};
+    constexpr SDL_FColor TRANSPARENT_FALLBACK = {.r = 0.0F, .g = 0.0F, .b = 0.0F, .a = 0.0F};
+
+    const bool isTransparentWindow = registry.any_of<components::DialogTag>(windowEntity);
+    if (const auto* background = registry.try_get<components::Background>(windowEntity);
+        background != nullptr && background->enabled == policies::Feature::ENABLED)
+    {
+        return SDL_FColor{.r = background->color.red,
+                          .g = background->color.green,
+                          .b = background->color.blue,
+                          .a = isTransparentWindow ? background->color.alpha : 1.0F};
+    }
+
+    return isTransparentWindow ? TRANSPARENT_FALLBACK : OPAQUE_FALLBACK;
+}
+
+// NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)
+void LogScalingSnapshotIfNeeded(Registry& registry,
+                                entt::entity windowEntity,
+                                const components::Window& windowComp,
+                                SDL_Window* sdlWindow,
+                                int logicalWidth,
+                                int logicalHeight,
+                                int pixelWidth,
+                                int pixelHeight,
+                                float dpiScale,
+                                const SDL_FColor& clearColor,
+                                int batchCount)
+{
+    if (!config::AppConfig::instance().debugScaling())
+    {
+        return;
+    }
+
+    static std::unordered_map<uint32_t, ScalingSnapshot> snapshots;
+    const auto entityKey = static_cast<uint32_t>(windowEntity);
+    const auto* rootSize = registry.try_get<components::Size>(windowEntity);
+    const auto nativeMetrics = platform::GetNativeWindowMetrics(sdlWindow);
+    ScalingSnapshot snapshot{.pixelWidth = pixelWidth,
+                             .pixelHeight = pixelHeight,
+                             .logicalWidth = logicalWidth,
+                             .logicalHeight = logicalHeight,
+                             .rootWidth = rootSize != nullptr ? static_cast<int>(std::lround(rootSize->size.x())) : 0,
+                             .rootHeight = rootSize != nullptr ? static_cast<int>(std::lround(rootSize->size.y())) : 0,
+                             .batchCount = batchCount,
+                             .dpiScale = dpiScale,
+                             .clearAlpha = clearColor.a,
+                             .nativeClientWidth = nativeMetrics.clientWidth,
+                             .nativeClientHeight = nativeMetrics.clientHeight,
+                             .nativeWindowWidth = nativeMetrics.windowWidth,
+                             .nativeWindowHeight = nativeMetrics.windowHeight,
+                             .borderTop = nativeMetrics.borderTop,
+                             .borderBottom = nativeMetrics.borderBottom};
+
+    if (const auto foundSnapshot = snapshots.find(entityKey);
+        foundSnapshot != snapshots.end() && foundSnapshot->second == snapshot)
+    {
+        return;
+    }
+    snapshots[entityKey] = snapshot;
+
+    Logger::info("[Scaling][RenderFrame] entity={} windowId={} logical=({}, {}) pixel=({}, {}) rootSize=({}, {}) "
+                 "displayScale={:.3f} uiScale={:.3f} renderScale={:.3f} clear=({:.2f}, {:.2f}, {:.2f}, {:.2f}) "
+                 "batches={} nativeClient=({}, {}) nativeWindow=({}, {}) nativeBorderTB=({}, {})",
+                 entityKey,
+                 windowComp.windowID,
+                 logicalWidth,
+                 logicalHeight,
+                 pixelWidth,
+                 pixelHeight,
+                 snapshot.rootWidth,
+                 snapshot.rootHeight,
+                 windowComp.displayScale,
+                 windowComp.uiScale,
+                 dpiScale,
+                 clearColor.r,
+                 clearColor.g,
+                 clearColor.b,
+                 clearColor.a,
+                 batchCount,
+                 nativeMetrics.clientWidth,
+                 nativeMetrics.clientHeight,
+                 nativeMetrics.windowWidth,
+                 nativeMetrics.windowHeight,
+                 nativeMetrics.borderTop,
+                 nativeMetrics.borderBottom);
+}
+
+} // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 void RenderSystem::update()
@@ -114,11 +263,8 @@ void RenderSystem::update()
             logicalHeight = height;
         }
 
-        float dpiScale = windowComp.displayScale;
-        if (dpiScale <= 0.0F)
-        {
-            dpiScale = static_cast<float>(width) / static_cast<float>(logicalWidth);
-        }
+        const float dpiScale = ComputeRenderScale(width, height, logicalWidth, logicalHeight, windowComp.displayScale);
+        const SDL_FColor clearColor = DetermineClearColor(*m_reg, windowEntity);
 
         if (!m_impl->m_useFallback && m_impl->m_pipelineCache->getPipeline() == nullptr)
         {
@@ -191,8 +337,7 @@ void RenderSystem::update()
 
         if (m_impl->m_useFallback)
         {
-            if (!tryInitializeFallback(sdlWindow)
-                || !m_impl->m_backendRenderer->beginFrame({.r = 0.0F, .g = 0.0F, .b = 0.0F, .a = 0.0F}))
+            if (!tryInitializeFallback(sdlWindow) || !m_impl->m_backendRenderer->beginFrame(clearColor))
             {
                 continue;
             }
@@ -226,24 +371,35 @@ void RenderSystem::update()
         m_impl->m_batchManager->optimize();
 
         const auto& batches = m_impl->m_batchManager->getBatches();
+    LogScalingSnapshotIfNeeded(*m_reg,
+                   windowEntity,
+                   windowComp,
+                   sdlWindow,
+                   logicalWidth,
+                   logicalHeight,
+                   width,
+                   height,
+                   dpiScale,
+                   clearColor,
+                   static_cast<int>(batches.size()));
+        if (m_impl->m_useFallback)
+        {
+            if (tryInitializeFallback(sdlWindow) && m_impl->m_backendRenderer->beginFrame(clearColor))
+            {
+                for (const auto& batch : batches)
+                {
+                    m_impl->m_backendRenderer->drawBatch(batch, m_impl->m_fallbackWhiteTextureTag);
+                }
+                m_impl->m_backendRenderer->endFrame();
+            }
+        }
+        else
+        {
+            m_impl->m_commandBuffer->execute(sdlWindow, width, height, dpiScale, clearColor, batches);
+        }
+
         if (!batches.empty())
         {
-            if (m_impl->m_useFallback)
-            {
-                if (tryInitializeFallback(sdlWindow)
-                    && m_impl->m_backendRenderer->beginFrame({.r = 0.0F, .g = 0.0F, .b = 0.0F, .a = 0.0F}))
-                {
-                    for (const auto& batch : batches)
-                    {
-                        m_impl->m_backendRenderer->drawBatch(batch, m_impl->m_fallbackWhiteTextureTag);
-                    }
-                    m_impl->m_backendRenderer->endFrame();
-                }
-            }
-            else
-            {
-                m_impl->m_commandBuffer->execute(sdlWindow, width, height, dpiScale, batches);
-            }
             m_impl->m_stats.batchCount += static_cast<uint32_t>(batches.size());
             m_impl->m_stats.vertexCount += static_cast<uint32_t>(m_impl->m_batchManager->getTotalVertexCount());
         }

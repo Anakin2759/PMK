@@ -148,8 +148,13 @@ struct InputTask
             return;
         }
         remainingTime = delayTime;
-        systems->pollInput();                                      // InteractionSystem::pollSdlEvents()
-        RuntimeFacade::current().trigger<events::TickKeyRepeat>(); // 驱动 TextInputSystem::doProcessKeyRepeat()
+        systems->pollInput();
+
+        auto& runtime = RuntimeFacade::current();
+        runtime.update<events::WindowPixelSizeChanged>();
+        runtime.update<events::WindowExposed>();
+        runtime.update<events::WindowMoved>();
+        runtime.trigger<events::TickKeyRepeat>(); // 驱动 TextInputSystem::doProcessKeyRepeat()
     }
 };
 
@@ -164,7 +169,7 @@ struct QueuedTask
         // tryMailbox() 为 nullptr 时（未激活 UiRuntimeScope 的帧/测试场景）静默跳过。
         if (auto* mailbox = RuntimeFacade::current().tryMailbox())
         {
-            mailbox->flush(RuntimeFacade::current().enttRegistry());
+            mailbox->flush();
         }
 
         // 队列阶段先推进帧上下文，再驱动定时器与缓冲事件派发。

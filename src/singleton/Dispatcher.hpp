@@ -88,21 +88,21 @@ public:
     // Legacy PascalCase entrypoints stay for compatibility with existing UI call sites.
     // NOLINTBEGIN(readability-identifier-naming)
     template <traits::Events Event>
-    [[deprecated("Use injected entt::dispatcher& or RuntimeFacade::current().enttDispatcher().trigger(...) instead of "
+    [[deprecated("Use injected Dispatcher& or RuntimeFacade::current().dispatcher().trigger(...) instead of "
                  "Dispatcher::Trigger().")]]
     static void Trigger(Event&& event = {})
     {
         current().m_dispatcher.trigger(std::forward<decltype(event)>(event));
     }
     template <traits::Events Event>
-    [[deprecated("Use injected entt::dispatcher& or RuntimeFacade::current().enttDispatcher().enqueue(...) instead of "
+    [[deprecated("Use injected Dispatcher& or RuntimeFacade::current().dispatcher().enqueue(...) instead of "
                  "Dispatcher::Enqueue().")]]
     static void Enqueue(Event&& event = {})
     {
         current().m_dispatcher.enqueue(std::forward<decltype(event)>(event));
     }
 
-    [[deprecated("Use injected entt::dispatcher& or RuntimeFacade::current().enttDispatcher().update() instead of "
+    [[deprecated("Use injected Dispatcher& or RuntimeFacade::current().dispatcher().update() instead of "
                  "Dispatcher::Update().")]]
     static void Update()
     {
@@ -110,7 +110,7 @@ public:
     }
 
     template <traits::Events Event>
-    [[deprecated("Use injected entt::dispatcher& or RuntimeFacade::current().enttDispatcher().update<Event>() instead "
+    [[deprecated("Use injected Dispatcher& or RuntimeFacade::current().dispatcher().update<Event>() instead "
                  "of Dispatcher::Update<Event>().")]]
     static void Update()
     {
@@ -118,7 +118,7 @@ public:
     }
 
     template <traits::Events Type>
-    [[deprecated("Use injected entt::dispatcher& or RuntimeFacade::current().enttDispatcher().sink<Type>() instead of "
+    [[deprecated("Use injected Dispatcher& or RuntimeFacade::current().dispatcher().sink<Type>() instead of "
                  "Dispatcher::Sink().")]]
     static auto Sink()
     {

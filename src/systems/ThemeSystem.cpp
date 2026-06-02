@@ -1104,14 +1104,14 @@ void ThemeSystem::registerHandlersImpl()
 {
     m_disp != nullptr
         ? m_disp->sink<events::UpdateEvent>().connect<&ThemeSystem::update>(*this)
-        : RuntimeFacade::current().enttDispatcher().sink<events::UpdateEvent>().connect<&ThemeSystem::update>(*this);
+        : RuntimeFacade::current().dispatcher().sink<events::UpdateEvent>().connect<&ThemeSystem::update>(*this);
 }
 
 void ThemeSystem::unregisterHandlersImpl()
 {
     m_disp != nullptr
         ? m_disp->sink<events::UpdateEvent>().disconnect<&ThemeSystem::update>(*this)
-        : RuntimeFacade::current().enttDispatcher().sink<events::UpdateEvent>().disconnect<&ThemeSystem::update>(*this);
+        : RuntimeFacade::current().dispatcher().sink<events::UpdateEvent>().disconnect<&ThemeSystem::update>(*this);
 }
 
 ui::interface::SystemPhase ThemeSystem::getPhase()

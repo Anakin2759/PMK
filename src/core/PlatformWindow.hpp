@@ -50,6 +50,14 @@ void SetupCustomTitleBar(SDL_Window* sdlWindow, int borderWidth = 6);
 void EnableTransparency(SDL_Window* sdlWindow, int cornerRadius = 8);
 
 /**
+ * @brief 安装暗色客户区背景擦除兜底
+ *
+ * Windows 下仅处理客户区 WM_ERASEBKGND，避免 resize/present 空隙露出系统白底；标题栏和边框保持系统外观。
+ * 其他平台为空操作。
+ */
+void InstallDarkClientAreaBackground(SDL_Window* sdlWindow);
+
+/**
  * @brief 查询窗口当前的 framebuffer 缩放比例
  *
  * 返回窗口坐标到物理 backbuffer 像素的比例，用于 viewport/scissor/纹理清晰度。
@@ -64,6 +72,20 @@ void EnableTransparency(SDL_Window* sdlWindow, int cornerRadius = 8);
 [[nodiscard]] float GetWindowUiScale(SDL_Window* sdlWindow) noexcept;
 
 [[nodiscard]] float GetPrimaryDisplayUiScale() noexcept;
+
+struct NativeWindowMetrics
+{
+    int clientWidth = 0;
+    int clientHeight = 0;
+    int windowWidth = 0;
+    int windowHeight = 0;
+    int borderTop = 0;
+    int borderLeft = 0;
+    int borderBottom = 0;
+    int borderRight = 0;
+};
+
+[[nodiscard]] NativeWindowMetrics GetNativeWindowMetrics(SDL_Window* sdlWindow) noexcept;
 
 /**
  * @brief 一次性完成自绘窗口所需的全部平台设置

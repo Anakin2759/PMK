@@ -551,6 +551,8 @@ entt::entity CreateWindow(std::string_view title, std::string_view alias)
         return entt::null;
     }
 
+    platform::InstallDarkClientAreaBackground(sdlWindow);
+
     Logger::info("[Factory] Triggering WindowGraphicsContextSetEvent for window entity {}",
                  static_cast<uint32_t>(entity));
     disp.trigger<events::WindowGraphicsContextSetEvent>({entity});

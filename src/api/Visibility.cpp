@@ -17,9 +17,9 @@ namespace ui::visibility
 {
 namespace
 {
-[[nodiscard]] entt::registry& CurrentRegistry()
+[[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().enttRegistry();
+    return RuntimeFacade::current().registry();
 }
 } // namespace
 

@@ -88,12 +88,6 @@ public:
 
     void restoreRuntime(ActiveRuntimeState previousRuntime) const;
 
-    // Phase 2: raw entt access for explicit ECS / event-bus calls.
-    // Use these in new and migrated code instead of static Registry::/Dispatcher:: APIs.
-    [[nodiscard]] entt::registry& enttRegistry() const { return registry().raw(); }
-
-    [[nodiscard]] entt::dispatcher& enttDispatcher() const { return dispatcher().raw(); }
-
     [[nodiscard]] globalcontext::FrameContext& frame() const { return context<globalcontext::FrameContext>(); }
 
     [[nodiscard]] globalcontext::StateContext& state() const { return context<globalcontext::StateContext>(); }

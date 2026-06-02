@@ -127,6 +127,10 @@ public:
 
     void setPlatformUiScale(float scale) noexcept { m_platformUiScale = scale > 0.0F ? scale : 1.0F; }
 
+    void setDebugScaling(bool enabled) noexcept { m_debugScaling = enabled; }
+
+    [[nodiscard]] bool debugScaling() const noexcept { return m_debugScaling; }
+
     [[nodiscard]] float platformUiScale() const noexcept
     {
         if (!m_platformScalingEnabled) return 1.0F;
@@ -147,6 +151,7 @@ public:
      *   -b <name>
      *   --ui-platform-scaling=auto|on|off
      *   --ui-platform-scale=<scale>
+    *   --ui-debug-scaling[=true|false]
      *
      * 未识别的参数会被忽略，避免影响调用方自身的解析逻辑。
      * 后端名称按小写约定传入。
@@ -157,6 +162,7 @@ public:
         constexpr std::string_view BACKEND_SHORT = "-b";
         constexpr std::string_view PLATFORM_SCALING = "--ui-platform-scaling";
         constexpr std::string_view PLATFORM_SCALE = "--ui-platform-scale";
+        constexpr std::string_view DEBUG_SCALING = "--ui-debug-scaling";
 
         for (std::size_t index = 0; index < argv.size(); ++index)
         {
@@ -181,6 +187,14 @@ public:
             {
                 setForcedPlatformScale(parsePositiveFloat(*value));
             }
+            else if (token == DEBUG_SCALING)
+            {
+                setDebugScaling(true);
+            }
+            else if (auto value = readLongOptionValue(token, DEBUG_SCALING, argv, index))
+            {
+                setDebugScaling(!(*value == "false" || *value == "0" || *value == "off"));
+            }
         }
     }
 
@@ -192,6 +206,7 @@ private:
     bool m_platformScalingEnabled = UI_ENABLE_PLATFORM_SCALING != 0;
     float m_forcedPlatformScale = 0.0F;
     float m_platformUiScale = 1.0F;
+    bool m_debugScaling = false;
 };
 
 } // namespace ui::config

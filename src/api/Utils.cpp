@@ -21,9 +21,9 @@ namespace ui::utils
 {
 namespace
 {
-[[nodiscard]] entt::registry& CurrentRegistry()
+[[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().enttRegistry();
+    return RuntimeFacade::current().registry();
 }
 } // namespace
 
@@ -251,8 +251,9 @@ components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(::entt::entit
                           geometry.trackHeight};
 
     const float visibleRatio = geometry.viewportHeight / geometry.contentHeight;
-    geometry.thumbHeight =
-        std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, geometry.trackHeight * visibleRatio);
+    geometry.thumbHeight = std::min(
+        geometry.trackHeight,
+        std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, geometry.trackHeight * visibleRatio));
 
     const float scrollRatio =
         geometry.maxScroll > 0.0F ? std::clamp(scrollArea->scrollOffset.y() / geometry.maxScroll, 0.0F, 1.0F) : 0.0F;

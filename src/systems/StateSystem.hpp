@@ -113,6 +113,7 @@ private:
     {
         static void handleClose(StateSystem& system, const events::CloseWindow& event);
         static void handlePixelSizeChanged(StateSystem& system, const events::WindowPixelSizeChanged& event);
+        static void handleExposed(StateSystem& system, const events::WindowExposed& event);
         static void handleMoved(StateSystem& system, const events::WindowMoved& event);
     };
 
@@ -178,6 +179,11 @@ private:
      * @brief 处理窗口尺寸变化事件
      */
     void onWindowPixelSizeChanged(const events::WindowPixelSizeChanged& event);
+
+    /**
+     * @brief 处理窗口暴露/重绘请求事件
+     */
+    void onWindowExposed(const events::WindowExposed& event);
 
     /**
      * @brief 处理窗口位置变化事件
