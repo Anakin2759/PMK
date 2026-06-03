@@ -13,7 +13,7 @@
 #include "common/Types.hpp"
 #include <algorithm>
 
-namespace ui::visibility
+namespace ui::detail::visibility
 {
 namespace
 {
@@ -109,7 +109,7 @@ void SetBorderRadius(::entt::entity entity, float radius)
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
     auto& background = reg.get_or_emplace<components::Background>(entity);
-    const auto radiusClamped = std::max(0.0F, scale::Metric(radius));
+    const auto radiusClamped = std::max(0.0F, ui::scale::Metric(radius));
     background.borderRadius = {radiusClamped, radiusClamped, radiusClamped, radiusClamped};
     background.enabled = policies::Feature::ENABLED;
     if (auto* border = reg.try_get<components::Border>(entity))
@@ -134,9 +134,9 @@ void SetBorderThickness(::entt::entity entity, float thickness)
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
     auto& border = reg.get_or_emplace<components::Border>(entity);
-    border.thickness = scale::Metric(thickness);
+    border.thickness = ui::scale::Metric(thickness);
     border.enabled = policies::Feature::ENABLED;
     ui::utils::MarkVisualChanged(entity);
 }
 
-} // namespace ui::visibility
+} // namespace ui::detail::visibility

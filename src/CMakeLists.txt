@@ -165,6 +165,10 @@ set(UI_SOURCES
     api/Layout.cpp
     api/Text.cpp
     api/Animation.cpp
+    detail/Size.cpp
+    detail/Visibility.cpp
+    detail/Layout.cpp
+    detail/Animation.cpp
     api/Hierarchy.cpp
     api/Icon.cpp
     api/Utils.cpp

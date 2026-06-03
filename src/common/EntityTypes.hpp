@@ -5,10 +5,10 @@
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-05-30
  * @version 0.1
- * @brief entt::entity 别名的单一权威定义。
+ * @brief ui::entity 实体句柄的单一权威定义。
  *
- * 定义放在 common 层，使 Events.hpp 等公共头文件可以用 entt::entity
- * 而不直接暴露 entt::entity 给外部消费者。
+ * 过渡期仍映射到 entt::entity，以保持系统层和服务层既有内部调用可构建。
+ * 后续按 `修改规划.md` 完成全量边界迁移后，再切换为 std::uint32_t。
  *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
@@ -23,10 +23,9 @@
 namespace ui
 {
 
-
-using entity = std::uint32_t;
+using entity = entt::entity;
 
 /// @brief 空实体常量，等价于 entt::null。
-inline constexpr entity null_entity = 0xffffffff;
+inline constexpr entity null_entity = entt::null;
 
 } // namespace ui

@@ -1,58 +1,34 @@
 #include "Layout.hpp"
-#include "Scale.hpp"
-#include "core/RuntimeFacade.hpp"
-#include "common/Policies.hpp"
-#include "Utils.hpp"
-#include "entt/entity/fwd.hpp"
-#include "common/components/Layout.hpp"
-#include <algorithm>
+
+#include "detail/EntityCast.hpp"
+#include "detail/Layout.hpp"
+
 namespace ui::layout
 {
-namespace
-{
-[[nodiscard]] Registry& CurrentRegistry()
-{
-    return RuntimeFacade::current().registry();
-}
-} // namespace
 
-void SetLayoutDirection(::entt::entity entity, policies::LayoutDirection direction)
+void SetLayoutDirection(ui::entity entity, policies::LayoutDirection direction)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& layout = reg.get_or_emplace<components::LayoutInfo>(entity);
-    layout.direction = direction;
-    utils::MarkLayoutDirty(entity);
+    ui::detail::layout::SetLayoutDirection(ui::detail::ToInternal(entity), direction);
 }
 
-void SetLayoutSpacing(::entt::entity entity, float spacing)
+void SetLayoutSpacing(ui::entity entity, float spacing)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    if (auto* layout = reg.try_get<components::LayoutInfo>(entity))
-    {
-        layout->spacing = std::max(0.0F, scale::Metric(spacing));
-        utils::MarkLayoutDirty(entity);
-    }
+    ui::detail::layout::SetLayoutSpacing(ui::detail::ToInternal(entity), spacing);
 }
 
-void SetPadding(::entt::entity entity, float left, float top, float right, float bottom)
+void SetPadding(ui::entity entity, float left, float top, float right, float bottom)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& padding = reg.get_or_emplace<components::Padding>(entity);
-    padding.values = Vec4(scale::Metric(top), scale::Metric(right), scale::Metric(bottom), scale::Metric(left));
-    utils::MarkLayoutDirty(entity);
+    ui::detail::layout::SetPadding(ui::detail::ToInternal(entity), left, top, right, bottom);
 }
 
-void SetPadding(::entt::entity entity, float padding)
+void SetPadding(ui::entity entity, float padding)
 {
-    SetPadding(entity, padding, padding, padding, padding);
+    ui::detail::layout::SetPadding(ui::detail::ToInternal(entity), padding);
 }
 
-void CenterInParent(::entt::entity entity)
+void CenterInParent(ui::entity entity)
 {
-    utils::MarkLayoutDirty(entity);
+    ui::detail::layout::CenterInParent(ui::detail::ToInternal(entity));
 }
 
 } // namespace ui::layout

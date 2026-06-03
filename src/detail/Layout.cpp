@@ -6,7 +6,7 @@
 #include "entt/entity/fwd.hpp"
 #include "common/components/Layout.hpp"
 #include <algorithm>
-namespace ui::layout
+namespace ui::detail::layout
 {
 namespace
 {
@@ -22,7 +22,7 @@ void SetLayoutDirection(::entt::entity entity, policies::LayoutDirection directi
     if (!reg.valid(entity)) return;
     auto& layout = reg.get_or_emplace<components::LayoutInfo>(entity);
     layout.direction = direction;
-    utils::MarkLayoutDirty(entity);
+    ui::utils::MarkLayoutDirty(entity);
 }
 
 void SetLayoutSpacing(::entt::entity entity, float spacing)
@@ -31,8 +31,8 @@ void SetLayoutSpacing(::entt::entity entity, float spacing)
     if (!reg.valid(entity)) return;
     if (auto* layout = reg.try_get<components::LayoutInfo>(entity))
     {
-        layout->spacing = std::max(0.0F, scale::Metric(spacing));
-        utils::MarkLayoutDirty(entity);
+        layout->spacing = std::max(0.0F, ui::scale::Metric(spacing));
+        ui::utils::MarkLayoutDirty(entity);
     }
 }
 
@@ -41,8 +41,8 @@ void SetPadding(::entt::entity entity, float left, float top, float right, float
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
     auto& padding = reg.get_or_emplace<components::Padding>(entity);
-    padding.values = Vec4(scale::Metric(top), scale::Metric(right), scale::Metric(bottom), scale::Metric(left));
-    utils::MarkLayoutDirty(entity);
+    padding.values = Vec4(ui::scale::Metric(top), ui::scale::Metric(right), ui::scale::Metric(bottom), ui::scale::Metric(left));
+    ui::utils::MarkLayoutDirty(entity);
 }
 
 void SetPadding(::entt::entity entity, float padding)
@@ -52,7 +52,7 @@ void SetPadding(::entt::entity entity, float padding)
 
 void CenterInParent(::entt::entity entity)
 {
-    utils::MarkLayoutDirty(entity);
+    ui::utils::MarkLayoutDirty(entity);
 }
 
-} // namespace ui::layout
+} // namespace ui::detail::layout

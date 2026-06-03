@@ -6,7 +6,7 @@
 #include "common/components/Layout.hpp"
 #include "common/Policies.hpp"
 
-namespace ui::size
+namespace ui::detail::size
 {
 namespace
 {
@@ -24,7 +24,7 @@ void SetFixedSize(::entt::entity entity, float width, float height)
     auto& size = reg.get_or_emplace<components::Size>(entity);
     size.sizePolicy = policies::Size::FIXED;
     size.size = {scale::Metric(width), scale::Metric(height)};
-    utils::MarkLayoutDirty(entity);
+    ui::utils::MarkLayoutDirty(entity);
 }
 
 void SetSizePolicy(::entt::entity entity, policies::Size policy)
@@ -33,7 +33,7 @@ void SetSizePolicy(::entt::entity entity, policies::Size policy)
     if (!reg.valid(entity)) return;
     auto& size = reg.get_or_emplace<components::Size>(entity);
     size.sizePolicy = policy;
-    utils::MarkLayoutDirty(entity);
+    ui::utils::MarkLayoutDirty(entity);
 }
 
 void SetSize(::entt::entity entity, float width, float height)
@@ -42,7 +42,7 @@ void SetSize(::entt::entity entity, float width, float height)
     if (!reg.valid(entity)) return;
     auto& size = reg.get_or_emplace<components::Size>(entity);
     size.size = {scale::Metric(width), scale::Metric(height)};
-    utils::MarkLayoutDirty(entity);
+    ui::utils::MarkLayoutDirty(entity);
 }
 
 void SetPosition(::entt::entity entity, float positionX, float positionY)
@@ -51,7 +51,7 @@ void SetPosition(::entt::entity entity, float positionX, float positionY)
     if (!reg.valid(entity)) return;
     auto& pos = reg.get_or_emplace<components::Position>(entity);
     pos.value = {scale::Metric(positionX), scale::Metric(positionY)};
-    utils::MarkLayoutDirty(entity);
+    ui::utils::MarkLayoutDirty(entity);
 }
 
-} // namespace ui::size
+} // namespace ui::detail::size

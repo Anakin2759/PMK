@@ -224,7 +224,7 @@ struct MouseReleaseEvent
 struct DragStartEvent
 {
     using is_event_tag = void;
-    entt::entity source = ui::null_entity;
+    entt::entity source = static_cast<entt::entity>(ui::null_entity);
 };
 
 /**
@@ -234,9 +234,9 @@ struct DragStartEvent
 struct DragMoveEvent
 {
     using is_event_tag = void;
-    entt::entity source = ui::null_entity;
+    entt::entity source = static_cast<entt::entity>(ui::null_entity);
     Vec2 delta;
-    entt::entity hoverTarget = ui::null_entity;
+    entt::entity hoverTarget = static_cast<entt::entity>(ui::null_entity);
 };
 
 /**
@@ -246,8 +246,8 @@ struct DragMoveEvent
 struct DragEndEvent
 {
     using is_event_tag = void;
-    entt::entity source = ui::null_entity;
-    entt::entity dropTarget = ui::null_entity;
+    entt::entity source = static_cast<entt::entity>(ui::null_entity);
+    entt::entity dropTarget = static_cast<entt::entity>(ui::null_entity);
 };
 
 /**
@@ -257,8 +257,8 @@ struct DragEndEvent
 struct DragDroppedEvent
 {
     using is_event_tag = void;
-    entt::entity source = ui::null_entity;
-    entt::entity target = ui::null_entity;
+    entt::entity source = static_cast<entt::entity>(ui::null_entity);
+    entt::entity target = static_cast<entt::entity>(ui::null_entity);
 };
 /**
  * @brief 文本内容改变事件 (TextEdit/Input)
@@ -427,7 +427,7 @@ struct HitPointerMove
 {
     using is_event_tag = void;
     RawPointerMove raw{};
-    entt::entity hitEntity = ui::null_entity; // 鼠标当前悬停的实体 (可能为 null)
+    entt::entity hitEntity = static_cast<entt::entity>(ui::null_entity); // 鼠标当前悬停的实体 (可能为 null)
 };
 
 // 命中测试后的按键事件
@@ -436,7 +436,7 @@ struct HitPointerButton
 {
     using is_event_tag = void;
     RawPointerButton raw{};
-    entt::entity hitEntity = ui::null_entity; // 按键发生位置的实体 (可能为 null)
+    entt::entity hitEntity = static_cast<entt::entity>(ui::null_entity); // 按键发生位置的实体 (可能为 null)
 };
 
 // 命中测试后的滚轮事件
@@ -445,7 +445,7 @@ struct HitPointerWheel
 {
     using is_event_tag = void;
     RawPointerWheel raw{};
-    entt::entity hitEntity = ui::null_entity; // 滚轮发生位置的实体 (可能为 null)
+    entt::entity hitEntity = static_cast<entt::entity>(ui::null_entity); // 滚轮发生位置的实体 (可能为 null)
 };
 
 /**

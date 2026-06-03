@@ -1,158 +1,62 @@
 #include "Animation.hpp"
-#include "core/RuntimeFacade.hpp"
-#include "entt/entity/fwd.hpp"
-#include "common/components/Animation.hpp"
-#include "common/Policies.hpp"
-#include "common/Tags.hpp"
-#include "common/Types.hpp"
-#include <optional>
-#include "common/components/Visual.hpp"
+
+#include "detail/Animation.hpp"
+#include "detail/EntityCast.hpp"
 
 namespace ui::animation
 {
-namespace
-{
 
-[[nodiscard]] Registry& CurrentRegistry()
-{
-    return RuntimeFacade::current().registry();
-}
-
-void ConfigureTiming(::entt::entity entity, const TweenOptions& options)
-{
-    auto& reg = CurrentRegistry();
-    auto& time = reg.get_or_emplace<components::AnimationTime>(entity);
-    time.duration = options.duration;
-    time.elapsed = 0.0F;
-    time.easing = options.easing;
-    time.mode = options.mode;
-    time.state = policies::AnimationState::PLAYING;
-    time.autoCleanup = options.autoCleanup;
-
-    reg.emplace_or_replace<components::AnimatingTag>(entity);
-}
-
-} // namespace
-
-void StartPositionAnimation(::entt::entity entity,
+void StartPositionAnimation(ui::entity entity,
                             const Vec2& startPos,
                             const Vec2& endPos,
                             const TweenOptions& options)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-
-    auto& posAnim = reg.get_or_emplace<components::AnimationPosition>(entity);
-    posAnim.from = startPos;
-    posAnim.to = endPos;
-
-    ConfigureTiming(entity, options);
+    ui::detail::animation::StartPositionAnimation(ui::detail::ToInternal(entity), startPos, endPos, options);
 }
 
-void StartAlphaAnimation(::entt::entity entity, float startAlpha, float endAlpha, const TweenOptions& options)
+void StartAlphaAnimation(ui::entity entity, float startAlpha, float endAlpha, const TweenOptions& options)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-
-    auto& alphaAnim = reg.get_or_emplace<components::AnimationAlpha>(entity);
-    alphaAnim.from = startAlpha;
-    alphaAnim.to = endAlpha;
-
-    ConfigureTiming(entity, options);
+    ui::detail::animation::StartAlphaAnimation(ui::detail::ToInternal(entity), startAlpha, endAlpha, options);
 }
 
-void StartScaleAnimation(::entt::entity entity,
+void StartScaleAnimation(ui::entity entity,
                          const Vec2& startScale,
                          const Vec2& endScale,
                          const TweenOptions& options)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-
-    auto& scaleAnim = reg.get_or_emplace<components::AnimationScale>(entity);
-    scaleAnim.from = startScale;
-    scaleAnim.to = endScale;
-
-    ConfigureTiming(entity, options);
+    ui::detail::animation::StartScaleAnimation(ui::detail::ToInternal(entity), startScale, endScale, options);
 }
 
-void StartRenderOffsetAnimation(::entt::entity entity,
+void StartRenderOffsetAnimation(ui::entity entity,
                                 const Vec2& startOffset,
                                 const Vec2& endOffset,
                                 const TweenOptions& options)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-
-    auto& offsetAnim = reg.get_or_emplace<components::AnimationRenderOffset>(entity);
-    offsetAnim.from = startOffset;
-    offsetAnim.to = endOffset;
-
-    ConfigureTiming(entity, options);
+    ui::detail::animation::StartRenderOffsetAnimation(ui::detail::ToInternal(entity), startOffset, endOffset, options);
 }
 
-void StartColorAnimation(::entt::entity entity,
+void StartColorAnimation(ui::entity entity,
                          const Color& startColor,
                          const Color& endColor,
                          const TweenOptions& options)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-
-    auto& colorAnim = reg.get_or_emplace<components::AnimationColor>(entity);
-    colorAnim.from = startColor;
-    colorAnim.to = endColor;
-
-    ConfigureTiming(entity, options);
+    ui::detail::animation::StartColorAnimation(ui::detail::ToInternal(entity), startColor, endColor, options);
 }
 
-void StartTransformAnimation(::entt::entity entity,
+void StartTransformAnimation(ui::entity entity,
                              const std::optional<Vec2>& targetScale,
                              const std::optional<Vec2>& targetOffset,
                              const TweenOptions& options,
                              const Vec2& defaultScale,
                              const Vec2& defaultOffset)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-
-    bool changed = false;
-
-    if (targetScale.has_value())
-    {
-        auto& scaleAnim = reg.get_or_emplace<components::AnimationScale>(entity);
-        const auto* currentScale = reg.try_get<components::Scale>(entity);
-        scaleAnim.from = currentScale != nullptr ? currentScale->value : defaultScale;
-        scaleAnim.to = *targetScale;
-        changed = true;
-    }
-
-    if (targetOffset.has_value())
-    {
-        auto& offsetAnim = reg.get_or_emplace<components::AnimationRenderOffset>(entity);
-        const auto* currentOffset = reg.try_get<components::RenderOffset>(entity);
-        offsetAnim.from = currentOffset != nullptr ? currentOffset->value : defaultOffset;
-        offsetAnim.to = *targetOffset;
-        changed = true;
-    }
-
-    if (changed)
-    {
-        ConfigureTiming(entity, options);
-    }
+    ui::detail::animation::StartTransformAnimation(
+        ui::detail::ToInternal(entity), targetScale, targetOffset, options, defaultScale, defaultOffset);
 }
 
-void StopAnimation(::entt::entity entity)
+void StopAnimation(ui::entity entity)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    reg.remove<components::AnimatingTag>(entity);
-    reg.remove<components::AnimationTime>(entity);
-    reg.remove<components::AnimationPosition>(entity);
-    reg.remove<components::AnimationAlpha>(entity);
-    reg.remove<components::AnimationScale>(entity);
-    reg.remove<components::AnimationRenderOffset>(entity);
-    reg.remove<components::AnimationColor>(entity);
+    ui::detail::animation::StopAnimation(ui::detail::ToInternal(entity));
 }
 
 } // namespace ui::animation

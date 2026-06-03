@@ -8,7 +8,7 @@
 #include <optional>
 #include "common/components/Visual.hpp"
 
-namespace ui::animation
+namespace ui::detail::animation
 {
 namespace
 {
@@ -18,7 +18,7 @@ namespace
     return RuntimeFacade::current().registry();
 }
 
-void ConfigureTiming(entt::entity entity, const TweenOptions& options)
+void ConfigureTiming(entt::entity entity, const ui::animation::TweenOptions& options)
 {
     auto& reg = CurrentRegistry();
     auto& time = reg.get_or_emplace<components::AnimationTime>(entity);
@@ -37,7 +37,7 @@ void ConfigureTiming(entt::entity entity, const TweenOptions& options)
 void StartPositionAnimation(entt::entity entity,
                             const Vec2& startPos,
                             const Vec2& endPos,
-                            const TweenOptions& options)
+                            const ui::animation::TweenOptions& options)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -49,7 +49,7 @@ void StartPositionAnimation(entt::entity entity,
     ConfigureTiming(entity, options);
 }
 
-void StartAlphaAnimation(entt::entity entity, float startAlpha, float endAlpha, const TweenOptions& options)
+void StartAlphaAnimation(entt::entity entity, float startAlpha, float endAlpha, const ui::animation::TweenOptions& options)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -64,7 +64,7 @@ void StartAlphaAnimation(entt::entity entity, float startAlpha, float endAlpha, 
 void StartScaleAnimation(entt::entity entity,
                          const Vec2& startScale,
                          const Vec2& endScale,
-                         const TweenOptions& options)
+                         const ui::animation::TweenOptions& options)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -79,7 +79,7 @@ void StartScaleAnimation(entt::entity entity,
 void StartRenderOffsetAnimation(entt::entity entity,
                                 const Vec2& startOffset,
                                 const Vec2& endOffset,
-                                const TweenOptions& options)
+                                const ui::animation::TweenOptions& options)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -94,7 +94,7 @@ void StartRenderOffsetAnimation(entt::entity entity,
 void StartColorAnimation(entt::entity entity,
                          const Color& startColor,
                          const Color& endColor,
-                         const TweenOptions& options)
+                         const ui::animation::TweenOptions& options)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -109,7 +109,7 @@ void StartColorAnimation(entt::entity entity,
 void StartTransformAnimation(entt::entity entity,
                              const std::optional<Vec2>& targetScale,
                              const std::optional<Vec2>& targetOffset,
-                             const TweenOptions& options,
+                             const ui::animation::TweenOptions& options,
                              const Vec2& defaultScale,
                              const Vec2& defaultOffset)
 {
@@ -155,4 +155,4 @@ void StopAnimation(::entt::entity entity)
     reg.remove<components::AnimationColor>(entity);
 }
 
-} // namespace ui::animation
+} // namespace ui::detail::animation
