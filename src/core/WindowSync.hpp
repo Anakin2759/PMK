@@ -4,7 +4,7 @@
  * @file WindowSync.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-05-30
- * @version 0.1
+ * @version 0.2
  * @brief 处理窗口相关组件与 SDL_Window 之间的同步逻辑
  *
  * ************************************************************************
@@ -16,19 +16,20 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <string>
 
+#include "PlatformWindow.hpp"
+#include "RuntimeFacade.hpp"
 #include "common/AppConfig.hpp"
-#include "components/Layout.hpp"
-#include "components/Visual.hpp"
-#include "components/Window.hpp"
-#include "core/PlatformWindow.hpp"
-#include "core/RuntimeFacade.hpp"
-#include "Policies.hpp"
-#include "Tags.hpp"
-#include "Types.hpp"
+#include "common/Policies.hpp"
+#include "common/Tags.hpp"
+#include "common/Types.hpp"
+#include "common/components/Layout.hpp"
+#include "common/components/Visual.hpp"
+#include "common/components/Window.hpp"
 #include "singleton/Logger.hpp"
 
 namespace ui::window_sync

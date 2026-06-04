@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "api/Utils.hpp"
+#include "detail/Utils.hpp"
 
 #include "common/Events.hpp"
 #include "common/Policies.hpp"
@@ -42,14 +42,14 @@ constexpr float SCROLLBAR_GUTTER = 14.0F;
 constexpr float DEFAULT_LEAF_WIDTH = 100.0F;
 constexpr float DEFAULT_LEAF_HEIGHT = 20.0F;
 
-[[nodiscard]] bool IsLayoutParticipant(entt::entity entity)
+[[nodiscard]] bool IsLayoutParticipant(Registry& reg, entt::entity entity)
 {
-    if (Registry::AnyOf<components::TableCellWidgetTag>(entity))
+    if (reg.any_of<components::TableCellWidgetTag>(entity))
     {
         return false;
     }
-    return Registry::AnyOf<components::SpacerTag>(entity)
-        || Registry::AllOf<components::Position, components::Size>(entity);
+    return reg.any_of<components::SpacerTag>(entity)
+        || reg.all_of<components::Position, components::Size>(entity);
 }
 
 void DetachFromOwnerIfNeeded(YGNodeRef ownerNode, YGNodeRef childNode, YGNodeRef targetNode)
@@ -60,10 +60,11 @@ void DetachFromOwnerIfNeeded(YGNodeRef ownerNode, YGNodeRef childNode, YGNodeRef
     }
 }
 
-[[nodiscard]] policies::Alignment ResolveContainerAlignment(entt::entity entity,
+[[nodiscard]] policies::Alignment ResolveContainerAlignment(Registry& reg,
+                                                            entt::entity entity,
                                                             const components::LayoutInfo& layoutInfo)
 {
-    const auto* scrollArea = Registry::TryGet<components::ScrollArea>(entity);
+    const auto* scrollArea = reg.try_get<components::ScrollArea>(entity);
     if (scrollArea == nullptr)
     {
         return layoutInfo.alignment;
@@ -120,15 +121,15 @@ void DetachFromOwnerIfNeeded(YGNodeRef ownerNode, YGNodeRef childNode, YGNodeRef
     return alignment;
 }
 
-[[nodiscard]] Vec4 ResolveEffectivePadding(entt::entity entity)
+[[nodiscard]] Vec4 ResolveEffectivePadding(Registry& reg, entt::entity entity)
 {
     Vec4 paddingValues{0.0F, 0.0F, 0.0F, 0.0F};
-    if (const auto* padding = Registry::TryGet<components::Padding>(entity))
+    if (const auto* padding = reg.try_get<components::Padding>(entity))
     {
         paddingValues = padding->values;
     }
 
-    const auto* scrollArea = Registry::TryGet<components::ScrollArea>(entity);
+    const auto* scrollArea = reg.try_get<components::ScrollArea>(entity);
     if (scrollArea == nullptr || policies::HasFlag(scrollArea->scrollBar, policies::ScrollBar::NO_VISIBILITY))
     {
         return paddingValues;
@@ -156,9 +157,9 @@ void SetPaddingIfChanged(YGNodeRef node, YGEdge edge, float value)
     }
 }
 
-void ConfigureLayoutDirectionAndGap(entt::entity entity, YGNodeRef node)
+void ConfigureLayoutDirectionAndGap(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    const auto* layoutInfo = Registry::TryGet<components::LayoutInfo>(entity);
+    const auto* layoutInfo = reg.try_get<components::LayoutInfo>(entity);
     if (layoutInfo == nullptr)
     {
         return;
@@ -178,23 +179,23 @@ void ConfigureLayoutDirectionAndGap(entt::entity entity, YGNodeRef node)
     }
 }
 
-void ConfigurePadding(entt::entity entity, YGNodeRef node)
+void ConfigurePadding(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    const Vec4 effectivePadding = ResolveEffectivePadding(entity);
+    const Vec4 effectivePadding = ResolveEffectivePadding(reg, entity);
     SetPaddingIfChanged(node, YGEdgeTop, effectivePadding.x());
     SetPaddingIfChanged(node, YGEdgeRight, effectivePadding.y());
     SetPaddingIfChanged(node, YGEdgeBottom, effectivePadding.z());
     SetPaddingIfChanged(node, YGEdgeLeft, effectivePadding.w());
 }
 
-[[nodiscard]] bool ConfigureSpacerNode(entt::entity entity, YGNodeRef node)
+[[nodiscard]] bool ConfigureSpacerNode(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    if (!Registry::AnyOf<components::SpacerTag>(entity))
+    if (!reg.any_of<components::SpacerTag>(entity))
     {
         return false;
     }
 
-    const auto* spacer = Registry::TryGet<components::Spacer>(entity);
+    const auto* spacer = reg.try_get<components::Spacer>(entity);
     const float stretchFactor = spacer != nullptr ? static_cast<float>(spacer->stretchFactor) : 1.0F;
 
     if (YGNodeStyleGetFlexGrow(node) != stretchFactor)
@@ -398,9 +399,9 @@ void ConfigureMinMaxSize(const components::Size& sizeComp, YGNodeRef node)
     setMinOrMax(YGNodeStyleGetMaxHeight, YGNodeStyleSetMaxHeight, sizeComp.maxSize.y(), true);
 }
 
-void ConfigureSizeNode(entt::entity entity, YGNodeRef node)
+void ConfigureSizeNode(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    auto* sizeComp = Registry::TryGet<components::Size>(entity);
+    auto* sizeComp = reg.try_get<components::Size>(entity);
     if (sizeComp == nullptr)
     {
         return;
@@ -408,15 +409,15 @@ void ConfigureSizeNode(entt::entity entity, YGNodeRef node)
 
     policies::LayoutDirection parentDirection = policies::LayoutDirection::VERTICAL;
     bool parentIsScrollArea = false;
-    if (const auto* hierarchy = Registry::TryGet<components::Hierarchy>(entity))
+    if (const auto* hierarchy = reg.try_get<components::Hierarchy>(entity))
     {
         if (hierarchy->parent != entt::null)
         {
-            if (const auto* parentLayout = Registry::TryGet<components::LayoutInfo>(hierarchy->parent))
+            if (const auto* parentLayout = reg.try_get<components::LayoutInfo>(hierarchy->parent))
             {
                 parentDirection = parentLayout->direction;
             }
-            parentIsScrollArea = Registry::AnyOf<components::ScrollArea>(hierarchy->parent);
+            parentIsScrollArea = reg.any_of<components::ScrollArea>(hierarchy->parent);
         }
     }
 
@@ -426,9 +427,9 @@ void ConfigureSizeNode(entt::entity entity, YGNodeRef node)
     ConfigureMinMaxSize(*sizeComp, node);
 }
 
-void ConfigureAbsolutePosition(entt::entity entity, YGNodeRef node)
+void ConfigureAbsolutePosition(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    auto* positionComp = Registry::TryGet<components::Position>(entity);
+    auto* positionComp = reg.try_get<components::Position>(entity);
     if (positionComp == nullptr)
     {
         return;
@@ -537,26 +538,25 @@ void ConfigureAbsolutePosition(entt::entity entity, YGNodeRef node)
     return YGAlignCenter;
 }
 
-void ConfigureOverflow(entt::entity entity, YGNodeRef node)
+void ConfigureOverflow(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    const YGOverflow targetOverflow =
-        Registry::AnyOf<components::ScrollArea>(entity) ? YGOverflowScroll : YGOverflowHidden;
+    const YGOverflow targetOverflow = reg.any_of<components::ScrollArea>(entity) ? YGOverflowScroll : YGOverflowHidden;
     if (YGNodeStyleGetOverflow(node) != targetOverflow)
     {
         YGNodeStyleSetOverflow(node, targetOverflow);
     }
 }
 
-void ConfigureContainerAlignmentAndOverflow(entt::entity entity, YGNodeRef node)
+void ConfigureContainerAlignmentAndOverflow(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    const auto* layoutInfo = Registry::TryGet<components::LayoutInfo>(entity);
+    const auto* layoutInfo = reg.try_get<components::LayoutInfo>(entity);
     if (layoutInfo == nullptr)
     {
         return;
     }
 
     const bool isRow = (layoutInfo->direction == policies::LayoutDirection::HORIZONTAL);
-    const policies::Alignment alignment = ResolveContainerAlignment(entity, *layoutInfo);
+    const policies::Alignment alignment = ResolveContainerAlignment(reg, entity, *layoutInfo);
     const YGJustify justify = ResolveJustifyContent(alignment, isRow);
     const YGAlign alignItems = ResolveAlignItems(alignment, isRow);
 
@@ -570,17 +570,17 @@ void ConfigureContainerAlignmentAndOverflow(entt::entity entity, YGNodeRef node)
         YGNodeStyleSetAlignItems(node, alignItems);
     }
 
-    ConfigureOverflow(entity, node);
+    ConfigureOverflow(reg, entity, node);
 }
 
-void ConfigureLeafAutoSize(entt::entity entity, YGNodeRef node)
+void ConfigureLeafAutoSize(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    if (Registry::AnyOf<components::LayoutInfo>(entity))
+    if (reg.any_of<components::LayoutInfo>(entity))
     {
         return;
     }
 
-    const auto* sizeComp = Registry::TryGet<components::Size>(entity);
+    const auto* sizeComp = reg.try_get<components::Size>(entity);
     if (sizeComp == nullptr)
     {
         return;
@@ -589,7 +589,7 @@ void ConfigureLeafAutoSize(entt::entity entity, YGNodeRef node)
     float defaultWidth = DEFAULT_LEAF_WIDTH;
     const float defaultHeight = DEFAULT_LEAF_HEIGHT;
 
-    if (const auto* text = Registry::TryGet<components::Text>(entity))
+    if (const auto* text = reg.try_get<components::Text>(entity))
     {
         if (!text->content.empty())
         {
@@ -643,16 +643,16 @@ void ConfigureLeafAutoSize(entt::entity entity, YGNodeRef node)
     return widths;
 }
 
-void UpdateTableCellEntityLayouts(entt::entity tableEntity, YGNodeRef tableNode)
+void UpdateTableCellEntityLayouts(Registry& reg, entt::entity tableEntity, YGNodeRef tableNode)
 {
-    const auto* info = Registry::TryGet<components::TableInfo>(tableEntity);
+    const auto* info = reg.try_get<components::TableInfo>(tableEntity);
     if (info == nullptr || info->columnCount <= 0)
     {
         return;
     }
 
     float totalWidth = NormalizeLayoutValue(YGNodeLayoutGetWidth(tableNode));
-    if (const auto* sizeComp = Registry::TryGet<components::Size>(tableEntity))
+    if (const auto* sizeComp = reg.try_get<components::Size>(tableEntity))
     {
         totalWidth = sizeComp->size.x();
     }
@@ -667,14 +667,14 @@ void UpdateTableCellEntityLayouts(entt::entity tableEntity, YGNodeRef tableNode)
         {
             const float colWidth = colWidths.at(static_cast<size_t>(col));
             const auto& cell = info->cells.at(static_cast<size_t>(row)).at(static_cast<size_t>(col));
-            if (cell.cellEntity != entt::null && Registry::Valid(cell.cellEntity))
+            if (cell.cellEntity != entt::null && reg.valid(cell.cellEntity))
             {
-                if (auto* pos = Registry::TryGet<components::Position>(cell.cellEntity))
+                if (auto* pos = reg.try_get<components::Position>(cell.cellEntity))
                 {
                     pos->value.x() = cellX;
                     pos->value.y() = cellY;
                 }
-                if (auto* sizeComp = Registry::TryGet<components::Size>(cell.cellEntity))
+                if (auto* sizeComp = reg.try_get<components::Size>(cell.cellEntity))
                 {
                     sizeComp->size.x() = colWidth;
                     sizeComp->size.y() = info->rowHeight;
@@ -685,7 +685,7 @@ void UpdateTableCellEntityLayouts(entt::entity tableEntity, YGNodeRef tableNode)
     }
 }
 
-void UpdateEntityLayoutFromYoga(entt::entity entity, YGNodeRef node)
+void UpdateEntityLayoutFromYoga(Registry& reg, entt::entity entity, YGNodeRef node)
 {
     bool isDirty = false;
 
@@ -694,7 +694,7 @@ void UpdateEntityLayoutFromYoga(entt::entity entity, YGNodeRef node)
     const float width = YGNodeLayoutGetWidth(node);
     const float height = YGNodeLayoutGetHeight(node);
 
-    if (auto* positionComp = Registry::TryGet<components::Position>(entity); positionComp != nullptr)
+    if (auto* positionComp = reg.try_get<components::Position>(entity); positionComp != nullptr)
     {
         if (positionComp->value.x() != left || positionComp->value.y() != top)
         {
@@ -704,7 +704,7 @@ void UpdateEntityLayoutFromYoga(entt::entity entity, YGNodeRef node)
         }
     }
 
-    if (auto* sizeComp = Registry::TryGet<components::Size>(entity); sizeComp != nullptr)
+    if (auto* sizeComp = reg.try_get<components::Size>(entity); sizeComp != nullptr)
     {
         // FIXED 节点的 size 由用户显式指定，不应被 Yoga 溢出计算结果覆盖；
         // Yoga 已用该精确值约束了子节点布局，position 回写不受影响。
@@ -735,15 +735,15 @@ void UpdateEntityLayoutFromYoga(entt::entity entity, YGNodeRef node)
     }
 }
 
-void UpdateScrollAreaContentSize(entt::entity entity, YGNodeRef node)
+void UpdateScrollAreaContentSize(Registry& reg, entt::entity entity, YGNodeRef node)
 {
-    auto* scrollArea = Registry::TryGet<components::ScrollArea>(entity);
-    if (scrollArea == nullptr || Registry::AnyOf<components::TextEditTag>(entity))
+    auto* scrollArea = reg.try_get<components::ScrollArea>(entity);
+    if (scrollArea == nullptr || reg.any_of<components::TextEditTag>(entity))
     {
         return;
     }
 
-    const auto* hierarchy = Registry::TryGet<components::Hierarchy>(entity);
+    const auto* hierarchy = reg.try_get<components::Hierarchy>(entity);
     if (hierarchy == nullptr)
     {
         return;
@@ -761,7 +761,7 @@ void UpdateScrollAreaContentSize(entt::entity entity, YGNodeRef node)
 
     for (entt::entity const child : hierarchy->children)
     {
-        if (!IsLayoutParticipant(child))
+        if (!IsLayoutParticipant(reg, child))
         {
             continue;
         }
@@ -784,7 +784,7 @@ void UpdateScrollAreaContentSize(entt::entity entity, YGNodeRef node)
 
     float paddingRight = 0.0F;
     float paddingBottom = 0.0F;
-    if (const auto* padding = Registry::TryGet<components::Padding>(entity); padding != nullptr)
+    if (const auto* padding = reg.try_get<components::Padding>(entity); padding != nullptr)
     {
         paddingRight = padding->values.y();
         paddingBottom = padding->values.z();
@@ -873,12 +873,12 @@ void LayoutSystem::update()
     cleanupInvalidNodes();
 
     std::unordered_set<entt::entity> dirtyRoots;
-    auto dirtyView = Registry::View<components::LayoutDirtyTag>();
+    auto dirtyView = m_reg->view<components::LayoutDirtyTag>();
     if (!dirtyView.empty())
     {
         for (entt::entity const entity : dirtyView)
         {
-            if (!Registry::Valid(entity))
+            if (!m_reg->valid(entity))
             {
                 continue;
             }
@@ -886,12 +886,12 @@ void LayoutSystem::update()
             syncNodeRecursive(entity);
 
             const entt::entity root = findRoot(entity);
-            if (Registry::Valid(root))
+            if (m_reg->valid(root))
             {
                 dirtyRoots.insert(root);
             }
         }
-        Registry::Clear<components::LayoutDirtyTag>();
+        m_reg->clear<components::LayoutDirtyTag>();
     }
 
     if (dirtyRoots.empty())
@@ -901,7 +901,7 @@ void LayoutSystem::update()
 
     for (entt::entity const root : dirtyRoots)
     {
-        if (!Registry::AllOf<components::Hierarchy, components::Position, components::Size, components::RootTag>(root))
+        if (!m_reg->all_of<components::Hierarchy, components::Position, components::Size, components::RootTag>(root))
         {
             continue;
         }
@@ -919,7 +919,7 @@ void LayoutSystem::update()
 
         float rootWidth = YGUndefined;
         float rootHeight = YGUndefined;
-        if (auto* sizeComp = Registry::TryGet<components::Size>(root); sizeComp != nullptr)
+        if (auto* sizeComp = m_reg->try_get<components::Size>(root); sizeComp != nullptr)
         {
             rootWidth = sizeComp->size.x();
             rootHeight = sizeComp->size.y();
@@ -936,14 +936,14 @@ entt::entity LayoutSystem::findRoot(entt::entity entity) const
     entt::entity current = entity;
     int safetyCounter = 0;
 
-    while (Registry::Valid(current) && safetyCounter++ < MAX_HIERARCHY_DEPTH)
+    while (m_reg->valid(current) && safetyCounter++ < MAX_HIERARCHY_DEPTH)
     {
-        if (Registry::AnyOf<components::RootTag>(current))
+        if (m_reg->any_of<components::RootTag>(current))
         {
             return current;
         }
 
-        const auto* hierarchy = Registry::TryGet<components::Hierarchy>(current);
+        const auto* hierarchy = m_reg->try_get<components::Hierarchy>(current);
         if (hierarchy == nullptr || hierarchy->parent == entt::null)
         {
             break;
@@ -978,7 +978,7 @@ void LayoutSystem::cleanupInvalidNodes()
     auto nodeIterator = m_entityToNode->begin();
     while (nodeIterator != m_entityToNode->end())
     {
-        if (!Registry::Valid(nodeIterator->first))
+        if (!m_reg->valid(nodeIterator->first))
         {
             if (nodeIterator->second != nullptr)
             {
@@ -1019,7 +1019,7 @@ void LayoutSystem::syncNodeRecursive(entt::entity entity)
         const entt::entity current = pendingEntities.back();
         pendingEntities.pop_back();
 
-        if (!Registry::Valid(current))
+        if (!m_reg->valid(current))
         {
             continue;
         }
@@ -1028,7 +1028,7 @@ void LayoutSystem::syncNodeRecursive(entt::entity entity)
         configureYogaNode(current, node);
         syncChildren(current, node);
 
-        const auto* hierarchy = Registry::TryGet<components::Hierarchy>(current);
+        const auto* hierarchy = m_reg->try_get<components::Hierarchy>(current);
         if (hierarchy == nullptr || hierarchy->children.empty())
         {
             continue;
@@ -1036,7 +1036,7 @@ void LayoutSystem::syncNodeRecursive(entt::entity entity)
 
         for (auto childIt : std::views::reverse(hierarchy->children))
         {
-            if (Registry::Valid(childIt) && IsLayoutParticipant(childIt))
+            if (m_reg->valid(childIt) && IsLayoutParticipant(*m_reg, childIt))
             {
                 pendingEntities.push_back(childIt);
             }
@@ -1046,7 +1046,7 @@ void LayoutSystem::syncNodeRecursive(entt::entity entity)
 
 void LayoutSystem::syncChildren(entt::entity entity, YGNodeRef node)
 {
-    const auto* hierarchy = Registry::TryGet<components::Hierarchy>(entity);
+    const auto* hierarchy = m_reg->try_get<components::Hierarchy>(entity);
 
     std::vector<YGNodeRef> expectedChildren;
     if (hierarchy != nullptr && !hierarchy->children.empty())
@@ -1054,7 +1054,7 @@ void LayoutSystem::syncChildren(entt::entity entity, YGNodeRef node)
         expectedChildren.reserve(hierarchy->children.size());
         for (entt::entity const child : hierarchy->children)
         {
-            if (!IsLayoutParticipant(child))
+            if (!IsLayoutParticipant(*m_reg, child))
             {
                 continue;
             }
@@ -1100,17 +1100,17 @@ void LayoutSystem::syncChildren(entt::entity entity, YGNodeRef node)
 
 void LayoutSystem::configureYogaNode(entt::entity entity, YGNodeRef node)
 {
-    ConfigureLayoutDirectionAndGap(entity, node);
-    ConfigurePadding(entity, node);
-    if (ConfigureSpacerNode(entity, node))
+    ConfigureLayoutDirectionAndGap(*m_reg, entity, node);
+    ConfigurePadding(*m_reg, entity, node);
+    if (ConfigureSpacerNode(*m_reg, entity, node))
     {
         return;
     }
 
-    ConfigureSizeNode(entity, node);
-    ConfigureAbsolutePosition(entity, node);
-    ConfigureContainerAlignmentAndOverflow(entity, node);
-    ConfigureLeafAutoSize(entity, node);
+    ConfigureSizeNode(*m_reg, entity, node);
+    ConfigureAbsolutePosition(*m_reg, entity, node);
+    ConfigureContainerAlignmentAndOverflow(*m_reg, entity, node);
+    ConfigureLeafAutoSize(*m_reg, entity, node);
 }
 
 void LayoutSystem::applyYogaLayout(entt::entity entity, YGNodeRef node)
@@ -1135,18 +1135,18 @@ void LayoutSystem::applyYogaLayout(entt::entity entity, YGNodeRef node)
 
         if (frame.postVisit)
         {
-            UpdateScrollAreaContentSize(frame.entity, frame.node);
+            UpdateScrollAreaContentSize(*m_reg, frame.entity, frame.node);
             continue;
         }
 
-        UpdateEntityLayoutFromYoga(frame.entity, frame.node);
-        if (Registry::AnyOf<components::TableTag>(frame.entity))
+        UpdateEntityLayoutFromYoga(*m_reg, frame.entity, frame.node);
+        if (m_reg->any_of<components::TableTag>(frame.entity))
         {
-            UpdateTableCellEntityLayouts(frame.entity, frame.node);
+            UpdateTableCellEntityLayouts(*m_reg, frame.entity, frame.node);
         }
         traversalStack.push_back({.entity = frame.entity, .node = frame.node, .postVisit = true});
 
-        const auto* hierarchy = Registry::TryGet<components::Hierarchy>(frame.entity);
+        const auto* hierarchy = m_reg->try_get<components::Hierarchy>(frame.entity);
         if (hierarchy == nullptr || hierarchy->children.empty())
         {
             continue;
@@ -1159,7 +1159,7 @@ void LayoutSystem::applyYogaLayout(entt::entity entity, YGNodeRef node)
         const std::uint32_t childCount = YGNodeGetChildCount(frame.node);
         for (entt::entity const child : hierarchy->children)
         {
-            if (!IsLayoutParticipant(child) || yogaChildIndex >= childCount)
+            if (!IsLayoutParticipant(*m_reg, child) || yogaChildIndex >= childCount)
             {
                 continue;
             }
@@ -1178,8 +1178,8 @@ void LayoutSystem::applyYogaLayout(entt::entity entity, YGNodeRef node)
 
 void LayoutSystem::applyWindowCentering(entt::entity root, float screenWidth, float screenHeight)
 {
-    auto* positionComp = Registry::TryGet<components::Position>(root);
-    auto* sizeComp = Registry::TryGet<components::Size>(root);
+    auto* positionComp = m_reg->try_get<components::Position>(root);
+    auto* sizeComp = m_reg->try_get<components::Size>(root);
     if (positionComp == nullptr || sizeComp == nullptr || sizeComp->size.x() <= 0.0F || sizeComp->size.y() <= 0.0F)
     {
         return;

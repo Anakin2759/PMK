@@ -1,14 +1,14 @@
 #include "StateSystem.hpp"
-#include "api/Table.hpp"
-#include "api/Utils.hpp"
+#include "detail/Utils.hpp"
 #include "common/AppConfig.hpp"
+#include "common/Table.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
 #include "common/components/Window.hpp"
 #include "common/Policies.hpp"
 #include "common/Tags.hpp"
-#include "common/WindowSync.hpp"
+#include "core/WindowSync.hpp"
 #include "singleton/Dispatcher.hpp"
 #include "singleton/Logger.hpp"
 #include "core/RuntimeFacade.hpp"
@@ -315,7 +315,8 @@ void StateSystem::ScrollbarStateHelpers::updateHoverStates(StateSystem& system,
             continue;
         }
 
-        const components::VerticalScrollbarGeometry geometry = ui::utils::GetVerticalScrollbarGeometry(entity);
+        const components::VerticalScrollbarGeometry geometry =
+            ui::utils::GetVerticalScrollbarGeometry(entity);
         if (!geometry.visible)
         {
             continue;
@@ -433,7 +434,8 @@ StateSystem::ScrollbarHitType StateSystem::ScrollbarStateHelpers::checkHit(State
         return ScrollbarHitType::NONE;
     }
 
-    const components::VerticalScrollbarGeometry geometry = ui::utils::GetVerticalScrollbarGeometry(entity);
+    const components::VerticalScrollbarGeometry geometry =
+        ui::utils::GetVerticalScrollbarGeometry(entity);
     if (geometry.visible)
     {
         if (geometry.trackRect.contains(mousePos))

@@ -68,7 +68,7 @@ private:
     void syncNodeRecursive(entt::entity entity);
     void syncChildren(entt::entity entity, YGNodeRef node);
     void configureYogaNode(entt::entity entity, YGNodeRef node);
-    static void applyYogaLayout(entt::entity entity, YGNodeRef node);
+    void applyYogaLayout(entt::entity entity, YGNodeRef node);
     void applyWindowCentering(entt::entity root, float screenWidth, float screenHeight);
 
     YGConfigRef m_yogaConfig = nullptr;

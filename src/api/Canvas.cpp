@@ -3,7 +3,6 @@
 #include "Scale.hpp"
 
 #include "core/RuntimeFacade.hpp"
-#include "entt/entity/fwd.hpp"
 #include "common/components/Data.hpp"
 #include "common/Types.hpp"
 #include <vector>
@@ -20,7 +19,7 @@ namespace
 }
 } // namespace
 
-void Clear(entt::entity entity)
+void Clear(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -28,7 +27,7 @@ void Clear(entt::entity entity)
     list.commands.clear();
 }
 
-void DrawLine(entt::entity entity, Vec2 from, Vec2 endPos, Color color, float lineWidth)
+void DrawLine(ui::entity entity, Vec2 from, Vec2 endPos, Color color, float lineWidth)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -43,7 +42,7 @@ void DrawLine(entt::entity entity, Vec2 from, Vec2 endPos, Color color, float li
                              .points = {}});
 }
 
-void DrawRect(entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, float lineWidth)
+void DrawRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, float lineWidth)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -58,7 +57,7 @@ void DrawRect(entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, 
                              .points = {}});
 }
 
-void DrawFilledRect(entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color)
+void DrawFilledRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -73,7 +72,7 @@ void DrawFilledRect(entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color c
                              .points = {}});
 }
 
-void DrawCircle(entt::entity entity, Vec2 center, float radius, Color color, float lineWidth)
+void DrawCircle(ui::entity entity, Vec2 center, float radius, Color color, float lineWidth)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -88,7 +87,7 @@ void DrawCircle(entt::entity entity, Vec2 center, float radius, Color color, flo
                              .points = {}});
 }
 
-void DrawFilledCircle(entt::entity entity, Vec2 center, float radius, Color color)
+void DrawFilledCircle(ui::entity entity, Vec2 center, float radius, Color color)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -103,7 +102,7 @@ void DrawFilledCircle(entt::entity entity, Vec2 center, float radius, Color colo
                              .points = {}});
 }
 
-void DrawPolyline(entt::entity entity, std::vector<Vec2> points, Color color, float lineWidth)
+void DrawPolyline(ui::entity entity, std::vector<Vec2> points, Color color, float lineWidth)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity) || points.size() < 2) return;
@@ -120,7 +119,7 @@ void DrawPolyline(entt::entity entity, std::vector<Vec2> points, Color color, fl
     list.commands.push_back(std::move(cmd));
 }
 
-void DrawCubicBezier(entt::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color, float lineWidth)
+void DrawCubicBezier(ui::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color, float lineWidth)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;

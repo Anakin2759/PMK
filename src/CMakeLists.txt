@@ -194,8 +194,9 @@ set(UI_HEADERS
     common/Policies.hpp
     common/Tags.hpp
     common/Events.hpp
+    common/Table.hpp
+    common/Theme.hpp
     common/Types.hpp
-    common/WindowSync.hpp
     common/RenderTypes.hpp
     common/Result.hpp
     common/ErrorCodes.hpp
@@ -230,6 +231,8 @@ set(UI_HEADERS
     core/EventLoop.hpp
     core/UiRuntime.hpp
     core/RuntimeFacade.hpp
+    core/WindowEntityLookup.hpp
+    core/WindowSync.hpp
     core/TaskChain.hpp
     core/TextUtils.hpp
     services/TextEditingService.hpp

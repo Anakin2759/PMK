@@ -18,7 +18,7 @@
 #include "singleton/Logger.hpp"
 #include "common/GlobalContext.hpp"
 #include "common/Tags.hpp"
-#include "api/Utils.hpp"
+#include "detail/Utils.hpp"
 #include "common/Events.hpp"
 #include "common/Types.hpp"
 #include "common/components/Data.hpp"

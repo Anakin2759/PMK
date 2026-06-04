@@ -3,7 +3,6 @@
 #include "core/RuntimeFacade.hpp"
 #include "common/Tags.hpp"
 #include "api/Utils.hpp"
-#include "entt/entity/fwd.hpp"
 #include <string>
 #include "common/components/Data.hpp"
 #include "common/Policies.hpp"
@@ -21,7 +20,7 @@ namespace
 }
 } // namespace
 
-void SetText(::entt::entity entity, const std::string& content)
+void SetText(ui::entity entity, const std::string& content)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -33,7 +32,7 @@ void SetText(::entt::entity entity, const std::string& content)
     }
 }
 
-void SetButtonEnabled(::entt::entity entity, bool enabled)
+void SetButtonEnabled(ui::entity entity, bool enabled)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -47,7 +46,7 @@ void SetButtonEnabled(::entt::entity entity, bool enabled)
     }
 }
 
-void SetTextContent(::entt::entity entity, const std::string& content)
+void SetTextContent(ui::entity entity, const std::string& content)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -56,7 +55,7 @@ void SetTextContent(::entt::entity entity, const std::string& content)
     utils::MarkLayoutDirty(entity);
 }
 
-void SetTextWordWrap(::entt::entity entity, policies::TextWrap mode)
+void SetTextWordWrap(ui::entity entity, policies::TextWrap mode)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -65,7 +64,7 @@ void SetTextWordWrap(::entt::entity entity, policies::TextWrap mode)
     utils::MarkLayoutDirty(entity);
 }
 
-void SetTextAlignment(::entt::entity entity, policies::Alignment alignment)
+void SetTextAlignment(ui::entity entity, policies::Alignment alignment)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -74,7 +73,7 @@ void SetTextAlignment(::entt::entity entity, policies::Alignment alignment)
     utils::MarkLayoutDirty(entity);
 }
 
-void SetTextColor(::entt::entity entity, const Color& color)
+void SetTextColor(ui::entity entity, const Color& color)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -82,7 +81,7 @@ void SetTextColor(::entt::entity entity, const Color& color)
     if (auto* textEdit = reg.try_get<components::TextEdit>(entity)) textEdit->textColor = color;
 }
 
-std::string GetTextEditContent(::entt::entity entity)
+std::string GetTextEditContent(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return "";
@@ -94,7 +93,7 @@ std::string GetTextEditContent(::entt::entity entity)
  * @param entity {comment}
  * @param content {comment}
  */
-void SetTextEditContent(::entt::entity entity, const std::string& content)
+void SetTextEditContent(ui::entity entity, const std::string& content)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -108,14 +107,14 @@ void SetTextEditContent(::entt::entity entity, const std::string& content)
     }
 }
 
-void SetPasswordMode(::entt::entity entity, policies::TextFlag enabled)
+void SetPasswordMode(ui::entity entity, policies::TextFlag enabled)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
     if (auto* textEdit = reg.try_get<components::TextEdit>(entity)) textEdit->inputMode |= enabled;
 }
 
-void SetClickCallback(::entt::entity entity, components::on_event<> callback)
+void SetClickCallback(ui::entity entity, components::on_event<> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -124,7 +123,7 @@ void SetClickCallback(::entt::entity entity, components::on_event<> callback)
     clickable.enabled = policies::Feature::ENABLED;
 }
 
-void SetOnSubmit(::entt::entity entity, components::on_event<> callback)
+void SetOnSubmit(ui::entity entity, components::on_event<> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -135,7 +134,7 @@ void SetOnSubmit(::entt::entity entity, components::on_event<> callback)
     }
 }
 
-void SetOnTextChanged(::entt::entity entity, components::on_event<const std::string&> callback)
+void SetOnTextChanged(ui::entity entity, components::on_event<const std::string&> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -146,7 +145,7 @@ void SetOnTextChanged(::entt::entity entity, components::on_event<const std::str
     }
 }
 
-void SetLineHeight(::entt::entity entity, float height)
+void SetLineHeight(ui::entity entity, float height)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -155,7 +154,7 @@ void SetLineHeight(::entt::entity entity, float height)
     utils::MarkLayoutDirty(entity);
 }
 
-void SetCharacterSpacing(::entt::entity entity, float spacing)
+void SetCharacterSpacing(ui::entity entity, float spacing)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -164,7 +163,7 @@ void SetCharacterSpacing(::entt::entity entity, float spacing)
     utils::MarkLayoutDirty(entity);
 }
 
-void SetTextWrapWidth(::entt::entity entity, float width)
+void SetTextWrapWidth(ui::entity entity, float width)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -173,7 +172,7 @@ void SetTextWrapWidth(::entt::entity entity, float width)
     utils::MarkLayoutDirty(entity);
 }
 
-void SetFontSize(::entt::entity entity, float size)
+void SetFontSize(ui::entity entity, float size)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;

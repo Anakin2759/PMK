@@ -19,6 +19,7 @@
 #include "Entity.hpp"
 #include <string>
 #include <string_view>
+#include "common/Types.hpp"
 #include "core/Application.hpp"
 #include "common/Result.hpp"
 #ifdef CreateWindow

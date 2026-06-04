@@ -157,6 +157,25 @@ else()
     message(STATUS "clang-tidy integration disabled (ENABLE_CLANG_TIDY=OFF)")
 endif()
 
+# ==================== 架构边界 P0 软门禁 ====================
+# 现有边界债已在脚本中 baseline；默认构建会检查是否新增：
+# - systems/renderers/services 反向 include api/*
+# - systems 使用 deprecated Registry::Xxx / Dispatcher::Xxx 静态入口
+# - common 依赖 RuntimeFacade / Registry
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_custom_target(ui_architecture_boundary_check ALL
+        COMMAND ${Python3_EXECUTABLE}
+            "${CMAKE_SOURCE_DIR}/tools/check_architecture_boundaries.py"
+            --root "${CMAKE_SOURCE_DIR}"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        COMMENT "[UI Architecture] Checking P0 boundary debt does not grow"
+        VERBATIM
+    )
+else()
+    message(WARNING "Python3 interpreter not found; ui_architecture_boundary_check target is disabled.")
+endif()
+
 # ===================== UI 库 ====================
 add_subdirectory(src)
 

@@ -15,10 +15,9 @@
 #pragma once
 
 #include <cstdint>
-#include "Entity.hpp"
+#include <string>
 #include "common/components/Layout.hpp"
 #include "common/Policies.hpp"
-#include "Chains.hpp"
 namespace ui::utils
 {
 
@@ -61,20 +60,3 @@ void CancelQueuedTask(TaskHandle handle);
 bool IsEntityExist(const std::string& alias);
 
 } // namespace ui::utils
-
-namespace ui::actions
-{
-namespace utils
-{
-inline constexpr EntityAction<&ui::utils::SetWindowFlag> SET_WINDOW_FLAG_ACTION{};
-} // namespace utils
-} // namespace ui::actions
-
-namespace ui::chains
-{
-inline auto WindowFlag(policies::WindowFlag flag)
-{
-    return ui::actions::utils::SET_WINDOW_FLAG_ACTION.bind(flag);
-}
-
-} // namespace ui::chains

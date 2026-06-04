@@ -12,11 +12,11 @@
 #include <algorithm>
 #include <string>
 
-#include "api/Utils.hpp"
 #include "common/Tags.hpp"
 #include "common/components/Data.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "core/TextUtils.hpp"
+#include "detail/Utils.hpp"
 
 namespace ui::services
 {

@@ -87,6 +87,31 @@ void MarkRenderDirty(ui::entity entity)
     MarkVisualChanged(entity);
 }
 
+void MarkLayoutChanged(entt::entity entity)
+{
+    MarkLayoutChanged(detail::ToPublic(entity));
+}
+
+void MarkVisualChanged(entt::entity entity)
+{
+    MarkVisualChanged(detail::ToPublic(entity));
+}
+
+void MarkLayoutAndVisualChanged(entt::entity entity)
+{
+    MarkLayoutAndVisualChanged(detail::ToPublic(entity));
+}
+
+void MarkLayoutDirty(entt::entity entity)
+{
+    MarkLayoutDirty(detail::ToPublic(entity));
+}
+
+void MarkRenderDirty(entt::entity entity)
+{
+    MarkRenderDirty(detail::ToPublic(entity));
+}
+
 bool HasAlignment(policies::Alignment value, policies::Alignment flag)
 {
     return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0;

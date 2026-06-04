@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include "common/components/Window.hpp"
 #include "common/AppConfig.hpp"
-#include "common/WindowSync.hpp"
+#include "core/WindowSync.hpp"
 #include "singleton/Logger.hpp"
 #include "SDL3/SDL_gpu.h"
 #include "SDL3/SDL_video.h"
@@ -34,7 +34,7 @@
 #include "SDL3/SDL_rect.h"
 #include "singleton/Registry.hpp"
 #include "common/Tags.hpp"
-#include "api/Utils.hpp"
+#include "detail/Utils.hpp"
 
 namespace ui::systems
 {

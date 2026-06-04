@@ -6,7 +6,6 @@
 #include "Utils.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "common/Policies.hpp"
-#include "entt/entity/fwd.hpp"
 #include "common/components/Data.hpp"
 namespace ui::icon
 {
@@ -19,7 +18,7 @@ namespace
 } // namespace
 
 void SetIcon(
-    entt::entity entity, const std::string& textureId, policies::IconFlag iconflag, float iconSize, float spacing)
+    ui::entity entity, const std::string& textureId, policies::IconFlag iconflag, float iconSize, float spacing)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -37,7 +36,7 @@ void SetIcon(
     ui::utils::MarkLayoutAndVisualChanged(entity);
 }
 
-void SetIcon(entt::entity entity,
+void SetIcon(ui::entity entity,
              const std::string& fontName,
              uint32_t codepoint,
              policies::IconFlag iconflag,
@@ -65,7 +64,7 @@ void SetIcon(entt::entity entity,
     ui::utils::MarkLayoutAndVisualChanged(entity);
 }
 
-void RemoveIcon(entt::entity entity)
+void RemoveIcon(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;

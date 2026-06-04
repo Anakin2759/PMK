@@ -19,10 +19,9 @@
 #pragma once
 
 #include <type_traits>
+#include <vector>
 
 #include "Entity.hpp"
-#include "core/RuntimeFacade.hpp"
-#include "common/components/Layout.hpp"
 #include "Chains.hpp" // Changed: Include Chains.hpp for DSL
 
 namespace ui::hierarchy
@@ -39,6 +38,9 @@ void RemoveChild(ui::entity parent, ui::entity child);
  * @param child 子节点实体
  */
 void AddChild(ui::entity parent, ui::entity child);
+
+[[nodiscard]] std::vector<ui::entity> ChildrenPostOrder(ui::entity parent);
+
 /**
  * @brief 遍历子元素
  * @param parent 父实体
@@ -47,18 +49,8 @@ void AddChild(ui::entity parent, ui::entity child);
 template <typename Func>
 void TraverseChildren(ui::entity parent, Func visitor)
 {
-    auto& reg = RuntimeFacade::current().registry();
-    if (!reg.valid(parent)) return;
-
-    const auto* hierarchy = reg.try_get<components::Hierarchy>(parent);
-    if (!hierarchy || hierarchy->children.empty()) return;
-
-    const auto childrenCopy = hierarchy->children;
-    for (const auto childInternal : childrenCopy)
+    for (const ui::entity child : ChildrenPostOrder(parent))
     {
-        const ui::entity child = static_cast<ui::entity>(childInternal);
-        if (!reg.valid(child)) continue;
-        TraverseChildren(child, visitor);
         visitor(child);
     }
 }

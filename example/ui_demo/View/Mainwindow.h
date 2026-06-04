@@ -27,7 +27,7 @@ using namespace ui::chains;
 
 namespace detail
 {
-inline entt::entity MakeSectionTitle(const std::string& text, const std::string& alias)
+inline ui::entity MakeSectionTitle(const std::string& text, const std::string& alias)
 {
     auto lbl = ui::factory::CreateLabel(text, alias);
     lbl | TextColor({1.0F, 0.85F, 0.5F, 1.0F}) | FontSize(14.0F)
@@ -42,7 +42,7 @@ inline std::string DemoAssetPath(std::string_view fileName)
     return assetPath.string();
 }
 
-inline entt::entity MakeImageCard(std::string_view title, std::string_view assetFileName, const std::string& alias)
+inline ui::entity MakeImageCard(std::string_view title, std::string_view assetFileName, const std::string& alias)
 {
     auto card = ui::factory::CreateVBoxLayout(alias);
     card | FixedSize(96.0F, 124.0F) | BackgroundColor({0.12F, 0.12F, 0.16F, 0.92F}) | BorderRadius(6.0F)

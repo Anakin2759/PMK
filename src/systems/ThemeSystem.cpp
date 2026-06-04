@@ -13,10 +13,10 @@
 #include <initializer_list>
 #include <vector>
 
-#include "api/Theme.hpp"
-#include "api/Utils.hpp"
+#include "detail/Utils.hpp"
 #include "common/Events.hpp"
 #include "common/Tags.hpp"
+#include "common/Theme.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Visual.hpp"
 #include "core/RuntimeFacade.hpp"

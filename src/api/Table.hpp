@@ -19,8 +19,12 @@
 #include <vector>
 #include "common/Types.hpp"
 #include "common/Policies.hpp"
-#include "common/components/Data.hpp"
 #include "Chains.hpp"
+
+namespace ui::components
+{
+struct TableInfo;
+}
 
 namespace ui::table
 {
@@ -107,14 +111,6 @@ void SetMinRowHeight(ui::entity entity, float height);
  * @brief 设置行高
  */
 void SetRowHeight(ui::entity entity, float height);
-
-/**
- * @brief 计算实际列宽（供 Renderer 和 HitTest 共用）
- * @param info       表格组件
- * @param tableWidth 可见宽度（用于 EQUAL/PROPORTIONAL/ADAPTIVE 模式）
- * @return 各列实际宽度列表（size == columnCount）
- */
-[[nodiscard]] std::vector<float> ComputeColumnWidths(const components::TableInfo& info, float tableWidth);
 
 } // namespace ui::table
 

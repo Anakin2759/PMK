@@ -31,14 +31,22 @@
 
 #include <chrono>
 #include <span>
+#include <memory>
 
-#include "SystemManager.hpp"
 #include "EventLoop.hpp"
-#include "UiRuntime.hpp"
+#include "common/EntityTypes.hpp"
 
-#include "common/Events.hpp"
 namespace ui
 {
+class SystemManager;
+class UiRuntime;
+class UiRuntimeScope;
+
+namespace events
+{
+struct QuitRequested;
+}
+
 class Application
 {
 public:
@@ -65,14 +73,14 @@ public:
     void exec();
 
 private:
-    UiRuntime m_runtime; // 管理全局状态和资源
-    UiRuntimeScope m_runtimeScope;// 管理 UiRuntime 生命周期
+    std::unique_ptr<UiRuntime> m_runtime;           // 管理全局状态和资源
+    std::unique_ptr<UiRuntimeScope> m_runtimeScope; // 管理 UiRuntime 生命周期
     EventLoop m_eventLoop;
 
     // 核心 ECS 系统封装
-    SystemManager m_systems;
+    std::unique_ptr<SystemManager> m_systems;
     // ECS 根实体，代表整个屏幕/应用区域
-    entt::entity m_rootEntity = entt::null;
+    ui::entity m_rootEntity = ui::null_entity;
 
     std::chrono::steady_clock::time_point m_lastUpdateTime = std::chrono::steady_clock::now();
 };

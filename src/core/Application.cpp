@@ -10,10 +10,13 @@
 #include <cstdint>
 #include <cstring>
 #include <exception>
+#include <memory>
 #include <stdexcept>
 #include <string>
 
 #include "RuntimeFacade.hpp"
+#include "SystemManager.hpp"
+#include "UiRuntime.hpp"
 #include "SDL3/SDL_init.h"
 #include "SDL3/SDL_error.h"
 #include "SDL3/SDL_hints.h"
@@ -56,7 +59,9 @@ void WriteStderr(const char* text) noexcept
 namespace ui
 {
 Application::Application(std::span<char*> arg) // NOLINT
-    : m_runtimeScope(m_runtime), m_systems(m_runtime.registry(), m_runtime.dispatcher())
+    : m_runtime(std::make_unique<UiRuntime>()),
+      m_runtimeScope(std::make_unique<UiRuntimeScope>(*m_runtime)),
+      m_systems(std::make_unique<SystemManager>(m_runtime->registry(), m_runtime->dispatcher()))
 {
     config::AppConfig::instance().parseCommandLine(arg);
 
@@ -97,8 +102,8 @@ Application::Application(std::span<char*> arg) // NOLINT
     (void)runtime.ensureContext<globalcontext::FrameContext>();
     (void)runtime.ensureContext<globalcontext::StateContext>();
 
-    m_systems.registerAllHandlers();
-    auto taskChain = tasks::QueuedTask{} | tasks::InputTask{.systems = &m_systems} | tasks::RenderTask{};
+    m_systems->registerAllHandlers();
+    auto taskChain = tasks::QueuedTask{} | tasks::InputTask{.systems = m_systems.get()} | tasks::RenderTask{};
     m_eventLoop.registerDefaultHandler(
         [this, taskChain]() mutable
         {
@@ -132,7 +137,7 @@ Application::~Application() noexcept
         auto& runtime = RuntimeFacade::current();
         runtime.sink<ui::events::QuitRequested>().disconnect<&Application::onQuitRequested>(*this);
         runtime.sink<events::DropDownCloseRequested>().disconnect<&OnDropDownCloseRequested>();
-        m_systems.unregisterAllHandlers();
+        m_systems->unregisterAllHandlers();
         SDL_Quit();
     }
     catch (const std::exception& exception)

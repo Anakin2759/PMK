@@ -25,7 +25,6 @@
 #include "interface/IBackendRenderer.hpp"
 #include "common/CustomizationPoints.hpp"
 #include "core/TextUtils.hpp"
-#include "api/Utils.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
@@ -729,21 +728,21 @@ private:
         float drawY = pos.y();
 
         // 水平对齐
-        if (ui::utils::HasAlignment(alignment, policies::Alignment::HCENTER))
+        if (policies::HasFlag(alignment, policies::Alignment::HCENTER))
         {
             drawX += (size.x() - textSize.x()) * 0.5F;
         }
-        else if (ui::utils::HasAlignment(alignment, policies::Alignment::RIGHT))
+        else if (policies::HasFlag(alignment, policies::Alignment::RIGHT))
         {
             drawX += size.x() - textSize.x();
         }
 
         // 垂直对齐
-        if (ui::utils::HasAlignment(alignment, policies::Alignment::VCENTER))
+        if (policies::HasFlag(alignment, policies::Alignment::VCENTER))
         {
             drawY += (size.y() - textSize.y()) * 0.5F;
         }
-        else if (ui::utils::HasAlignment(alignment, policies::Alignment::BOTTOM))
+        else if (policies::HasFlag(alignment, policies::Alignment::BOTTOM))
         {
             drawY += size.y() - textSize.y();
         }
@@ -788,11 +787,11 @@ private:
     [[nodiscard]] float resolveWrappedTextStartY(const WrappedTextRenderArgs& args, float totalHeight) const
     {
         float startY = args.pos.y();
-        if (ui::utils::HasAlignment(args.alignment, policies::Alignment::VCENTER))
+        if (policies::HasFlag(args.alignment, policies::Alignment::VCENTER))
         {
             startY += (args.size.y() - totalHeight) * 0.5F;
         }
-        else if (ui::utils::HasAlignment(args.alignment, policies::Alignment::BOTTOM))
+        else if (policies::HasFlag(args.alignment, policies::Alignment::BOTTOM))
         {
             startY += args.size.y() - totalHeight;
         }

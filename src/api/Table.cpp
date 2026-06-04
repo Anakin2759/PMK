@@ -11,6 +11,7 @@
 #include "common/Policies.hpp"
 #include "common/Tags.hpp"
 #include "core/RuntimeFacade.hpp"
+#include "detail/EntityCast.hpp"
 #include "common/Types.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Layout.hpp"
@@ -28,117 +29,9 @@ namespace
     return RuntimeFacade::current().registry();
 }
 
-[[nodiscard]] float MinColumnWidthAt(const components::TableInfo& info, int columnIndex)
-{
-    if (!info.minColumnWidths.empty() && columnIndex < static_cast<int>(info.minColumnWidths.size()))
-    {
-        return std::max(0.0F, info.minColumnWidths.at(static_cast<size_t>(columnIndex)));
-    }
-    return 0.0F;
-}
-
-[[nodiscard]] std::vector<float> ComputeEqualColumnWidths(const components::TableInfo& info, float visibleWidth)
-{
-    const int columnCount = info.columnCount;
-    std::vector<float> widths(static_cast<size_t>(columnCount), 0.0F);
-    const float equalWidth = visibleWidth / static_cast<float>(columnCount);
-    for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex)
-    {
-        widths.at(static_cast<size_t>(columnIndex)) = std::max(equalWidth, MinColumnWidthAt(info, columnIndex));
-    }
-    return widths;
-}
-
-[[nodiscard]] std::vector<float> ComputeFixedColumnWidths(const components::TableInfo& info, float visibleWidth)
-{
-    const int columnCount = info.columnCount;
-    if (info.columnWidths.empty() || !std::cmp_equal(info.columnWidths.size(), columnCount))
-    {
-        return ComputeEqualColumnWidths(info, visibleWidth);
-    }
-
-    std::vector<float> widths(static_cast<size_t>(columnCount), 0.0F);
-    for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex)
-    {
-        widths.at(static_cast<size_t>(columnIndex)) =
-            std::max(info.columnWidths.at(static_cast<size_t>(columnIndex)), MinColumnWidthAt(info, columnIndex));
-    }
-    return widths;
-}
-
-[[nodiscard]] float TotalColumnWeight(const components::TableInfo& info)
-{
-    float totalWeight = 0.0F;
-    if (!info.columnWidths.empty() && std::cmp_equal(info.columnWidths.size(), info.columnCount))
-    {
-        for (float columnWeight : info.columnWidths)
-        {
-            totalWeight += std::max(0.0F, columnWeight);
-        }
-    }
-    return totalWeight > 0.0F ? totalWeight : static_cast<float>(info.columnCount);
-}
-
-[[nodiscard]] std::vector<float> ComputeProportionalColumnWidths(const components::TableInfo& info, float visibleWidth)
-{
-    const int columnCount = info.columnCount;
-    const float totalWeight = TotalColumnWeight(info);
-    std::vector<float> widths(static_cast<size_t>(columnCount), 0.0F);
-    for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex)
-    {
-        float columnWeight = 1.0F;
-        if (!info.columnWidths.empty() && columnIndex < static_cast<int>(info.columnWidths.size()))
-        {
-            columnWeight = std::max(0.0F, info.columnWidths.at(static_cast<size_t>(columnIndex)));
-        }
-        const float proportionalWidth = (columnWeight / totalWeight) * visibleWidth;
-        widths.at(static_cast<size_t>(columnIndex)) = std::max(proportionalWidth, MinColumnWidthAt(info, columnIndex));
-    }
-    return widths;
-}
-
-[[nodiscard]] std::vector<float> ComputeAdaptiveColumnWidths(const components::TableInfo& info, float visibleWidth)
-{
-    const int columnCount = info.columnCount;
-    std::vector<float> widths(static_cast<size_t>(columnCount), 0.0F);
-    float fixedTotal = 0.0F;
-    int flexCount = 0;
-    for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex)
-    {
-        float fixedWidth = 0.0F;
-        if (!info.columnWidths.empty() && columnIndex < static_cast<int>(info.columnWidths.size()))
-        {
-            fixedWidth = info.columnWidths.at(static_cast<size_t>(columnIndex));
-        }
-        if (fixedWidth > 0.0F)
-        {
-            widths.at(static_cast<size_t>(columnIndex)) = std::max(fixedWidth, MinColumnWidthAt(info, columnIndex));
-            fixedTotal += widths.at(static_cast<size_t>(columnIndex));
-        }
-        else
-        {
-            ++flexCount;
-        }
-    }
-
-    const float remainingWidth = std::max(0.0F, visibleWidth - fixedTotal);
-    const float flexWidth = (flexCount > 0) ? (remainingWidth / static_cast<float>(flexCount)) : 0.0F;
-    for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex)
-    {
-        const bool hasFixedWidth = !info.columnWidths.empty()
-                                && columnIndex < static_cast<int>(info.columnWidths.size())
-                                && info.columnWidths.at(static_cast<size_t>(columnIndex)) > 0.0F;
-        if (!hasFixedWidth)
-        {
-            widths.at(static_cast<size_t>(columnIndex)) = std::max(flexWidth, MinColumnWidthAt(info, columnIndex));
-        }
-    }
-    return widths;
-}
-
 } // namespace
 
-void SetColumns(entt::entity entity, int count, std::vector<std::string> headers)
+void SetColumns(ui::entity entity, int count, std::vector<std::string> headers)
 {
     auto& info = CurrentRegistry().get_or_emplace<components::TableInfo>(entity);
     info.columnCount = count;
@@ -150,7 +43,7 @@ void SetColumns(entt::entity entity, int count, std::vector<std::string> headers
     }
 }
 
-void SetColumnWidths(entt::entity entity, std::vector<float> widths)
+void SetColumnWidths(ui::entity entity, std::vector<float> widths)
 {
     auto& info = CurrentRegistry().get_or_emplace<components::TableInfo>(entity);
     if (info.columnSizing == policies::TableColumnSizing::FIXED
@@ -164,7 +57,7 @@ void SetColumnWidths(entt::entity entity, std::vector<float> widths)
     info.columnWidths = std::move(widths);
 }
 
-void AddRow(entt::entity entity, std::vector<std::string> texts)
+void AddRow(ui::entity entity, std::vector<std::string> texts)
 {
     auto& info = CurrentRegistry().get_or_emplace<components::TableInfo>(entity);
     std::vector<components::TableCell> row;
@@ -176,7 +69,7 @@ void AddRow(entt::entity entity, std::vector<std::string> texts)
     info.cells.push_back(std::move(row));
 }
 
-void SetCell(entt::entity entity, int row, int col, std::string text)
+void SetCell(ui::entity entity, int row, int col, std::string text)
 {
     auto* info = CurrentRegistry().try_get<components::TableInfo>(entity);
     if (info == nullptr) return;
@@ -185,7 +78,7 @@ void SetCell(entt::entity entity, int row, int col, std::string text)
     info->cells.at(static_cast<size_t>(row)).at(static_cast<size_t>(col)).text = std::move(text);
 }
 
-void SetCellColor(entt::entity entity, int row, int col, Color textColor, Color bgColor)
+void SetCellColor(ui::entity entity, int row, int col, Color textColor, Color bgColor)
 {
     auto* info = CurrentRegistry().try_get<components::TableInfo>(entity);
     if (info == nullptr) return;
@@ -196,7 +89,7 @@ void SetCellColor(entt::entity entity, int row, int col, Color textColor, Color 
     cell.bgColor = bgColor;
 }
 
-void ClearRows(entt::entity entity)
+void ClearRows(ui::entity entity)
 {
     auto* info = CurrentRegistry().try_get<components::TableInfo>(entity);
     if (info != nullptr)
@@ -206,24 +99,24 @@ void ClearRows(entt::entity entity)
     }
 }
 
-void SetSelectedRow(entt::entity entity, int row)
+void SetSelectedRow(ui::entity entity, int row)
 {
     auto& info = CurrentRegistry().get_or_emplace<components::TableInfo>(entity);
     info.selectedRow = row;
 }
 
-void SetHeaderTextColor(entt::entity entity, Color color)
+void SetHeaderTextColor(ui::entity entity, Color color)
 {
     auto& info = CurrentRegistry().get_or_emplace<components::TableInfo>(entity);
     info.headerTextColor = color;
 }
 
-void SetColumnSizing(entt::entity entity, policies::TableColumnSizing sizing)
+void SetColumnSizing(ui::entity entity, policies::TableColumnSizing sizing)
 {
     CurrentRegistry().get_or_emplace<components::TableInfo>(entity).columnSizing = sizing;
 }
 
-void SetMinColumnWidths(entt::entity entity, std::vector<float> minWidths)
+void SetMinColumnWidths(ui::entity entity, std::vector<float> minWidths)
 {
     for (auto& width : minWidths)
     {
@@ -232,55 +125,34 @@ void SetMinColumnWidths(entt::entity entity, std::vector<float> minWidths)
     CurrentRegistry().get_or_emplace<components::TableInfo>(entity).minColumnWidths = std::move(minWidths);
 }
 
-void SetMinRowHeight(entt::entity entity, float height)
+void SetMinRowHeight(ui::entity entity, float height)
 {
     CurrentRegistry().get_or_emplace<components::TableInfo>(entity).minRowHeight =
         std::max(0.0F, scale::Metric(height));
 }
 
-void SetRowHeight(entt::entity entity, float height)
+void SetRowHeight(ui::entity entity, float height)
 {
     CurrentRegistry().get_or_emplace<components::TableInfo>(entity).rowHeight = std::max(0.0F, scale::Metric(height));
 }
 
-std::vector<float> ComputeColumnWidths(const components::TableInfo& info, float tableWidth)
-{
-    const int columnCount = info.columnCount;
-    if (columnCount <= 0)
-    {
-        return {};
-    }
-    const float visibleWidth = std::max(0.0F, tableWidth);
-
-    switch (info.columnSizing)
-    {
-        case policies::TableColumnSizing::FIXED:
-            return ComputeFixedColumnWidths(info, visibleWidth);
-        case policies::TableColumnSizing::PROPORTIONAL:
-            return ComputeProportionalColumnWidths(info, visibleWidth);
-        case policies::TableColumnSizing::ADAPTIVE:
-            return ComputeAdaptiveColumnWidths(info, visibleWidth);
-        case policies::TableColumnSizing::EQUAL:
-        default:
-            return ComputeEqualColumnWidths(info, visibleWidth);
-    }
-}
-
-void SetCellWidget(entt::entity tableEntity, int row, int col, entt::entity widgetEntity)
+void SetCellWidget(ui::entity tableEntity, int row, int col, ui::entity widgetEntity)
 {
     auto& reg = CurrentRegistry();
-    auto* info = reg.try_get<components::TableInfo>(tableEntity);
+    const entt::entity tableInternal = detail::ToInternal(tableEntity);
+    const entt::entity widgetInternal = detail::ToInternal(widgetEntity);
+    auto* info = reg.try_get<components::TableInfo>(tableInternal);
     if (info == nullptr) return;
     if (row < 0 || std::cmp_greater_equal(row, info->cells.size())) return;
     if (col < 0 || col >= info->columnCount) return;
-    if (!reg.valid(widgetEntity)) return;
+    if (!reg.valid(widgetInternal)) return;
 
     auto& cell = info->cells.at(static_cast<size_t>(row)).at(static_cast<size_t>(col));
 
     // 替换旧实体：从 Hierarchy 中移除旧 widget
-    if (cell.cellEntity != entt::null && cell.cellEntity != widgetEntity && reg.valid(cell.cellEntity))
+    if (cell.cellEntity != entt::null && cell.cellEntity != widgetInternal && reg.valid(cell.cellEntity))
     {
-        auto* parentHierarchy = reg.try_get<components::Hierarchy>(tableEntity);
+        auto* parentHierarchy = reg.try_get<components::Hierarchy>(tableInternal);
         if (parentHierarchy != nullptr)
         {
             auto& children = parentHierarchy->children;
@@ -292,21 +164,21 @@ void SetCellWidget(entt::entity tableEntity, int row, int col, entt::entity widg
         }
     }
 
-    cell.cellEntity = widgetEntity;
+    cell.cellEntity = widgetInternal;
 
     // 标记为 TableCellWidget，使其跳过 Yoga 布局
-    reg.emplace_or_replace<components::TableCellWidgetTag>(widgetEntity);
+    reg.emplace_or_replace<components::TableCellWidgetTag>(widgetInternal);
 
     // 加入表格的 Hierarchy（若不已存在）
-    auto& parentHierarchy = reg.get_or_emplace<components::Hierarchy>(tableEntity);
+    auto& parentHierarchy = reg.get_or_emplace<components::Hierarchy>(tableInternal);
     const bool alreadyChild =
-        std::ranges::find(parentHierarchy.children, widgetEntity) != parentHierarchy.children.end();
+        std::ranges::find(parentHierarchy.children, widgetInternal) != parentHierarchy.children.end();
     if (!alreadyChild)
     {
-        auto& childHierarchy = reg.get_or_emplace<components::Hierarchy>(widgetEntity);
-        childHierarchy.parent = tableEntity;
-        reg.remove<components::RootTag>(widgetEntity);
-        parentHierarchy.children.push_back(widgetEntity);
+        auto& childHierarchy = reg.get_or_emplace<components::Hierarchy>(widgetInternal);
+        childHierarchy.parent = tableInternal;
+        reg.remove<components::RootTag>(widgetInternal);
+        parentHierarchy.children.push_back(widgetInternal);
     }
 }
 

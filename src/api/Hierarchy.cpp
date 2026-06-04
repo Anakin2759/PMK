@@ -1,6 +1,7 @@
 #include "Hierarchy.hpp"
 
 #include "Utils.hpp"
+#include "detail/EntityCast.hpp"
 #include "entt/entity/fwd.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "common/components/Layout.hpp"
@@ -14,51 +15,71 @@ namespace
 {
     return RuntimeFacade::current().registry();
 }
+
+void AppendChildrenPostOrder(Registry& reg, entt::entity parent, std::vector<ui::entity>& output)
+{
+    if (!reg.valid(parent)) return;
+
+    const auto* hierarchy = reg.try_get<components::Hierarchy>(parent);
+    if (hierarchy == nullptr || hierarchy->children.empty()) return;
+
+    const auto childrenCopy = hierarchy->children;
+    for (const entt::entity child : childrenCopy)
+    {
+        if (!reg.valid(child)) continue;
+        AppendChildrenPostOrder(reg, child, output);
+        output.push_back(detail::ToPublic(child));
+    }
+}
 } // namespace
 
-void RemoveChild(::entt::entity parent, ::entt::entity child)
+void RemoveChild(ui::entity parent, ui::entity child)
 {
     auto& reg = CurrentRegistry();
-    if (!reg.valid(parent) || !reg.valid(child)) return;
+    const entt::entity parentInternal = detail::ToInternal(parent);
+    const entt::entity childInternal = detail::ToInternal(child);
+    if (!reg.valid(parentInternal) || !reg.valid(childInternal)) return;
 
-    auto* parentHierarchy = reg.try_get<components::Hierarchy>(parent);
-    auto* childHierarchy = reg.try_get<components::Hierarchy>(child);
+    auto* parentHierarchy = reg.try_get<components::Hierarchy>(parentInternal);
+    auto* childHierarchy = reg.try_get<components::Hierarchy>(childInternal);
 
-    if (parentHierarchy != nullptr && childHierarchy != nullptr && childHierarchy->parent == parent)
+    if (parentHierarchy != nullptr && childHierarchy != nullptr && childHierarchy->parent == parentInternal)
     {
         auto& children = parentHierarchy->children;
-        std::erase(children, child);
+        std::erase(children, childInternal);
         childHierarchy->parent = ::entt::null;
 
         // 子节点脱离父节点，重新成为根节点
-        reg.emplace_or_replace<components::RootTag>(child);
+        reg.emplace_or_replace<components::RootTag>(childInternal);
 
         utils::MarkLayoutAndVisualChanged(parent);
         utils::MarkLayoutAndVisualChanged(child);
     }
 }
 
-void AddChild(::entt::entity parent, ::entt::entity child)
+void AddChild(ui::entity parent, ui::entity child)
 {
     auto& reg = CurrentRegistry();
-    if (!reg.valid(parent) || !reg.valid(child)) return;
+    const entt::entity parentInternal = detail::ToInternal(parent);
+    const entt::entity childInternal = detail::ToInternal(child);
+    if (!reg.valid(parentInternal) || !reg.valid(childInternal)) return;
 
-    auto& childHierarchy = reg.get_or_emplace<components::Hierarchy>(child);
-    if (childHierarchy.parent != ::entt::null && childHierarchy.parent != parent)
+    auto& childHierarchy = reg.get_or_emplace<components::Hierarchy>(childInternal);
+    if (childHierarchy.parent != ::entt::null && childHierarchy.parent != parentInternal)
     {
-        RemoveChild(childHierarchy.parent, child);
+        RemoveChild(detail::ToPublic(childHierarchy.parent), child);
     }
-    childHierarchy.parent = parent;
+    childHierarchy.parent = parentInternal;
 
     // 子节点不再是根节点，移除 RootTag
-    reg.remove<components::RootTag>(child);
+    reg.remove<components::RootTag>(childInternal);
 
-    auto& parentHierarchy = reg.get_or_emplace<components::Hierarchy>(parent);
+    auto& parentHierarchy = reg.get_or_emplace<components::Hierarchy>(parentInternal);
     auto& children = parentHierarchy.children;
     bool alreadyChild = false;
     for (auto childEntity : children)
     {
-        if (childEntity == child)
+        if (childEntity == childInternal)
         {
             alreadyChild = true;
             break;
@@ -66,10 +87,17 @@ void AddChild(::entt::entity parent, ::entt::entity child)
     }
     if (!alreadyChild)
     {
-        children.push_back(child);
+        children.push_back(childInternal);
     }
 
     utils::MarkLayoutAndVisualChanged(child);
+}
+
+std::vector<ui::entity> ChildrenPostOrder(ui::entity parent)
+{
+    std::vector<ui::entity> children;
+    AppendChildrenPostOrder(CurrentRegistry(), detail::ToInternal(parent), children);
+    return children;
 }
 
 } // namespace ui::hierarchy

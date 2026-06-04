@@ -4,8 +4,8 @@
  * @file WindowEntityLookup.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-03-26
- * @version 0.1
- * @brief 窗口控件查找
+ * @version 0.2
+ * @brief 窗口控件查找服务实现
  *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
@@ -19,8 +19,8 @@
 
 #include <entt/entt.hpp>
 
-#include "components/Window.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "RuntimeFacade.hpp"
+#include "common/components/Window.hpp"
 #include "singleton/Registry.hpp"
 
 namespace ui::window_lookup
@@ -45,22 +45,24 @@ inline WindowEntityLookupCache& Cache()
 
 inline bool MatchesWindowId(entt::entity entity, uint32_t windowId)
 {
-    if (!Registry::Valid(entity) || !Registry::AllOf<components::Window>(entity))
+    auto& registry = RuntimeFacade::current().registry();
+    if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return false;
     }
 
-    return Registry::Get<components::Window>(entity).windowID == windowId;
+    return registry.get<components::Window>(entity).windowID == windowId;
 }
 
 inline void RememberWindowEntity(entt::entity entity)
 {
-    if (!Registry::Valid(entity) || !Registry::AllOf<components::Window>(entity))
+    auto& registry = RuntimeFacade::current().registry();
+    if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return;
     }
 
-    const auto windowId = Registry::Get<components::Window>(entity).windowID;
+    const auto windowId = registry.get<components::Window>(entity).windowID;
     if (windowId == 0) return;
 
     Cache().entitiesByWindowId[windowId] = entity;
@@ -78,12 +80,13 @@ inline void InvalidateWindowId(uint32_t windowId)
 
 inline void InvalidateWindowEntity(entt::entity entity)
 {
-    if (!Registry::Valid(entity) || !Registry::AllOf<components::Window>(entity))
+    auto& registry = RuntimeFacade::current().registry();
+    if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return;
     }
 
-    InvalidateWindowId(Registry::Get<components::Window>(entity).windowID);
+    InvalidateWindowId(registry.get<components::Window>(entity).windowID);
 }
 
 inline entt::entity FindWindowEntityById(uint32_t windowId)
@@ -101,7 +104,8 @@ inline entt::entity FindWindowEntityById(uint32_t windowId)
         cache.entitiesByWindowId.erase(cacheEntry);
     }
 
-    auto view = Registry::View<components::Window>();
+    auto& registry = RuntimeFacade::current().registry();
+    auto view = registry.view<components::Window>();
     for (auto entity : view)
     {
         if (view.get<components::Window>(entity).windowID == windowId)

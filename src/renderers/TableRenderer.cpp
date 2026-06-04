@@ -24,10 +24,10 @@
 #include <utility>
 #include <vector>
 
-#include "api/Table.hpp"
 #include "SDL3/SDL_gpu.h"
 #include "SDL3/SDL_rect.h"
 #include "common/RenderTypes.hpp"
+#include "common/Table.hpp"
 #include "common/Types.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Interaction.hpp"

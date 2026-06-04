@@ -3,7 +3,7 @@
 #include "core/RuntimeFacade.hpp"
 #include "common/Tags.hpp"
 #include "common/Policies.hpp"
-#include "common/WindowSync.hpp"
+#include "core/WindowSync.hpp"
 #include "SDL3/SDL_video.h"
 #include "Utils.hpp"
 #include "entt/entity/fwd.hpp"

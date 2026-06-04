@@ -45,7 +45,6 @@
 #include "../src/api/Theme.hpp"
 #include "../src/api/Timer.hpp"
 
-#include "../src/core/UiRuntime.hpp"
 // IWYU pragma: end_exports
 
 namespace ui
