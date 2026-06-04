@@ -3,7 +3,7 @@
 #include <memory>
 #include <ui.hpp>
 
-#include "entt/entity/entity.hpp"
+#include <entt/entt.hpp>
 #include "common/components/Layout.hpp"
 #include "common/components/Visual.hpp"
 #include "src/api/Visibility.hpp"

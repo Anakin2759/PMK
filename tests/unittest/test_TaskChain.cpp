@@ -151,7 +151,7 @@ TEST_F(TaskChainTest, QueuedTaskUpdatesFrameContextBeforeDispatchingQueuedEvents
     tasks::QueuedTask queuedTask;
     queuedTask(33);
 
-    const auto& frameContext = Registry::ctx().get<globalcontext::FrameContext>();
+    const auto& frameContext = RuntimeFacade::current().registry().ctx().get<globalcontext::FrameContext>();
     EXPECT_EQ(frameContext.intervalMs, 33U);
     EXPECT_EQ(frameContext.frameSlot, 1U);
     ASSERT_EQ(observedEvents.size(), 2U);

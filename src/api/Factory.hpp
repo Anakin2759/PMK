@@ -14,6 +14,7 @@
  */
 #pragma once
 #include <memory>
+#include <type_traits>
 #include <vector>
 #include "Entity.hpp"
 #include <string>
@@ -101,6 +102,14 @@ ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedI
 /// @brief 关闭 DropDown 弹出层（若已打开），下一帧销毁弹出实体
 /// @note StateSystem 在「点击外部」时调用此函数实现失焦自动关闭
 void CloseDropDownPopup(ui::entity ddEntity);
+
+template <typename EntityLike>
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
+             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+void CloseDropDownPopup(EntityLike ddEntity)
+{
+    CloseDropDownPopup(static_cast<ui::entity>(ddEntity));
+}
 
 // Slider / ProgressBar
 ui::entity CreateSlider(std::string_view alias = "");

@@ -156,7 +156,10 @@ private:
 
         m_disp->enqueue<ui::events::CloseWindow>(ui::events::CloseWindow{targetWindow});
     }
-
+    /**
+     * @brief 分发文本输入事件
+     * @param text 输入的文本
+     */
     void dispatchRawTextInput(const char* text)
     {
         std::string input = text != nullptr ? std::string(text) : std::string();
@@ -164,7 +167,7 @@ private:
 
         m_disp->trigger<ui::events::RawTextInput>(ui::events::RawTextInput{std::move(input)});
     }
-
+    
     void enqueueRawPointerMove(const SDL_MouseMotionEvent& motionEvent)
     {
         const auto pointerX = motionEvent.x;

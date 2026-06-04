@@ -5,8 +5,7 @@
 #include <vector>
 
 #include "common/components/Layout.hpp"
-#include "entt/entity/entity.hpp"
-#include "entt/entity/fwd.hpp"
+#include <entt/entt.hpp>
 #include "src/api/Hierarchy.hpp"
 #include "src/common/Tags.hpp"
 #include "src/singleton/Registry.hpp"

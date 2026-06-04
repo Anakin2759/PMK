@@ -37,7 +37,7 @@ private:
 
 TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
 {
-    systems::TweenSystem tweenSystem;
+    systems::TweenSystem tweenSystem{RuntimeFacade::current().registry(), RuntimeFacade::current().dispatcher()};
     tweenSystem.registerHandlers();
 
     const auto entity = factory::CreateLabel("Tween", "tween_label");
@@ -65,8 +65,8 @@ TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
 
 TEST_F(UiTweenSystemTest, InteractiveAnimationFlowsThroughTweenPipeline)
 {
-    systems::ActionSystem actionSystem;
-    systems::TweenSystem tweenSystem;
+    systems::ActionSystem actionSystem{RuntimeFacade::current().registry(), RuntimeFacade::current().dispatcher()};
+    systems::TweenSystem tweenSystem{RuntimeFacade::current().registry(), RuntimeFacade::current().dispatcher()};
     actionSystem.registerHandlers();
     tweenSystem.registerHandlers();
 
@@ -124,7 +124,7 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
         // ---- Setup entity & animation in the default runtime ----
         RuntimeFacade::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
 
-        systems::TweenSystem defaultTween;
+        systems::TweenSystem defaultTween{RuntimeFacade::current().registry(), RuntimeFacade::current().dispatcher()};
         defaultTween.registerHandlers();
 
         const auto defaultEntity = factory::CreateLabel("Tween-Default", "tween_default");

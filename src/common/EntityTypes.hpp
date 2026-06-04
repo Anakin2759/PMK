@@ -18,14 +18,14 @@
 #pragma once
 
 #include <cstdint>
-#include <entt/entt.hpp>
+
 
 namespace ui
 {
 
-using entity = entt::entity;
+using entity = uint32_t;
 
 /// @brief 空实体常量，等价于 entt::null。
-inline constexpr entity null_entity = entt::null;
+inline constexpr entity null_entity = 0xFFFFFFFFU;
 
 } // namespace ui

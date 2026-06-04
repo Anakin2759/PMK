@@ -6,6 +6,7 @@
 #include <utility>
 #include <string>
 #include "core/RuntimeFacade.hpp"
+#include "detail/EntityCast.hpp"
 #include "systems/TimerSystem.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entity/entity.hpp"
@@ -27,12 +28,12 @@ namespace
 }
 } // namespace
 
-void MarkLayoutChanged(::entt::entity entity)
+void MarkLayoutChanged(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
 
-    entt::entity current = entity;
+    entt::entity current = detail::ToInternal(entity);
     while (current != ::entt::null && reg.valid(current))
     {
         reg.emplace_or_replace<components::LayoutDirtyTag>(current);
@@ -41,7 +42,7 @@ void MarkLayoutChanged(::entt::entity entity)
     }
 }
 
-void MarkVisualChanged(::entt::entity entity)
+void MarkVisualChanged(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -49,7 +50,7 @@ void MarkVisualChanged(::entt::entity entity)
     reg.emplace_or_replace<components::RenderDirtyTag>(entity);
 
     // 向上查找所属根窗口/对话框，确保 RenderSystem 能捕获渲染脏标记
-    entt::entity current = entity;
+    entt::entity current = detail::ToInternal(entity);
     entt::entity rootWindow = entt::null;
 
     while (current != entt::null && reg.valid(current))
@@ -62,13 +63,13 @@ void MarkVisualChanged(::entt::entity entity)
         current = hierarchy != nullptr ? hierarchy->parent : entt::null;
     }
 
-    if (rootWindow != entt::null && rootWindow != entity)
+    if (rootWindow != entt::null && rootWindow != detail::ToInternal(entity))
     {
         reg.emplace_or_replace<components::RenderDirtyTag>(rootWindow);
     }
 }
 
-void MarkLayoutAndVisualChanged(::entt::entity entity)
+void MarkLayoutAndVisualChanged(ui::entity entity)
 {
     if (!CurrentRegistry().valid(entity)) return;
 
@@ -76,12 +77,12 @@ void MarkLayoutAndVisualChanged(::entt::entity entity)
     MarkVisualChanged(entity);
 }
 
-void MarkLayoutDirty(::entt::entity entity)
+void MarkLayoutDirty(ui::entity entity)
 {
     MarkLayoutChanged(entity);
 }
 
-void MarkRenderDirty(::entt::entity entity)
+void MarkRenderDirty(ui::entity entity)
 {
     MarkVisualChanged(entity);
 }
@@ -91,7 +92,7 @@ bool HasAlignment(policies::Alignment value, policies::Alignment flag)
     return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0;
 }
 
-void SetWindowFlag(::entt::entity entity, policies::WindowFlag flag)
+void SetWindowFlag(ui::entity entity, policies::WindowFlag flag)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -100,11 +101,11 @@ void SetWindowFlag(::entt::entity entity, policies::WindowFlag flag)
     windowComp.flags |= flag;
 }
 
-void CloseWindow(::entt::entity entity)
+void CloseWindow(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
-    RuntimeFacade::current().enqueue<events::CloseWindow>(events::CloseWindow{entity});
+    RuntimeFacade::current().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
 }
 
 void QuitUiEventLoop()
@@ -112,11 +113,11 @@ void QuitUiEventLoop()
     RuntimeFacade::current().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
 };
 
-Vec2 GetAbsolutePosition(::entt::entity entity)
+Vec2 GetAbsolutePosition(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     std::vector<entt::entity> path;
-    entt::entity current = entity;
+    entt::entity current = detail::ToInternal(entity);
     while (current != entt::null && reg.valid(current))
     {
         path.push_back(current);
@@ -140,7 +141,7 @@ Vec2 GetAbsolutePosition(::entt::entity entity)
 
         // 若当前祖先节点（非目标实体本身）是滚动容器，
         // 其子内容被 RenderSystem 整体偏移 -scrollOffset，命中测试需同步扣除。
-        if (currentEntity != entity)
+        if (currentEntity != detail::ToInternal(entity))
         {
             const auto* scrollArea = reg.try_get<components::ScrollArea>(currentEntity);
             if (scrollArea != nullptr)
@@ -154,7 +155,7 @@ Vec2 GetAbsolutePosition(::entt::entity entity)
     return position;
 }
 
-Rect GetEntityRect(::entt::entity entity)
+Rect GetEntityRect(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity))
@@ -171,7 +172,7 @@ Rect GetEntityRect(::entt::entity entity)
     return {GetAbsolutePosition(entity), sizeComp->size};
 }
 
-Rect GetScrollViewportRect(::entt::entity entity)
+Rect GetScrollViewportRect(ui::entity entity)
 {
     const Rect entityRect = GetEntityRect(entity);
     const auto* padding = CurrentRegistry().try_get<components::Padding>(entity);
@@ -191,13 +192,13 @@ Rect GetScrollViewportRect(::entt::entity entity)
             std::max(0.0F, entityRect.height() - top - bottom)};
 }
 
-float GetScrollViewportLength(::entt::entity entity, bool isVertical)
+float GetScrollViewportLength(ui::entity entity, bool isVertical)
 {
     const Rect viewportRect = GetScrollViewportRect(entity);
     return isVertical ? viewportRect.height() : viewportRect.width();
 }
 
-float GetScrollContentLength(::entt::entity entity, bool isVertical)
+float GetScrollContentLength(ui::entity entity, bool isVertical)
 {
     const auto* scrollArea = CurrentRegistry().try_get<components::ScrollArea>(entity);
     if (scrollArea == nullptr)
@@ -208,14 +209,14 @@ float GetScrollContentLength(::entt::entity entity, bool isVertical)
     return isVertical ? scrollArea->contentSize.y() : scrollArea->contentSize.x();
 }
 
-float GetScrollMaxOffset(::entt::entity entity, bool isVertical)
+float GetScrollMaxOffset(ui::entity entity, bool isVertical)
 {
     const float contentLength = GetScrollContentLength(entity, isVertical);
     const float viewportLength = GetScrollViewportLength(entity, isVertical);
     return std::max(0.0F, contentLength - viewportLength);
 }
 
-components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(::entt::entity entity)
+components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
 {
     components::VerticalScrollbarGeometry geometry;
     const auto* scrollArea = CurrentRegistry().try_get<components::ScrollArea>(entity);

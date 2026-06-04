@@ -169,11 +169,13 @@ set(UI_SOURCES
     detail/Visibility.cpp
     detail/Layout.cpp
     detail/Animation.cpp
+    detail/EventBridge.cpp
     api/Hierarchy.cpp
     api/Icon.cpp
     api/Utils.cpp
     api/Factory.cpp
     api/Controls.cpp
+    api/Event.cpp
     api/Query.cpp
     api/Canvas.cpp
     api/Table.cpp
@@ -256,6 +258,9 @@ set(UI_HEADERS
     traits/ComponentsTraits.hpp
     traits/PoliciesTraits.hpp
 
+    # Detail
+    detail/EventBridge.hpp
+
     # Interface
     interface/ISystem.hpp
     
@@ -263,6 +268,7 @@ set(UI_HEADERS
     api/Utils.hpp
     api/Layout.hpp
     api/Controls.hpp
+    api/Event.hpp
     api/Canvas.hpp
     api/Table.hpp
     api/Theme.hpp
@@ -286,7 +292,6 @@ target_include_directories(ui
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/third_party/entt/single_include
 )
 
 if(_UI_DO_SHADER_COMPILE)
@@ -469,15 +474,13 @@ target_link_libraries(ui PRIVATE
     yogacore
     freetype
     harfbuzz
+    EnTT::EnTT
 )
 
 if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
     target_link_libraries(ui PRIVATE ui_fonts)
 endif()
 
-target_link_libraries(ui PRIVATE
-    EnTT::EnTT
-)
 target_link_libraries(ui PUBLIC
     asio::asio
     Eigen3::Eigen

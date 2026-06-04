@@ -17,10 +17,9 @@
 #include <ui.hpp>
 
 #include "common/components/Layout.hpp"
-#include "entt/entity/fwd.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Visual.hpp"
-#include "entt/entity/entity.hpp"
+#include <entt/entt.hpp>
 #include "common/components/Interaction.hpp"
 #include "src/singleton/Registry.hpp"
 

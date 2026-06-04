@@ -21,6 +21,7 @@
 
 #include <entt/entt.hpp>
 
+#include "common/EntityTypes.hpp"
 #include "traits/ComponentsTraits.hpp"
 
 namespace ui
@@ -59,7 +60,11 @@ public:
 
     [[nodiscard]] bool valid(entt::entity entity) const noexcept { return m_registry.valid(entity); }
 
+    [[nodiscard]] bool valid(ui::entity entity) const noexcept { return m_registry.valid(toInternal(entity)); }
+
     void destroy(entt::entity entity) { m_registry.destroy(entity); }
+
+    void destroy(ui::entity entity) { m_registry.destroy(toInternal(entity)); }
 
     template <ComponentOrUiTag... Type>
     [[nodiscard]] auto view()
@@ -98,9 +103,21 @@ public:
     }
 
     template <ComponentOrUiTag Type>
+    [[nodiscard]] Type& get(ui::entity entity)
+    {
+        return m_registry.get<Type>(toInternal(entity));
+    }
+
+    template <ComponentOrUiTag Type>
     [[nodiscard]] const Type& get(entt::entity entity) const
     {
         return m_registry.get<Type>(entity);
+    }
+
+    template <ComponentOrUiTag Type>
+    [[nodiscard]] const Type& get(ui::entity entity) const
+    {
+        return m_registry.get<Type>(toInternal(entity));
     }
 
     template <ComponentOrUiTag Type>
@@ -110,9 +127,21 @@ public:
     }
 
     template <ComponentOrUiTag Type>
+    [[nodiscard]] Type* try_get(ui::entity entity) noexcept
+    {
+        return m_registry.try_get<Type>(toInternal(entity));
+    }
+
+    template <ComponentOrUiTag Type>
     [[nodiscard]] const Type* try_get(entt::entity entity) const noexcept
     {
         return m_registry.try_get<Type>(entity);
+    }
+
+    template <ComponentOrUiTag Type>
+    [[nodiscard]] const Type* try_get(ui::entity entity) const noexcept
+    {
+        return m_registry.try_get<Type>(toInternal(entity));
     }
 
     template <ComponentOrUiTag Type, typename... Args>
@@ -122,9 +151,21 @@ public:
     }
 
     template <ComponentOrUiTag Type, typename... Args>
+    decltype(auto) emplace(ui::entity entity, Args&&... args)
+    {
+        return m_registry.emplace<Type>(toInternal(entity), std::forward<Args>(args)...);
+    }
+
+    template <ComponentOrUiTag Type, typename... Args>
     Type& replace(entt::entity entity, Args&&... args)
     {
         return m_registry.replace<Type>(entity, std::forward<Args>(args)...);
+    }
+
+    template <ComponentOrUiTag Type, typename... Args>
+    Type& replace(ui::entity entity, Args&&... args)
+    {
+        return m_registry.replace<Type>(toInternal(entity), std::forward<Args>(args)...);
     }
 
     template <ComponentOrUiTag Type, typename... Args>
@@ -134,15 +175,33 @@ public:
     }
 
     template <ComponentOrUiTag Type, typename... Args>
+    decltype(auto) emplace_or_replace(ui::entity entity, Args&&... args)
+    {
+        return m_registry.emplace_or_replace<Type>(toInternal(entity), std::forward<Args>(args)...);
+    }
+
+    template <ComponentOrUiTag Type, typename... Args>
     Type& get_or_emplace(entt::entity entity, Args&&... args)
     {
         return m_registry.get_or_emplace<Type>(entity, std::forward<Args>(args)...);
+    }
+
+    template <ComponentOrUiTag Type, typename... Args>
+    Type& get_or_emplace(ui::entity entity, Args&&... args)
+    {
+        return m_registry.get_or_emplace<Type>(toInternal(entity), std::forward<Args>(args)...);
     }
 
     template <ComponentOrUiTag Type>
     void remove(entt::entity entity)
     {
         m_registry.remove<Type>(entity);
+    }
+
+    template <ComponentOrUiTag Type>
+    void remove(ui::entity entity)
+    {
+        m_registry.remove<Type>(toInternal(entity));
     }
 
     template <ComponentOrUiTag... Type>
@@ -152,9 +211,21 @@ public:
     }
 
     template <ComponentOrUiTag... Type>
+    [[nodiscard]] bool any_of(ui::entity entity) const
+    {
+        return m_registry.any_of<Type...>(toInternal(entity));
+    }
+
+    template <ComponentOrUiTag... Type>
     [[nodiscard]] bool all_of(entt::entity entity) const
     {
         return m_registry.all_of<Type...>(entity);
+    }
+
+    template <ComponentOrUiTag... Type>
+    [[nodiscard]] bool all_of(ui::entity entity) const
+    {
+        return m_registry.all_of<Type...>(toInternal(entity));
     }
 
     template <ComponentOrUiTag... Type>
@@ -340,6 +411,11 @@ public:
     // NOLINTEND(readability-identifier-naming)
 
 private:
+    [[nodiscard]] static constexpr entt::entity toInternal(ui::entity entity) noexcept
+    {
+        return static_cast<entt::entity>(entity);
+    }
+
     static Registry*& activeInstance()
     {
         static thread_local Registry* instance = nullptr;

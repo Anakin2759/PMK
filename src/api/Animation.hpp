@@ -18,6 +18,7 @@
 #pragma once
 
 #include <optional>
+#include <type_traits>
 
 #include "Entity.hpp"
 #include "common/Policies.hpp"
@@ -59,6 +60,19 @@ void StartTransformAnimation(ui::entity entity,
                              const Vec2& defaultOffset = {0.0F, 0.0F});
 void StopAnimation(ui::entity entity);
 
+template <typename EntityLike>
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
+             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+void StartTransformAnimation(EntityLike entity,
+                             const std::optional<Vec2>& targetScale,
+                             const std::optional<Vec2>& targetOffset,
+                             const TweenOptions& options = {},
+                             const Vec2& defaultScale = {1.0F, 1.0F},
+                             const Vec2& defaultOffset = {0.0F, 0.0F})
+{
+    StartTransformAnimation(static_cast<ui::entity>(entity), targetScale, targetOffset, options, defaultScale, defaultOffset);
+}
+
 } // namespace ui::animation
 
 namespace ui::actions::animation
@@ -68,7 +82,13 @@ inline constexpr EntityAction<&ui::animation::StartAlphaAnimation> START_ALPHA_A
 inline constexpr EntityAction<&ui::animation::StartScaleAnimation> START_SCALE_ANIMATION_ACTION{};
 inline constexpr EntityAction<&ui::animation::StartRenderOffsetAnimation> START_RENDER_OFFSET_ANIMATION_ACTION{};
 inline constexpr EntityAction<&ui::animation::StartColorAnimation> START_COLOR_ANIMATION_ACTION{};
-inline constexpr EntityAction<&ui::animation::StartTransformAnimation> START_TRANSFORM_ANIMATION_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(ui::entity,
+                                                   const std::optional<Vec2>&,
+                                                   const std::optional<Vec2>&,
+                                                   const ui::animation::TweenOptions&,
+                                                   const Vec2&,
+                                                   const Vec2&)>(&ui::animation::StartTransformAnimation)>
+    START_TRANSFORM_ANIMATION_ACTION{};
 inline constexpr EntityAction<&ui::animation::StopAnimation> STOP_ANIMATION_ACTION{};
 } // namespace ui::actions::animation
 

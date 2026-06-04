@@ -56,12 +56,12 @@ struct RenderSystemImpl
 
     explicit RenderSystemImpl(bool forceFallback);
 
-    std::unique_ptr<managers::DeviceManager> m_deviceManager;
-    std::unique_ptr<managers::FontManager> m_fontManager;
-    std::unique_ptr<managers::IconManager> m_iconManager;
-    std::unique_ptr<managers::ImageManager> m_imageManager;
-    std::unique_ptr<managers::PipelineCache> m_pipelineCache;
-    std::unique_ptr<managers::TextTextureCache> m_textTextureCache;
+    std::unique_ptr<managers::DeviceManager> m_deviceManager; // 负责 GPU 设备和上下文管理
+    std::unique_ptr<managers::FontManager> m_fontManager;     // 负责字体管理
+    std::unique_ptr<managers::IconManager> m_iconManager;     // 负责图标管理
+    std::unique_ptr<managers::ImageManager> m_imageManager;   // 负责图像管理
+    std::unique_ptr<managers::PipelineCache> m_pipelineCache; // 负责管线缓存管理
+    std::unique_ptr<managers::TextTextureCache> m_textTextureCache; // 负责文本纹理缓存管理
     std::unique_ptr<managers::BatchManager> m_batchManager;
     std::unique_ptr<managers::CommandBuffer> m_commandBuffer;
     std::unique_ptr<interface::IBackendRenderer> m_backendRenderer;

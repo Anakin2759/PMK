@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 #include <string>
-#include "Utils.hpp"
+
 #include "core/RuntimeFacade.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Data.hpp"
@@ -14,6 +14,8 @@
 #include "common/components/Layout.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/Types.hpp"
+
+#include "Utils.hpp"
 
 namespace ui::controls
 {
@@ -25,7 +27,7 @@ namespace
 }
 } // namespace
 
-void SetSliderRange(::entt::entity entity, float minValue, float maxValue)
+void SetSliderRange(ui::entity entity, float minValue, float maxValue)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -38,7 +40,7 @@ void SetSliderRange(::entt::entity entity, float minValue, float maxValue)
     ui::utils::MarkLayoutAndVisualChanged(entity);
 }
 
-void SetSliderValue(::entt::entity entity, float value)
+void SetSliderValue(ui::entity entity, float value)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -56,7 +58,7 @@ void SetSliderValue(::entt::entity entity, float value)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetSliderStep(::entt::entity entity, float step)
+void SetSliderStep(ui::entity entity, float step)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -66,7 +68,7 @@ void SetSliderStep(::entt::entity entity, float step)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetSliderOrientation(::entt::entity entity, policies::Orientation orientation)
+void SetSliderOrientation(ui::entity entity, policies::Orientation orientation)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -88,7 +90,7 @@ void SetSliderOrientation(::entt::entity entity, policies::Orientation orientati
     ui::utils::MarkLayoutAndVisualChanged(entity);
 }
 
-void SetSliderOnValueChanged(::entt::entity entity, components::on_event<float> callback)
+void SetSliderOnValueChanged(ui::entity entity, components::on_event<float> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -97,7 +99,7 @@ void SetSliderOnValueChanged(::entt::entity entity, components::on_event<float> 
     slider.onValueChanged = std::move(callback);
 }
 
-void SetSliderTrackColor(::entt::entity entity, const Color& color)
+void SetSliderTrackColor(ui::entity entity, const Color& color)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -105,7 +107,7 @@ void SetSliderTrackColor(::entt::entity entity, const Color& color)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetSliderFillColor(::entt::entity entity, const Color& color)
+void SetSliderFillColor(ui::entity entity, const Color& color)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -113,7 +115,7 @@ void SetSliderFillColor(::entt::entity entity, const Color& color)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetSliderThumbColor(::entt::entity entity, const Color& color)
+void SetSliderThumbColor(ui::entity entity, const Color& color)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -121,7 +123,7 @@ void SetSliderThumbColor(::entt::entity entity, const Color& color)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetSliderThumbSize(::entt::entity entity, float size)
+void SetSliderThumbSize(ui::entity entity, float size)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -131,7 +133,7 @@ void SetSliderThumbSize(::entt::entity entity, float size)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetSliderTrackThickness(::entt::entity entity, float thickness)
+void SetSliderTrackThickness(ui::entity entity, float thickness)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -140,7 +142,7 @@ void SetSliderTrackThickness(::entt::entity entity, float thickness)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetProgressValue(::entt::entity entity, float progress)
+void SetProgressValue(ui::entity entity, float progress)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -150,7 +152,7 @@ void SetProgressValue(::entt::entity entity, float progress)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetProgressFillColor(::entt::entity entity, const Color& color)
+void SetProgressFillColor(ui::entity entity, const Color& color)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -160,7 +162,7 @@ void SetProgressFillColor(::entt::entity entity, const Color& color)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetProgressBackgroundColor(::entt::entity entity, const Color& color)
+void SetProgressBackgroundColor(ui::entity entity, const Color& color)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -170,7 +172,7 @@ void SetProgressBackgroundColor(::entt::entity entity, const Color& color)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetProgressLabelVisibility(::entt::entity entity, policies::LabelVisibility visibility)
+void SetProgressLabelVisibility(ui::entity entity, policies::LabelVisibility visibility)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -180,7 +182,7 @@ void SetProgressLabelVisibility(::entt::entity entity, policies::LabelVisibility
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetProgressAnimated(::entt::entity entity, policies::AnimationState animated)
+void SetProgressAnimated(ui::entity entity, policies::AnimationState animated)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -190,7 +192,7 @@ void SetProgressAnimated(::entt::entity entity, policies::AnimationState animate
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetScrollMode(::entt::entity entity, policies::Scroll mode)
+void SetScrollMode(ui::entity entity, policies::Scroll mode)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -200,7 +202,7 @@ void SetScrollMode(::entt::entity entity, policies::Scroll mode)
     ui::utils::MarkLayoutAndVisualChanged(entity);
 }
 
-void SetScrollBarPolicy(::entt::entity entity, policies::ScrollBar policy)
+void SetScrollBarPolicy(ui::entity entity, policies::ScrollBar policy)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -210,7 +212,7 @@ void SetScrollBarPolicy(::entt::entity entity, policies::ScrollBar policy)
     ui::utils::MarkLayoutAndVisualChanged(entity);
 }
 
-void SetScrollAnchor(::entt::entity entity, policies::ScrollAnchor anchor)
+void SetScrollAnchor(ui::entity entity, policies::ScrollAnchor anchor)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -220,7 +222,7 @@ void SetScrollAnchor(::entt::entity entity, policies::ScrollAnchor anchor)
     ui::utils::MarkLayoutAndVisualChanged(entity);
 }
 
-void SetScrollSpeed(::entt::entity entity, float speed)
+void SetScrollSpeed(ui::entity entity, float speed)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -230,7 +232,7 @@ void SetScrollSpeed(::entt::entity entity, float speed)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetCheckBoxChecked(::entt::entity entity, bool checked)
+void SetCheckBoxChecked(ui::entity entity, bool checked)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -240,7 +242,7 @@ void SetCheckBoxChecked(::entt::entity entity, bool checked)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetCheckBoxOnChanged(::entt::entity entity, components::on_event<bool> callback)
+void SetCheckBoxOnChanged(ui::entity entity, components::on_event<bool> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -249,7 +251,7 @@ void SetCheckBoxOnChanged(::entt::entity entity, components::on_event<bool> call
     checkBox->onChanged = std::move(callback);
 }
 
-void SetDropDownOptions(::entt::entity entity, std::vector<std::string> options)
+void SetDropDownOptions(ui::entity entity, std::vector<std::string> options)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -264,7 +266,7 @@ void SetDropDownOptions(::entt::entity entity, std::vector<std::string> options)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetDropDownSelected(::entt::entity entity, int index)
+void SetDropDownSelected(ui::entity entity, int index)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -279,7 +281,7 @@ void SetDropDownSelected(::entt::entity entity, int index)
     ui::utils::MarkVisualChanged(entity);
 }
 
-void SetDropDownOnChanged(::entt::entity entity, components::on_event<int> callback)
+void SetDropDownOnChanged(ui::entity entity, components::on_event<int> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -290,7 +292,7 @@ void SetDropDownOnChanged(::entt::entity entity, components::on_event<int> callb
 
 // ─── Drag / Drop ─────────────────────────────────────────────────────────────
 
-void SetDraggable(::entt::entity entity, bool enabled)
+void SetDraggable(ui::entity entity, bool enabled)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -298,7 +300,7 @@ void SetDraggable(::entt::entity entity, bool enabled)
     draggable.enabled = enabled ? policies::Feature::ENABLED : policies::Feature::DISABLED;
 }
 
-void SetDragLockAxis(::entt::entity entity, bool lockX, bool lockY)
+void SetDragLockAxis(ui::entity entity, bool lockX, bool lockY)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -307,7 +309,7 @@ void SetDragLockAxis(::entt::entity entity, bool lockX, bool lockY)
     draggable.lockY = lockY;
 }
 
-void SetOnDragStart(::entt::entity entity, components::on_event<> callback)
+void SetOnDragStart(ui::entity entity, components::on_event<> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -315,7 +317,7 @@ void SetOnDragStart(::entt::entity entity, components::on_event<> callback)
     draggable.onDragStart = std::move(callback);
 }
 
-void SetOnDragEnd(::entt::entity entity, components::on_event<> callback)
+void SetOnDragEnd(ui::entity entity, components::on_event<> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -323,7 +325,7 @@ void SetOnDragEnd(::entt::entity entity, components::on_event<> callback)
     draggable.onDragEnd = std::move(callback);
 }
 
-void SetOnDragMove(::entt::entity entity, components::on_event<Vec2> callback)
+void SetOnDragMove(ui::entity entity, components::on_event<Vec2> callback)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
@@ -331,7 +333,7 @@ void SetOnDragMove(::entt::entity entity, components::on_event<Vec2> callback)
     draggable.onDragMove = std::move(callback);
 }
 
-void SetDroppable(::entt::entity entity, bool enabled)
+void SetDroppable(ui::entity entity, bool enabled)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;

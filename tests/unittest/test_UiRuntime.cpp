@@ -2,14 +2,12 @@
 
 #include <entt/entt.hpp>
 
-#include "entt/entity/fwd.hpp"
+#include <entt/entt.hpp>
 #include "common/components/Window.hpp"
 #include "src/common/Events.hpp"
 #include "src/common/GlobalContext.hpp"
 #include "src/core/RuntimeFacade.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/singleton/Dispatcher.hpp"
-#include "src/singleton/Registry.hpp"
 
 namespace ui::tests
 {
@@ -36,36 +34,38 @@ TEST(UiRuntimeTest, NestedRuntimeScopesSwitchRegistryAndDispatcherIndependently)
 
     {
         UiRuntimeScope const firstScope(firstRuntime);
-        Registry::ctx().emplace<globalcontext::FrameContext>().intervalMs = 11;
+        RuntimeFacade::current().ensureContext<globalcontext::FrameContext>().intervalMs = 11;
 
         UpdateFlagHandler firstHandler{&firstTriggered};
         auto firstConnection = entt::scoped_connection{
-            Dispatcher::Sink<events::UpdateEvent>().template connect<&UpdateFlagHandler::onUpdate>(firstHandler)};
+            RuntimeFacade::current().sink<events::UpdateEvent>().template connect<&UpdateFlagHandler::onUpdate>(
+                firstHandler)};
 
         {
             UiRuntimeScope const secondScope(secondRuntime);
 
-            EXPECT_EQ(Registry::ctx().find<globalcontext::FrameContext>(), nullptr);
+            EXPECT_EQ(RuntimeFacade::current().tryContext<globalcontext::FrameContext>(), nullptr);
 
             UpdateFlagHandler secondHandler{&secondTriggered};
             auto secondConnection = entt::scoped_connection{
-                Dispatcher::Sink<events::UpdateEvent>().template connect<&UpdateFlagHandler::onUpdate>(secondHandler)};
+                RuntimeFacade::current().sink<events::UpdateEvent>().template connect<&UpdateFlagHandler::onUpdate>(
+                    secondHandler)};
 
-            Dispatcher::Enqueue<events::UpdateEvent>({});
-            Dispatcher::Update();
+            RuntimeFacade::current().enqueue<events::UpdateEvent>({});
+            RuntimeFacade::current().update();
 
             EXPECT_FALSE(firstTriggered);
             EXPECT_TRUE(secondTriggered);
 
-            Registry::ctx().emplace<globalcontext::FrameContext>().intervalMs = 22;
-            EXPECT_EQ(Registry::ctx().get<globalcontext::FrameContext>().intervalMs, 22U);
+            RuntimeFacade::current().ensureContext<globalcontext::FrameContext>().intervalMs = 22;
+            EXPECT_EQ(RuntimeFacade::current().context<globalcontext::FrameContext>().intervalMs, 22U);
         }
 
-        ASSERT_NE(Registry::ctx().find<globalcontext::FrameContext>(), nullptr);
-        EXPECT_EQ(Registry::ctx().get<globalcontext::FrameContext>().intervalMs, 11U);
+        ASSERT_NE(RuntimeFacade::current().tryContext<globalcontext::FrameContext>(), nullptr);
+        EXPECT_EQ(RuntimeFacade::current().context<globalcontext::FrameContext>().intervalMs, 11U);
 
-        Dispatcher::Enqueue<events::UpdateEvent>({});
-        Dispatcher::Update();
+        RuntimeFacade::current().enqueue<events::UpdateEvent>({});
+        RuntimeFacade::current().update();
 
         EXPECT_TRUE(firstTriggered);
     }
@@ -104,8 +104,9 @@ TEST(UiRuntimeTest, WindowLookupCacheIsolatedPerRuntime)
 
     {
         UiRuntimeScope const firstScope(firstRuntime);
-        firstWindow = Registry::Create();
-        Registry::Emplace<components::Window>(firstWindow).windowID = 101;
+        auto& registry = RuntimeFacade::current().registry();
+        firstWindow = registry.create();
+        registry.emplace<components::Window>(firstWindow).windowID = 101;
         RuntimeFacade::current().windowLookup().remember(firstWindow);
 
         EXPECT_EQ(RuntimeFacade::current().windowLookup().findById(101), firstWindow);
@@ -113,10 +114,11 @@ TEST(UiRuntimeTest, WindowLookupCacheIsolatedPerRuntime)
         {
             UiRuntimeScope const secondScope(secondRuntime);
 
-            EXPECT_FALSE(Registry::Valid(RuntimeFacade::current().windowLookup().findById(101)));
+            auto& secondRegistry = RuntimeFacade::current().registry();
+            EXPECT_FALSE(secondRegistry.valid(RuntimeFacade::current().windowLookup().findById(101)));
 
-            const auto secondWindow = Registry::Create();
-            Registry::Emplace<components::Window>(secondWindow).windowID = 101;
+            const auto secondWindow = secondRegistry.create();
+            secondRegistry.emplace<components::Window>(secondWindow).windowID = 101;
             RuntimeFacade::current().windowLookup().remember(secondWindow);
 
             EXPECT_EQ(RuntimeFacade::current().windowLookup().findById(101), secondWindow);
@@ -131,17 +133,18 @@ TEST(UiRuntimeTest, WindowLookupCacheRecoversFromDestroyedEntity)
     UiRuntime runtime;
     {
         UiRuntimeScope const scope(runtime);
+        auto& registry = RuntimeFacade::current().registry();
 
-        const auto firstWindow = Registry::Create();
-        Registry::Emplace<components::Window>(firstWindow).windowID = 202;
+        const auto firstWindow = registry.create();
+        registry.emplace<components::Window>(firstWindow).windowID = 202;
         RuntimeFacade::current().windowLookup().remember(firstWindow);
 
         EXPECT_EQ(RuntimeFacade::current().windowLookup().findById(202), firstWindow);
 
-        Registry::Destroy(firstWindow);
+        registry.destroy(firstWindow);
 
-        const auto secondWindow = Registry::Create();
-        Registry::Emplace<components::Window>(secondWindow).windowID = 202;
+        const auto secondWindow = registry.create();
+        registry.emplace<components::Window>(secondWindow).windowID = 202;
 
         EXPECT_EQ(RuntimeFacade::current().windowLookup().findById(202), secondWindow);
     }

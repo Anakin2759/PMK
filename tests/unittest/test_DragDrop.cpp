@@ -5,11 +5,12 @@
 
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
-#include "entt/entity/entity.hpp"
+#include <entt/entt.hpp>
 #include "src/api/Controls.hpp"
 #include "src/api/Hierarchy.hpp"
 #include "src/common/Events.hpp"
 #include "src/common/Tags.hpp"
+#include "src/core/RuntimeFacade.hpp"
 #include "src/core/UiRuntime.hpp"
 #include "src/singleton/Dispatcher.hpp"
 #include "src/singleton/Registry.hpp"
@@ -26,16 +27,19 @@ protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
-        m_actionSystem.registerHandlers();
+        m_actionSystem = std::make_unique<systems::ActionSystem>(RuntimeFacade::current().registry(),
+                                                                 RuntimeFacade::current().dispatcher());
+        m_actionSystem->registerHandlers();
     }
 
     void TearDown() override
     {
-        m_actionSystem.unregisterHandlers();
+        m_actionSystem->unregisterHandlers();
+        m_actionSystem.reset();
         m_scope.reset();
     }
 
-    systems::ActionSystem m_actionSystem;
+    std::unique_ptr<systems::ActionSystem> m_actionSystem;
 
 private:
     UiRuntime m_runtime;

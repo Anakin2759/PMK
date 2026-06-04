@@ -87,6 +87,12 @@ public:
 /// @brief ADL 入口：将 UiErrc 转为 std::error_code。
 [[nodiscard]] std::error_code MakeErrorCode(UiErrc errorCode) noexcept;
 
+/// @brief 标准库 `std::error_code` 枚举互操作所需的 ADL 入口。
+[[nodiscard]] inline std::error_code make_error_code(UiErrc errorCode) noexcept // NOLINT(readability-identifier-naming)
+{
+    return MakeErrorCode(errorCode);
+}
+
 /// @brief 返回枚举对应的字符串名称（用于日志/格式化，独立于 message()）。
 [[nodiscard]] std::string_view ToStringView(UiErrc errorCode) noexcept;
 

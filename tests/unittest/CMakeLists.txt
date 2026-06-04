@@ -1,59 +1,77 @@
 # UI module tests
 
-add_executable(ui_tests
-    test_MainWindow.cpp
-    test_TweenSystem.cpp
+function(configure_ui_test_target target_name)
+    target_compile_features(${target_name} PRIVATE cxx_std_23)
+    target_compile_definitions(${target_name} PRIVATE
+        ASIO_STANDALONE
+        SDL_MAIN_HANDLED
+    )
+    target_include_directories(${target_name} PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(${target_name} PRIVATE
+        EnTT::EnTT
+        asio::asio
+        SDL3::SDL3
+        ui
+        GTest::gmock
+        GTest::gmock_main
+        GTest::gtest_main
+    )
+
+    if(MINGW)
+        target_link_libraries(${target_name} PRIVATE ws2_32 mswsock)
+    endif()
+
+    target_compile_options(${target_name} PRIVATE
+        # GCC
+        $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Debug>>:-Wall -Wextra -Wpedantic -O0 -g>
+        $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Release>>:-Wall -O3 -DNDEBUG>
+
+        # Clang
+        $<$<AND:$<CXX_COMPILER_ID:Clang>,$<NOT:$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>>,$<CONFIG:Debug>>:-Wall -Wextra -Wpedantic -O0 -g>
+        $<$<AND:$<CXX_COMPILER_ID:Clang>,$<NOT:$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>>,$<CONFIG:Release>>:-Wall -O3 -DNDEBUG>
+
+        # MSVC
+        $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/W4 /Od /Zi /EHsc>
+        $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2 /DNDEBUG /EHsc>
+
+        # Clang-cl
+        $<$<AND:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>,$<CONFIG:Debug>>:/EHsc /Zi /W4>
+        $<$<AND:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>,$<CONFIG:Release>>:/EHsc /O2 /DNDEBUG>
+    )
+endfunction()
+
+add_executable(ui_unit_tests
     test_BatchManager.cpp
     test_TextUtils.cpp
-    test_ResourceProviderCoverage.cpp
+    test_ResourceProvider.cpp
+    test_result.cpp
+)
+configure_ui_test_target(ui_unit_tests)
+
+add_executable(ui_ecs_tests
+    test_MainWindow.cpp
+    test_TweenSystem.cpp
     test_TaskChain.cpp
     test_UiRuntime.cpp
-    test_UtilsCoverage.cpp
-    test_VisibilityCoverage.cpp
-    test_HierarchyCoverage.cpp
-    test_result.cpp
+    test_Utils.cpp
+    test_Visibility.cpp
+    test_Hierarchy.cpp
     test_DragDrop.cpp
-    test_ThemeSystem.cpp
+    test_ThemeSystem_Button.cpp
+    test_ThemeSystem_Input.cpp
+    test_ThemeSystem_DropDown.cpp
+    test_ThemeSystem_Window.cpp
+)
+configure_ui_test_target(ui_ecs_tests)
+
+add_executable(ui_api_tests
     test_UmbrellaHeader.cpp
+    test_PublicEventApi.cpp
 )
-target_compile_features(ui_tests PRIVATE cxx_std_23)
-target_compile_definitions(ui_tests PRIVATE
-    ASIO_STANDALONE         # 告诉 Asio 不使用 Boost
-    SDL_MAIN_HANDLED       # 防止 SDL 篡改 main 入口
+configure_ui_test_target(ui_api_tests)
 
-)
-target_link_libraries(ui_tests PRIVATE
-    EnTT::EnTT
-    asio::asio
-    SDL3::SDL3
-    ui
-    GTest::gmock
-    GTest::gmock_main  # 如果你自己没写 main 函数，用这个
-    GTest::gtest_main
-)
-
-# MinGW 忽略 #pragma comment，ASIO 所需的 ws2_32/mswsock 需显式链接
-if(MINGW)
-    target_link_libraries(ui_tests PRIVATE ws2_32 mswsock)
-endif()
-target_compile_options(ui_tests PRIVATE
-    # GCC
-    $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Debug>>:-Wall -Wextra -Wpedantic -O0 -g>
-    $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Release>>:-Wall -O3 -DNDEBUG>
-
-    # Clang
-    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<NOT:$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>>,$<CONFIG:Debug>>:-Wall -Wextra -Wpedantic -O0 -g>
-    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<NOT:$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>>,$<CONFIG:Release>>:-Wall -O3 -DNDEBUG>
-
-    # MSVC
-    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/W4 /Od /Zi /EHsc>
-    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2 /DNDEBUG /EHsc>
-
-    # Clang-cl
-    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>,$<CONFIG:Debug>>:/EHsc /Zi /W4>
-    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>,$<CONFIG:Release>>:/EHsc /O2 /DNDEBUG>
-
-)
+# Backward-compatible aggregate target name for existing workflows.
+add_custom_target(ui_tests DEPENDS ui_unit_tests ui_ecs_tests ui_api_tests)
 
 set_source_files_properties(${CMAKE_SOURCE_DIR}/include/ui.hpp PROPERTIES LANGUAGE CXX)
 add_library(ui_public_header_check OBJECT ${CMAKE_SOURCE_DIR}/include/ui.hpp)
@@ -62,7 +80,9 @@ target_link_libraries(ui_public_header_check PRIVATE ui)
 target_compile_options(ui_public_header_check PRIVATE
     $<$<CXX_COMPILER_ID:Clang>:/clang:-Wno-pragma-once-outside-header>
 )
-add_dependencies(ui_tests ui_public_header_check)
+add_dependencies(ui_api_tests ui_public_header_check)
 
 include(GoogleTest)
-gtest_discover_tests(ui_tests)
+gtest_discover_tests(ui_unit_tests PROPERTIES LABELS "unit")
+gtest_discover_tests(ui_ecs_tests PROPERTIES LABELS "ecs")
+gtest_discover_tests(ui_api_tests PROPERTIES LABELS "api")

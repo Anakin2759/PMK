@@ -18,7 +18,6 @@
 // NOLINTBEGIN(unused-included)
 // IWYU pragma: begin_exports
 
-#include "../src/common/Events.hpp"
 #include "../src/common/Policies.hpp"
 #include "../src/common/Tags.hpp"
 #include "../src/common/Types.hpp"
@@ -38,6 +37,7 @@
 #include "../src/api/Factory.hpp"
 #include "../src/api/Icon.hpp"
 #include "../src/api/Controls.hpp"
+#include "../src/api/Event.hpp"
 #include "../src/api/Chains.hpp"
 #include "../src/api/Shortcut.hpp"
 #include "../src/api/Canvas.hpp"

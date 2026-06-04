@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include <type_traits>
+
 #include "Entity.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "common/components/Layout.hpp"
@@ -52,12 +54,37 @@ void TraverseChildren(ui::entity parent, Func visitor)
     if (!hierarchy || hierarchy->children.empty()) return;
 
     const auto childrenCopy = hierarchy->children;
-    for (const ui::entity child : childrenCopy)
+    for (const auto childInternal : childrenCopy)
     {
+        const ui::entity child = static_cast<ui::entity>(childInternal);
         if (!reg.valid(child)) continue;
         TraverseChildren(child, visitor);
         visitor(child);
     }
+}
+
+template <typename ParentEntity, typename ChildEntity>
+    requires((!std::same_as<std::remove_cvref_t<ParentEntity>, ui::entity>
+              || !std::same_as<std::remove_cvref_t<ChildEntity>, ui::entity>)
+             && (std::is_enum_v<std::remove_cvref_t<ParentEntity>>
+                 || std::is_integral_v<std::remove_cvref_t<ParentEntity>>)
+             && (std::is_enum_v<std::remove_cvref_t<ChildEntity>>
+                 || std::is_integral_v<std::remove_cvref_t<ChildEntity>>))
+void AddChild(ParentEntity parent, ChildEntity child)
+{
+    AddChild(static_cast<ui::entity>(parent), static_cast<ui::entity>(child));
+}
+
+template <typename ParentEntity, typename ChildEntity>
+    requires((!std::same_as<std::remove_cvref_t<ParentEntity>, ui::entity>
+              || !std::same_as<std::remove_cvref_t<ChildEntity>, ui::entity>)
+             && (std::is_enum_v<std::remove_cvref_t<ParentEntity>>
+                 || std::is_integral_v<std::remove_cvref_t<ParentEntity>>)
+             && (std::is_enum_v<std::remove_cvref_t<ChildEntity>>
+                 || std::is_integral_v<std::remove_cvref_t<ChildEntity>>))
+void RemoveChild(ParentEntity parent, ChildEntity child)
+{
+    RemoveChild(static_cast<ui::entity>(parent), static_cast<ui::entity>(child));
 }
 
 } // namespace ui::hierarchy
@@ -66,8 +93,8 @@ namespace ui::actions
 {
 namespace hierarchy
 {
-inline constexpr EntityAction<&ui::hierarchy::AddChild> ADD_CHILD_ACTION{};
-inline constexpr EntityAction<&ui::hierarchy::RemoveChild> REMOVE_CHILD_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, ui::entity)>(&ui::hierarchy::AddChild)> ADD_CHILD_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, ui::entity)>(&ui::hierarchy::RemoveChild)> REMOVE_CHILD_ACTION{};
 } // namespace hierarchy
 } // namespace ui::actions
 
