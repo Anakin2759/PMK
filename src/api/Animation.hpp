@@ -20,21 +20,13 @@
 #include <optional>
 #include <type_traits>
 
-#include "Entity.hpp"
-#include "common/Policies.hpp"
-#include "common/Types.hpp"
 #include "Chains.hpp"
+#include "common/Animation.hpp"
+#include "Entity.hpp"
+#include "common/Types.hpp"
 
 namespace ui::animation
 {
-struct TweenOptions
-{
-    float duration = 200.0F;
-    policies::Easing easing = policies::Easing::EASE_OUT_QUAD;
-    policies::Play mode = policies::Play::ONCE;
-    bool autoCleanup = true;
-};
-
 void StartPositionAnimation(ui::entity entity,
                             const Vec2& startPos,
                             const Vec2& endPos,

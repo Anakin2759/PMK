@@ -4,8 +4,8 @@
 
 #include <memory>
 
+#include "src/core/RuntimeFacade.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/singleton/Dispatcher.hpp"
 
 namespace ui::tests
 {
@@ -17,7 +17,7 @@ protected:
 
     void TearDown() override
     {
-        Dispatcher::Update();
+        RuntimeFacade::current().update();
         m_scope.reset();
     }
 

@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "common/Types.hpp"
-#include "src/singleton/Registry.hpp"
+#include "src/core/RuntimeFacade.hpp"
 
 namespace ui::tests
 {
@@ -11,7 +11,7 @@ namespace ui::tests
 template <typename Component>
 Component& RequireComponent(entt::entity entity)
 {
-    auto* component = Registry::TryGet<Component>(entity);
+    auto* component = RuntimeFacade::current().registry().try_get<Component>(entity);
     EXPECT_NE(component, nullptr);
     return *component;
 }
@@ -19,13 +19,13 @@ Component& RequireComponent(entt::entity entity)
 template <typename Tag>
 void ExpectHasTag(entt::entity entity)
 {
-    EXPECT_TRUE(Registry::AllOf<Tag>(entity));
+    EXPECT_TRUE(RuntimeFacade::current().registry().all_of<Tag>(entity));
 }
 
 template <typename Tag>
 void ExpectNotHasTag(entt::entity entity)
 {
-    EXPECT_FALSE(Registry::AllOf<Tag>(entity));
+    EXPECT_FALSE(RuntimeFacade::current().registry().all_of<Tag>(entity));
 }
 
 inline void ExpectColorRgbEq(const Color& actual, const Color& expected)

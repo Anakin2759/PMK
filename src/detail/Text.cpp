@@ -2,7 +2,7 @@
 #include "Scale.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "common/Tags.hpp"
-#include "api/Utils.hpp"
+#include "detail/Utils.hpp"
 #include "entt/entity/fwd.hpp"
 #include <string>
 #include "common/components/Data.hpp"

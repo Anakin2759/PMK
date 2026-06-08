@@ -148,7 +148,10 @@ private:
                 break;
         }
     }
-
+    /**
+     * @brief 根据 SDL 窗口ID查找对应实体并入队关闭事件
+     * @param windowId SDL窗口ID
+     */
     void enqueueCloseWindowRequest(uint32_t windowId)
     {
         const auto targetWindow = RuntimeFacade::current().windowLookup().findById(windowId);

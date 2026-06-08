@@ -5,9 +5,12 @@
 #include <memory>
 #include <vector>
 
+#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
+
 #include <ui.hpp>
 
-#include "common/components/Visual.hpp"
+#include "common/components/Layout.hpp"
 #include "src/systems/ThemeSystem.hpp"
 
 namespace ui::tests
@@ -33,9 +36,11 @@ protected:
 
     static void triggerThemeUpdate() { RuntimeFacade::current().trigger(events::UpdateEvent{}); }
 
+    static Registry& registry() { return RuntimeFacade::current().registry(); }
+
     static std::vector<entt::entity> popupChildren(entt::entity popupEntity)
     {
-        const auto* hierarchy = Registry::TryGet<components::Hierarchy>(popupEntity);
+        const auto* hierarchy = registry().try_get<components::Hierarchy>(popupEntity);
         if (hierarchy == nullptr)
         {
             return {};

@@ -187,6 +187,7 @@ set(UI_SOURCES
     core/PlatformWindow.cpp
     renderers/TableRenderer.cpp
     common/ErrorCodes.cpp
+    common/CustomEvent.hpp
 )
 set(UI_HEADERS
     # Components
@@ -194,6 +195,9 @@ set(UI_HEADERS
     common/Policies.hpp
     common/Tags.hpp
     common/Events.hpp
+    common/Animation.hpp
+    common/Scale.hpp
+    common/Shortcut.hpp
     common/Table.hpp
     common/Theme.hpp
     common/Types.hpp

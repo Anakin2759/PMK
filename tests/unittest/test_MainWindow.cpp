@@ -14,6 +14,10 @@
 #include <memory>
 #include <algorithm>
 #include <string>
+
+#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
+
 #include <ui.hpp>
 
 #include "common/components/Layout.hpp"
@@ -21,12 +25,16 @@
 #include "common/components/Visual.hpp"
 #include <entt/entt.hpp>
 #include "common/components/Interaction.hpp"
-#include "src/singleton/Registry.hpp"
 
 namespace ui::tests
 {
 namespace
 {
+
+Registry& ActiveRegistry()
+{
+    return RuntimeFacade::current().registry();
+}
 
 class UiIntegrationTest : public ::testing::Test
 {
@@ -44,7 +52,7 @@ bool ContainsChild(const components::Hierarchy& hierarchy, entt::entity child)
     return std::ranges::find(hierarchy.children, child) != hierarchy.children.end();
 }
 
-void ConfigureTextBrowser(entt::entity browser, bool& submitCalled, std::string& changedText)
+void ConfigureTextBrowser(ui::entity browser, bool& submitCalled, std::string& changedText)
 {
     using namespace ui::chains;
 
@@ -83,11 +91,12 @@ void ExpectTextBrowserColorAndMode(const components::TextEdit& textEdit)
     EXPECT_NE(textEdit.inputMode, policies::TextFlag::DEFAULT);
 }
 
-void ExpectTextBrowserLayoutState(entt::entity browser)
+void ExpectTextBrowserLayoutState(ui::entity browser)
 {
-    const auto& text = Registry::Get<components::Text>(browser);
-    const auto& scrollArea = Registry::Get<components::ScrollArea>(browser);
-    const auto& size = Registry::Get<components::Size>(browser);
+    auto& registry = ActiveRegistry();
+    const auto& text = registry.get<components::Text>(browser);
+    const auto& scrollArea = registry.get<components::ScrollArea>(browser);
+    const auto& size = registry.get<components::Size>(browser);
 
     EXPECT_EQ(text.alignment, policies::Alignment::TOP | policies::Alignment::LEFT);
     EXPECT_EQ(text.wordWrap, policies::TextWrap::WORD);
@@ -110,21 +119,22 @@ TEST_F(UiIntegrationTest, DslBuildsWidgetTreeWithinUiModule)
         | BorderColor(Color::White()) | BorderThickness(2.0F) | Text("Ready") | FontSize(18.0F)
         | TextAlignment(policies::Alignment::CENTER) | Show();
 
-    const auto& rootHierarchy = Registry::Get<components::Hierarchy>(root);
-    const auto& rootLayout = Registry::Get<components::LayoutInfo>(root);
-    const auto& rootPadding = Registry::Get<components::Padding>(root);
-    const auto& buttonHierarchy = Registry::Get<components::Hierarchy>(button);
-    const auto& buttonSize = Registry::Get<components::Size>(button);
-    const auto& buttonText = Registry::Get<components::Text>(button);
-    const auto& buttonBackground = Registry::Get<components::Background>(button);
-    const auto& buttonBorder = Registry::Get<components::Border>(button);
+    auto& registry = ActiveRegistry();
+    const auto& rootHierarchy = registry.get<components::Hierarchy>(root);
+    const auto& rootLayout = registry.get<components::LayoutInfo>(root);
+    const auto& rootPadding = registry.get<components::Padding>(root);
+    const auto& buttonHierarchy = registry.get<components::Hierarchy>(button);
+    const auto& buttonSize = registry.get<components::Size>(button);
+    const auto& buttonText = registry.get<components::Text>(button);
+    const auto& buttonBackground = registry.get<components::Background>(button);
+    const auto& buttonBorder = registry.get<components::Border>(button);
 
     ASSERT_EQ(rootHierarchy.children.size(), 2U);
-    EXPECT_EQ(rootHierarchy.children.at(0), button);
-    EXPECT_EQ(rootHierarchy.children.at(1), editor);
-    EXPECT_EQ(buttonHierarchy.parent, root);
-    EXPECT_EQ(Registry::Get<components::BaseInfo>(root).alias, "root_layout");
-    EXPECT_EQ(Registry::Get<components::BaseInfo>(button).alias, "start_button");
+    EXPECT_EQ(rootHierarchy.children.at(0), static_cast<entt::entity>(button));
+    EXPECT_EQ(rootHierarchy.children.at(1), static_cast<entt::entity>(editor));
+    EXPECT_EQ(buttonHierarchy.parent, static_cast<entt::entity>(root));
+    EXPECT_EQ(registry.get<components::BaseInfo>(root).alias, "root_layout");
+    EXPECT_EQ(registry.get<components::BaseInfo>(button).alias, "start_button");
     EXPECT_EQ(rootLayout.direction, policies::LayoutDirection::VERTICAL);
     EXPECT_FLOAT_EQ(rootLayout.spacing, 12.0F);
     EXPECT_FLOAT_EQ(rootPadding.values.x(), 8.0F);
@@ -142,10 +152,10 @@ TEST_F(UiIntegrationTest, DslBuildsWidgetTreeWithinUiModule)
     EXPECT_FLOAT_EQ(buttonBackground.borderRadius.x(), 6.0F);
     EXPECT_EQ(buttonBorder.enabled, policies::Feature::ENABLED);
     EXPECT_FLOAT_EQ(buttonBorder.thickness, 2.0F);
-    EXPECT_TRUE(Registry::AllOf<components::VisibleTag>(button));
-    EXPECT_FALSE(Registry::AllOf<components::RootTag>(button));
-    EXPECT_FALSE(Registry::AllOf<components::RootTag>(editor));
-    EXPECT_TRUE(Registry::AllOf<components::LayoutDirtyTag>(root));
+    EXPECT_TRUE(registry.all_of<components::VisibleTag>(button));
+    EXPECT_FALSE(registry.all_of<components::RootTag>(button));
+    EXPECT_FALSE(registry.all_of<components::RootTag>(editor));
+    EXPECT_TRUE(registry.all_of<components::LayoutDirtyTag>(root));
 }
 
 TEST_F(UiIntegrationTest, ReparentAndRemoveChildKeepHierarchyConsistent)
@@ -156,27 +166,28 @@ TEST_F(UiIntegrationTest, ReparentAndRemoveChildKeepHierarchyConsistent)
 
     hierarchy::AddChild(firstParent, child);
 
-    auto& firstHierarchy = Registry::Get<components::Hierarchy>(firstParent);
+    auto& registry = ActiveRegistry();
+    auto& firstHierarchy = registry.get<components::Hierarchy>(firstParent);
     ASSERT_EQ(firstHierarchy.children.size(), 1U);
-    EXPECT_TRUE(ContainsChild(firstHierarchy, child));
-    EXPECT_EQ(Registry::Get<components::Hierarchy>(child).parent, firstParent);
+    EXPECT_TRUE(ContainsChild(firstHierarchy, static_cast<entt::entity>(child)));
+    EXPECT_EQ(registry.get<components::Hierarchy>(child).parent, static_cast<entt::entity>(firstParent));
 
     hierarchy::AddChild(secondParent, child);
 
-    const auto& secondHierarchy = Registry::Get<components::Hierarchy>(secondParent);
+    const auto& secondHierarchy = registry.get<components::Hierarchy>(secondParent);
     EXPECT_TRUE(firstHierarchy.children.empty());
     ASSERT_EQ(secondHierarchy.children.size(), 1U);
-    EXPECT_TRUE(ContainsChild(secondHierarchy, child));
-    EXPECT_EQ(Registry::Get<components::Hierarchy>(child).parent, secondParent);
-    EXPECT_FALSE(Registry::AllOf<components::RootTag>(child));
-    EXPECT_TRUE(Registry::AllOf<components::LayoutDirtyTag>(firstParent));
-    EXPECT_TRUE(Registry::AllOf<components::LayoutDirtyTag>(secondParent));
+    EXPECT_TRUE(ContainsChild(secondHierarchy, static_cast<entt::entity>(child)));
+    EXPECT_EQ(registry.get<components::Hierarchy>(child).parent, static_cast<entt::entity>(secondParent));
+    EXPECT_FALSE(registry.all_of<components::RootTag>(child));
+    EXPECT_TRUE(registry.all_of<components::LayoutDirtyTag>(firstParent));
+    EXPECT_TRUE(registry.all_of<components::LayoutDirtyTag>(secondParent));
 
     hierarchy::RemoveChild(secondParent, child);
 
-    EXPECT_TRUE(Registry::Get<components::Hierarchy>(secondParent).children.empty());
-    EXPECT_TRUE(Registry::Get<components::Hierarchy>(child).parent == entt::null);
-    EXPECT_TRUE(Registry::AllOf<components::RootTag>(child));
+    EXPECT_TRUE(registry.get<components::Hierarchy>(secondParent).children.empty());
+    EXPECT_TRUE(registry.get<components::Hierarchy>(child).parent == entt::null);
+    EXPECT_TRUE(registry.all_of<components::RootTag>(child));
 }
 
 TEST_F(UiIntegrationTest, TextBrowserFactoryCombinesScrollableReadOnlyEditorState)
@@ -187,7 +198,7 @@ TEST_F(UiIntegrationTest, TextBrowserFactoryCombinesScrollableReadOnlyEditorStat
     std::string changedText;
     ConfigureTextBrowser(browser, submitCalled, changedText);
 
-    auto& textEdit = Registry::Get<components::TextEdit>(browser);
+    auto& textEdit = ActiveRegistry().get<components::TextEdit>(browser);
     ExpectTextBrowserCallbacks(textEdit, submitCalled, changedText);
     ExpectTextBrowserBufferState(textEdit);
     ExpectTextBrowserColorAndMode(textEdit);
@@ -200,9 +211,10 @@ TEST_F(UiIntegrationTest, ContainerFactoriesUseSensibleDefaultAlignment)
     const auto hbox = factory::CreateHBoxLayout("hbox_layout");
     const auto scrollArea = factory::CreateScrollArea("scroll_area");
 
-    const auto& vboxLayout = Registry::Get<components::LayoutInfo>(vbox);
-    const auto& hboxLayout = Registry::Get<components::LayoutInfo>(hbox);
-    const auto& scrollLayout = Registry::Get<components::LayoutInfo>(scrollArea);
+    auto& registry = ActiveRegistry();
+    const auto& vboxLayout = registry.get<components::LayoutInfo>(vbox);
+    const auto& hboxLayout = registry.get<components::LayoutInfo>(hbox);
+    const auto& scrollLayout = registry.get<components::LayoutInfo>(scrollArea);
 
     EXPECT_EQ(vboxLayout.direction, policies::LayoutDirection::VERTICAL);
     EXPECT_EQ(vboxLayout.alignment, policies::Alignment::TOP_LEFT);

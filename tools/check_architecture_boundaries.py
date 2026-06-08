@@ -24,6 +24,8 @@ STATIC_RUNTIME_RE = re.compile(
 COMMON_RUNTIME_INCLUDE_RE = re.compile(r'#\s*include\s+"(?:core/RuntimeFacade\.hpp|singleton/Registry\.hpp)"')
 
 INTERNAL_API_INCLUDE_DIRS = (
+    Path("src/core"),
+    Path("src/detail"),
     Path("src/systems"),
     Path("src/renderers"),
     Path("src/services"),
@@ -36,10 +38,6 @@ SOURCE_EXTENSIONS = {".h", ".hh", ".hpp", ".hxx", ".c", ".cc", ".cpp", ".cxx"}
 # even when a file already has one allowed include/call of the same kind.
 ALLOWED_API_INCLUDE_COUNTS = Counter(
     {
-        ("src/systems/ActionSystem.hpp", '#include "api/Animation.hpp"'): 1,
-        ("src/systems/ActionSystem.hpp", '#include "api/Hierarchy.hpp"'): 1,
-        ("src/systems/ShortcutSystem.hpp", '#include "api/Shortcut.hpp"'): 1,
-        ("src/renderers/TableRenderer.cpp", '#include "api/Scale.hpp"'): 1,
     }
 )
 

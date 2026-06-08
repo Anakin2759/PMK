@@ -12,14 +12,34 @@
 #include "src/common/Tags.hpp"
 #include "src/core/RuntimeFacade.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/singleton/Dispatcher.hpp"
-#include "src/singleton/Registry.hpp"
+#include "src/detail/EntityCast.hpp"
 #include "src/systems/ActionSystem.hpp"
 
 namespace ui::tests
 {
 namespace
 {
+
+Registry& ActiveRegistry()
+{
+    return RuntimeFacade::current().registry();
+}
+
+void TriggerDragDropped(ui::entity source, ui::entity target)
+{
+    RuntimeFacade::current().trigger<events::DragDroppedEvent>(
+        {.source = detail::ToInternal(source), .target = detail::ToInternal(target)});
+}
+
+void TriggerDragDropped(entt::entity source, ui::entity target)
+{
+    RuntimeFacade::current().trigger<events::DragDroppedEvent>({.source = source, .target = detail::ToInternal(target)});
+}
+
+void TriggerDragDropped(ui::entity source, entt::entity target)
+{
+    RuntimeFacade::current().trigger<events::DragDroppedEvent>({.source = detail::ToInternal(source), .target = target});
+}
 
 class DragDropTest : public ::testing::Test
 {
@@ -56,7 +76,7 @@ TEST_F(DragDropTest, SetDraggableAddsComponent)
 
     controls::SetDraggable(entity, true);
 
-    const auto* comp = Registry::TryGet<components::Draggable>(entity);
+    const auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
     EXPECT_EQ(comp->enabled, policies::Feature::ENABLED);
 }
@@ -67,7 +87,7 @@ TEST_F(DragDropTest, SetDraggableFalseDisablesComponent)
 
     controls::SetDraggable(entity, false);
 
-    const auto* comp = Registry::TryGet<components::Draggable>(entity);
+    const auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
     EXPECT_EQ(comp->enabled, policies::Feature::DISABLED);
 }
@@ -78,7 +98,7 @@ TEST_F(DragDropTest, SetDragLockAxisPreservesFlags)
 
     controls::SetDragLockAxis(entity, true, false);
 
-    const auto* comp = Registry::TryGet<components::Draggable>(entity);
+    const auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
     EXPECT_TRUE(comp->lockX);
     EXPECT_FALSE(comp->lockY);
@@ -91,7 +111,7 @@ TEST_F(DragDropTest, SetOnDragStartStoresCallback)
 
     controls::SetOnDragStart(entity, [&called] { called = true; });
 
-    auto* comp = Registry::TryGet<components::Draggable>(entity);
+    auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
     ASSERT_TRUE(static_cast<bool>(comp->onDragStart));
     comp->onDragStart();
@@ -105,7 +125,7 @@ TEST_F(DragDropTest, SetOnDragEndStoresCallback)
 
     controls::SetOnDragEnd(entity, [&called] { called = true; });
 
-    auto* comp = Registry::TryGet<components::Draggable>(entity);
+    auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
     ASSERT_TRUE(static_cast<bool>(comp->onDragEnd));
     comp->onDragEnd();
@@ -119,7 +139,7 @@ TEST_F(DragDropTest, SetOnDragMoveStoresCallback)
 
     controls::SetOnDragMove(entity, [&received](Vec2 delta) { received = delta; });
 
-    auto* comp = Registry::TryGet<components::Draggable>(entity);
+    auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
     ASSERT_TRUE(static_cast<bool>(comp->onDragMove));
     comp->onDragMove(Vec2{3.0F, 5.0F});
@@ -135,7 +155,7 @@ TEST_F(DragDropTest, SetDroppableAddsComponent)
 
     controls::SetDroppable(entity, true);
 
-    const auto* comp = Registry::TryGet<components::Droppable>(entity);
+    const auto* comp = ActiveRegistry().try_get<components::Droppable>(entity);
     ASSERT_NE(comp, nullptr);
     EXPECT_EQ(comp->enabled, policies::Feature::ENABLED);
 }
@@ -146,7 +166,7 @@ TEST_F(DragDropTest, SetDroppableFalseDisablesComponent)
 
     controls::SetDroppable(entity, false);
 
-    const auto* comp = Registry::TryGet<components::Droppable>(entity);
+    const auto* comp = ActiveRegistry().try_get<components::Droppable>(entity);
     ASSERT_NE(comp, nullptr);
     EXPECT_EQ(comp->enabled, policies::Feature::DISABLED);
 }
@@ -161,11 +181,11 @@ TEST_F(DragDropTest, DragDroppedReparentsSourceUnderTarget)
     // target 必须有 Droppable（enabled）
     controls::SetDroppable(target, true);
 
-    Dispatcher::Trigger<events::DragDroppedEvent>({.source = source, .target = target});
+    TriggerDragDropped(source, target);
 
-    const auto* cHier = Registry::TryGet<components::Hierarchy>(source);
+    const auto* cHier = ActiveRegistry().try_get<components::Hierarchy>(source);
     ASSERT_NE(cHier, nullptr);
-    EXPECT_EQ(cHier->parent, target);
+    EXPECT_EQ(cHier->parent, detail::ToInternal(target));
 }
 
 TEST_F(DragDropTest, DragDroppedIsBlockedWhenTargetNotDroppable)
@@ -174,13 +194,13 @@ TEST_F(DragDropTest, DragDroppedIsBlockedWhenTargetNotDroppable)
     const auto target = factory::CreateVBoxLayout("dd_target_2");
 
     // target 没有 Droppable 组件
-    Dispatcher::Trigger<events::DragDroppedEvent>({.source = source, .target = target});
+    TriggerDragDropped(source, target);
 
     // source 不应被移到 target 下
-    const auto* cHier = Registry::TryGet<components::Hierarchy>(source);
+    const auto* cHier = ActiveRegistry().try_get<components::Hierarchy>(source);
     if (cHier != nullptr)
     {
-        EXPECT_NE(cHier->parent, target);
+        EXPECT_NE(cHier->parent, detail::ToInternal(target));
     }
 }
 
@@ -191,12 +211,12 @@ TEST_F(DragDropTest, DragDroppedIsBlockedWhenTargetDroppableDisabled)
 
     controls::SetDroppable(target, false); // 存在但禁用
 
-    Dispatcher::Trigger<events::DragDroppedEvent>({.source = source, .target = target});
+    TriggerDragDropped(source, target);
 
-    const auto* cHier = Registry::TryGet<components::Hierarchy>(source);
+    const auto* cHier = ActiveRegistry().try_get<components::Hierarchy>(source);
     if (cHier != nullptr)
     {
-        EXPECT_NE(cHier->parent, target);
+        EXPECT_NE(cHier->parent, detail::ToInternal(target));
     }
 }
 
@@ -206,13 +226,13 @@ TEST_F(DragDropTest, DragDroppedIsBlockedByDroppingOnSelf)
     controls::SetDroppable(entity, true);
 
     // 把自己拖到自己上
-    Dispatcher::Trigger<events::DragDroppedEvent>({.source = entity, .target = entity});
+    TriggerDragDropped(entity, entity);
 
     // 不能成为自己的父节点
-    const auto* cHier = Registry::TryGet<components::Hierarchy>(entity);
+    const auto* cHier = ActiveRegistry().try_get<components::Hierarchy>(entity);
     if (cHier != nullptr)
     {
-        EXPECT_NE(cHier->parent, entity);
+        EXPECT_NE(cHier->parent, detail::ToInternal(entity));
     }
 }
 
@@ -227,13 +247,13 @@ TEST_F(DragDropTest, DragDroppedIsBlockedByDirectCycle)
     hierarchy::AddChild(parent, child);
     controls::SetDroppable(child, true);
 
-    Dispatcher::Trigger<events::DragDroppedEvent>({.source = parent, .target = child});
+    TriggerDragDropped(parent, child);
 
     // parent 不应成为 child 的子节点（循环）
-    const auto* pHier = Registry::TryGet<components::Hierarchy>(parent);
+    const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     if (pHier != nullptr)
     {
-        EXPECT_NE(pHier->parent, child);
+        EXPECT_NE(pHier->parent, detail::ToInternal(child));
     }
 }
 
@@ -248,12 +268,12 @@ TEST_F(DragDropTest, DragDroppedIsBlockedByIndirectCycle)
     hierarchy::AddChild(parent, child);
     controls::SetDroppable(child, true);
 
-    Dispatcher::Trigger<events::DragDroppedEvent>({.source = grandparent, .target = child});
+    TriggerDragDropped(grandparent, child);
 
-    const auto* gpHier = Registry::TryGet<components::Hierarchy>(grandparent);
+    const auto* gpHier = ActiveRegistry().try_get<components::Hierarchy>(grandparent);
     if (gpHier != nullptr)
     {
-        EXPECT_NE(gpHier->parent, child);
+        EXPECT_NE(gpHier->parent, detail::ToInternal(child));
     }
 }
 
@@ -264,11 +284,11 @@ TEST_F(DragDropTest, DragDroppedAllowsValidDropOnUnrelatedTarget)
 
     controls::SetDroppable(unrelated, true);
 
-    Dispatcher::Trigger<events::DragDroppedEvent>({.source = source, .target = unrelated});
+    TriggerDragDropped(source, unrelated);
 
-    const auto* cHier = Registry::TryGet<components::Hierarchy>(source);
+    const auto* cHier = ActiveRegistry().try_get<components::Hierarchy>(source);
     ASSERT_NE(cHier, nullptr);
-    EXPECT_EQ(cHier->parent, unrelated);
+    EXPECT_EQ(cHier->parent, detail::ToInternal(unrelated));
 }
 
 // ===================== DroppableTag（标签路径）=====================
@@ -279,13 +299,13 @@ TEST_F(DragDropTest, DroppableTagAloneEnablesDrop)
     const auto target = factory::CreateVBoxLayout("dd_tag_tgt");
 
     // 只打 DroppableTag，不用 SetDroppable
-    Registry::Emplace<components::DroppableTag>(target);
+    ActiveRegistry().emplace<components::DroppableTag>(target);
 
-    Dispatcher::Trigger<events::DragDroppedEvent>({.source = source, .target = target});
+    TriggerDragDropped(source, target);
 
-    const auto* cHier = Registry::TryGet<components::Hierarchy>(source);
+    const auto* cHier = ActiveRegistry().try_get<components::Hierarchy>(source);
     ASSERT_NE(cHier, nullptr);
-    EXPECT_EQ(cHier->parent, target);
+    EXPECT_EQ(cHier->parent, detail::ToInternal(target));
 }
 
 // ===================== DragDroppedEvent 对无效实体是 no-op =====================
@@ -295,14 +315,14 @@ TEST_F(DragDropTest, DragDroppedWithInvalidSourceIsNoOp)
     const auto target = factory::CreateVBoxLayout("dd_null_tgt");
     controls::SetDroppable(target, true);
 
-    EXPECT_NO_FATAL_FAILURE(Dispatcher::Trigger<events::DragDroppedEvent>({.source = entt::null, .target = target}));
+    EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(entt::null, target));
 }
 
 TEST_F(DragDropTest, DragDroppedWithInvalidTargetIsNoOp)
 {
     const auto source = factory::CreateLabel("SRC", "dd_null_src");
 
-    EXPECT_NO_FATAL_FAILURE(Dispatcher::Trigger<events::DragDroppedEvent>({.source = source, .target = entt::null}));
+    EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(source, entt::null));
 }
 
 } // namespace ui::tests

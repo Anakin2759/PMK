@@ -23,12 +23,15 @@
 
 #pragma once
 
+#include <algorithm>
+#include <optional>
+
 #include <entt/entt.hpp>
 #include "common/Events.hpp"
 #include "singleton/Logger.hpp"
 #include "interface/ISystem.hpp"
-#include "api/Animation.hpp"
-#include "api/Hierarchy.hpp"
+#include "detail/Animation.hpp"
+#include "detail/Utils.hpp"
 #include "common/components/Animation.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
@@ -90,7 +93,45 @@ private:
         options.mode = policies::Play::ONCE;
         options.autoCleanup = true;
 
-        ui::animation::StartTransformAnimation(entity, targetScale, targetOffset, options, defaultScale, defaultOffset);
+        ui::detail::animation::StartTransformAnimation(entity, targetScale, targetOffset, options, defaultScale, defaultOffset);
+    }
+
+    static void removeChildInternal(Registry& reg, entt::entity parent, entt::entity child)
+    {
+        if (!reg.valid(parent) || !reg.valid(child)) return;
+
+        auto* parentHierarchy = reg.try_get<components::Hierarchy>(parent);
+        auto* childHierarchy = reg.try_get<components::Hierarchy>(child);
+        if (parentHierarchy == nullptr || childHierarchy == nullptr || childHierarchy->parent != parent) return;
+
+        std::erase(parentHierarchy->children, child);
+        childHierarchy->parent = entt::null;
+        reg.emplace_or_replace<components::RootTag>(child);
+
+        ui::utils::MarkLayoutAndVisualChanged(parent);
+        ui::utils::MarkLayoutAndVisualChanged(child);
+    }
+
+    static void addChildInternal(Registry& reg, entt::entity parent, entt::entity child)
+    {
+        if (!reg.valid(parent) || !reg.valid(child)) return;
+
+        auto& childHierarchy = reg.get_or_emplace<components::Hierarchy>(child);
+        if (childHierarchy.parent != entt::null && childHierarchy.parent != parent)
+        {
+            removeChildInternal(reg, childHierarchy.parent, child);
+        }
+        childHierarchy.parent = parent;
+
+        reg.remove<components::RootTag>(child);
+
+        auto& parentHierarchy = reg.get_or_emplace<components::Hierarchy>(parent);
+        if (!std::ranges::contains(parentHierarchy.children, child))
+        {
+            parentHierarchy.children.push_back(child);
+        }
+
+        ui::utils::MarkLayoutAndVisualChanged(child);
     }
 
     [[nodiscard]] static bool isDropTargetEnabled(Registry& reg, entt::entity target)
@@ -341,7 +382,7 @@ private:
         if (!isDropTargetEnabled(reg, event.target)) return;
         if (wouldCreateHierarchyCycle(reg, event.source, event.target)) return;
 
-        ui::hierarchy::AddChild(event.target, event.source);
+        addChildInternal(reg, event.target, event.source);
     }
 };
 } // namespace ui::systems

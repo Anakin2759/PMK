@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <string_view>
 
-#include "api/Event.hpp"
+#include "common/CustomEvent.hpp"
 
 namespace ui::detail::event_bridge
 {

@@ -19,7 +19,7 @@
 
 #include <optional>
 
-#include "../api/Animation.hpp"
+#include "common/Animation.hpp"
 #include "common/Types.hpp"
 #include "entt/entity/fwd.hpp"
 

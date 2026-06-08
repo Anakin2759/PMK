@@ -29,8 +29,8 @@
 #include <cstdint>
 #include <vector>
 #include <algorithm>
-#include "api/Shortcut.hpp"
 #include "common/Events.hpp"
+#include "common/Shortcut.hpp"
 #include "interface/ISystem.hpp"
 #include "singleton/Dispatcher.hpp"
 #include "singleton/Registry.hpp"

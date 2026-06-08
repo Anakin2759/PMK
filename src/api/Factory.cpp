@@ -824,6 +824,11 @@ void CloseDropDownPopup(ui::entity ddEntity)
         });
 }
 
+void CloseDropDownPopup(entt::entity ddEntity)
+{
+    CloseDropDownPopup(detail::ToPublic(ddEntity));
+}
+
 namespace
 {
 void OpenDropDownPopup(ui::entity ddEntity)
@@ -902,7 +907,6 @@ void OpenDropDownPopup(ui::entity ddEntity)
             ui::utils::MarkVisualChanged(ddEntity);
             CloseDropDownPopup(ddEntity);
         };
-
         hierarchy::AddChild(popup, optBtn);
     }
 

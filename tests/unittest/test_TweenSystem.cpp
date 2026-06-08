@@ -9,8 +9,7 @@
 #include "src/common/GlobalContext.hpp"
 #include "src/core/RuntimeFacade.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/singleton/Dispatcher.hpp"
-#include "src/singleton/Registry.hpp"
+#include "src/detail/EntityCast.hpp"
 #include "src/systems/ActionSystem.hpp"
 #include "src/systems/TweenSystem.hpp"
 
@@ -18,6 +17,26 @@ namespace ui::tests
 {
 namespace
 {
+
+Registry& ActiveRegistry()
+{
+    return RuntimeFacade::current().registry();
+}
+
+void TriggerUpdate()
+{
+    RuntimeFacade::current().trigger<events::UpdateEvent>({});
+}
+
+void TriggerHover(ui::entity entity)
+{
+    RuntimeFacade::current().trigger<events::HoverEvent>({detail::ToInternal(entity)});
+}
+
+void TriggerUnhover(ui::entity entity)
+{
+    RuntimeFacade::current().trigger<events::UnhoverEvent>({detail::ToInternal(entity)});
+}
 
 class UiTweenSystemTest : public ::testing::Test
 {
@@ -41,7 +60,8 @@ TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
     tweenSystem.registerHandlers();
 
     const auto entity = factory::CreateLabel("Tween", "tween_label");
-    auto& position = Registry::Get<components::Position>(entity);
+    auto& registry = ActiveRegistry();
+    auto& position = registry.get<components::Position>(entity);
     position.value = {4.0F, 6.0F};
 
     animation::TweenOptions options;
@@ -49,16 +69,16 @@ TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
 
     animation::StartPositionAnimation(entity, position.value, {24.0F, 36.0F}, options);
 
-    ASSERT_TRUE(Registry::AllOf<components::AnimatingTag>(entity));
-    ASSERT_NE(Registry::TryGet<components::AnimationTime>(entity), nullptr);
+    ASSERT_TRUE(registry.all_of<components::AnimatingTag>(entity));
+    ASSERT_NE(registry.try_get<components::AnimationTime>(entity), nullptr);
 
-    Dispatcher::Trigger<events::UpdateEvent>({});
+    TriggerUpdate();
 
     EXPECT_FLOAT_EQ(position.value.x(), 24.0F);
     EXPECT_FLOAT_EQ(position.value.y(), 36.0F);
-    EXPECT_FALSE(Registry::AllOf<components::AnimatingTag>(entity));
-    EXPECT_EQ(Registry::TryGet<components::AnimationTime>(entity), nullptr);
-    EXPECT_EQ(Registry::TryGet<components::AnimationPosition>(entity), nullptr);
+    EXPECT_FALSE(registry.all_of<components::AnimatingTag>(entity));
+    EXPECT_EQ(registry.try_get<components::AnimationTime>(entity), nullptr);
+    EXPECT_EQ(registry.try_get<components::AnimationPosition>(entity), nullptr);
 
     tweenSystem.unregisterHandlers();
 }
@@ -71,41 +91,42 @@ TEST_F(UiTweenSystemTest, InteractiveAnimationFlowsThroughTweenPipeline)
     tweenSystem.registerHandlers();
 
     const auto entity = factory::CreateButton("Hover", "hover_btn");
-    auto& interaction = Registry::Emplace<components::InteractiveAnimation>(entity);
+    auto& registry = ActiveRegistry();
+    auto& interaction = registry.emplace<components::InteractiveAnimation>(entity);
     interaction.hoverScale = Vec2{1.15F, 1.15F};
     interaction.hoverOffset = Vec2{0.0F, -3.0F};
     interaction.hoverDuration = 16.0F;
     interaction.normalScale = Vec2{1.0F, 1.0F};
     interaction.normalOffset = Vec2{0.0F, 0.0F};
 
-    Dispatcher::Trigger<events::HoverEvent>({entity});
+    TriggerHover(entity);
 
-    ASSERT_TRUE(Registry::AllOf<components::AnimatingTag>(entity));
-    ASSERT_NE(Registry::TryGet<components::AnimationTime>(entity), nullptr);
-    ASSERT_NE(Registry::TryGet<components::AnimationScale>(entity), nullptr);
-    ASSERT_NE(Registry::TryGet<components::AnimationRenderOffset>(entity), nullptr);
+    ASSERT_TRUE(registry.all_of<components::AnimatingTag>(entity));
+    ASSERT_NE(registry.try_get<components::AnimationTime>(entity), nullptr);
+    ASSERT_NE(registry.try_get<components::AnimationScale>(entity), nullptr);
+    ASSERT_NE(registry.try_get<components::AnimationRenderOffset>(entity), nullptr);
 
-    Dispatcher::Trigger<events::UpdateEvent>({});
+    TriggerUpdate();
 
-    const auto* scale = Registry::TryGet<components::Scale>(entity);
-    const auto* offset = Registry::TryGet<components::RenderOffset>(entity);
+    const auto* scale = registry.try_get<components::Scale>(entity);
+    const auto* offset = registry.try_get<components::RenderOffset>(entity);
     ASSERT_NE(scale, nullptr);
     ASSERT_NE(offset, nullptr);
     EXPECT_FLOAT_EQ(scale->value.x(), 1.15F);
     EXPECT_FLOAT_EQ(scale->value.y(), 1.15F);
     EXPECT_FLOAT_EQ(offset->value.x(), 0.0F);
     EXPECT_FLOAT_EQ(offset->value.y(), -3.0F);
-    EXPECT_EQ(Registry::TryGet<components::AnimationTime>(entity), nullptr);
+    EXPECT_EQ(registry.try_get<components::AnimationTime>(entity), nullptr);
 
-    Dispatcher::Trigger<events::UnhoverEvent>({entity});
-    ASSERT_TRUE(Registry::AllOf<components::AnimatingTag>(entity));
+    TriggerUnhover(entity);
+    ASSERT_TRUE(registry.all_of<components::AnimatingTag>(entity));
 
-    Dispatcher::Trigger<events::UpdateEvent>({});
+    TriggerUpdate();
 
-    EXPECT_FLOAT_EQ(Registry::Get<components::Scale>(entity).value.x(), 1.0F);
-    EXPECT_FLOAT_EQ(Registry::Get<components::Scale>(entity).value.y(), 1.0F);
-    EXPECT_FLOAT_EQ(Registry::Get<components::RenderOffset>(entity).value.x(), 0.0F);
-    EXPECT_FLOAT_EQ(Registry::Get<components::RenderOffset>(entity).value.y(), 0.0F);
+    EXPECT_FLOAT_EQ(registry.get<components::Scale>(entity).value.x(), 1.0F);
+    EXPECT_FLOAT_EQ(registry.get<components::Scale>(entity).value.y(), 1.0F);
+    EXPECT_FLOAT_EQ(registry.get<components::RenderOffset>(entity).value.x(), 0.0F);
+    EXPECT_FLOAT_EQ(registry.get<components::RenderOffset>(entity).value.y(), 0.0F);
 
     tweenSystem.unregisterHandlers();
     actionSystem.unregisterHandlers();
@@ -128,14 +149,15 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
         defaultTween.registerHandlers();
 
         const auto defaultEntity = factory::CreateLabel("Tween-Default", "tween_default");
-        auto& defaultPos = Registry::Get<components::Position>(defaultEntity);
+    auto& defaultRegistry = ActiveRegistry();
+    auto& defaultPos = defaultRegistry.get<components::Position>(defaultEntity);
         defaultPos.value = {0.0F, 0.0F};
 
         animation::TweenOptions opts;
         opts.duration = 16.0F;
         animation::StartPositionAnimation(defaultEntity, defaultPos.value, {10.0F, 20.0F}, opts);
 
-        ASSERT_TRUE(Registry::AllOf<components::AnimatingTag>(defaultEntity));
+        ASSERT_TRUE(defaultRegistry.all_of<components::AnimatingTag>(defaultEntity));
 
         // ---- Switch to alternate runtime: it must not see the default-runtime entity ----
         {
@@ -147,20 +169,20 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
             // Triggering UpdateEvent in the alternate runtime must NOT advance the default
             // runtime animation — the handler is bound to default's dispatcher.
             RuntimeFacade::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
-            Dispatcher::Trigger<events::UpdateEvent>({});
+            TriggerUpdate();
         }
 
         // Default runtime entity should still be in mid-animation (nothing advanced it).
-        ASSERT_TRUE(Registry::AllOf<components::AnimatingTag>(defaultEntity));
+        ASSERT_TRUE(defaultRegistry.all_of<components::AnimatingTag>(defaultEntity));
         EXPECT_FLOAT_EQ(defaultPos.value.x(), 0.0F);
         EXPECT_FLOAT_EQ(defaultPos.value.y(), 0.0F);
 
         // Now advance the default runtime explicitly — animation should complete.
-        Dispatcher::Trigger<events::UpdateEvent>({});
+        TriggerUpdate();
 
         EXPECT_FLOAT_EQ(defaultPos.value.x(), 10.0F);
         EXPECT_FLOAT_EQ(defaultPos.value.y(), 20.0F);
-        EXPECT_FALSE(Registry::AllOf<components::AnimatingTag>(defaultEntity));
+        EXPECT_FALSE(defaultRegistry.all_of<components::AnimatingTag>(defaultEntity));
 
         defaultTween.unregisterHandlers();
     }

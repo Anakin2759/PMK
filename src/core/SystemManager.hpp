@@ -74,6 +74,18 @@ public:
     }
 
     /**
+     * @brief 在事件处理器注册前注入系统，供测试或可选系统装配使用。
+     * @tparam T 系统类型
+     * @param system 系统实例
+     * @note 必须在 registerAllHandlers() 之前调用；注册后追加系统不会自动订阅事件。
+     */
+    template <typename T>
+    void addSystemBeforeRegister(T&& system)
+    {
+        addSystem(std::forward<T>(system));
+    }
+
+    /**
      * @brief 移除指定索引的系统
      * @param index 系统索引
      */
@@ -88,6 +100,11 @@ public:
      */
     void clear(); // NOLINT(readability-convert-member-functions-to-static)
 private:
+    /**
+     * @brief 注册框架内建系统。
+     */
+    void registerBuiltInSystems();
+
     // 使用 entt::poly 动态管理所有系统
     std::vector<entt::poly<interface::ISystem>> m_systems;
     Registry& m_reg;

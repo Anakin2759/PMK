@@ -8,12 +8,19 @@
 #include <entt/entt.hpp>
 #include "src/api/Hierarchy.hpp"
 #include "src/common/Tags.hpp"
-#include "src/singleton/Registry.hpp"
+#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
+#include "src/detail/EntityCast.hpp"
 
 namespace ui::tests
 {
 namespace
 {
+
+Registry& ActiveRegistry()
+{
+    return RuntimeFacade::current().registry();
+}
 
 class HierarchyTest : public ::testing::Test
 {
@@ -37,9 +44,9 @@ TEST_F(HierarchyTest, AddChildSetsParentOnChild)
 
     hierarchy::AddChild(parent, child);
 
-    const auto* hier = Registry::TryGet<components::Hierarchy>(child);
+    const auto* hier = ActiveRegistry().try_get<components::Hierarchy>(child);
     ASSERT_NE(hier, nullptr);
-    EXPECT_EQ(hier->parent, parent);
+    EXPECT_EQ(hier->parent, detail::ToInternal(parent));
 }
 
 TEST_F(HierarchyTest, AddChildAppendsToParentChildrenList)
@@ -49,10 +56,10 @@ TEST_F(HierarchyTest, AddChildAppendsToParentChildrenList)
 
     hierarchy::AddChild(parent, child);
 
-    const auto* pHier = Registry::TryGet<components::Hierarchy>(parent);
+    const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     ASSERT_NE(pHier, nullptr);
     ASSERT_EQ(pHier->children.size(), 1U);
-    EXPECT_EQ(pHier->children.at(0), child);
+    EXPECT_EQ(pHier->children.at(0), detail::ToInternal(child));
 }
 
 TEST_F(HierarchyTest, AddChildRemovesRootTagFromChild)
@@ -60,11 +67,11 @@ TEST_F(HierarchyTest, AddChildRemovesRootTagFromChild)
     const auto parent = factory::CreateVBoxLayout("h_parent_root");
     const auto child = factory::CreateLabel("C", "h_child_root");
     // factory 已给 child 设置 RootTag（初始状态），验证 AddChild 后被移除
-    Registry::EmplaceOrReplace<components::RootTag>(child);
+    ActiveRegistry().emplace_or_replace<components::RootTag>(child);
 
     hierarchy::AddChild(parent, child);
 
-    EXPECT_FALSE(Registry::AllOf<components::RootTag>(child));
+    EXPECT_FALSE(ActiveRegistry().all_of<components::RootTag>(child));
 }
 
 TEST_F(HierarchyTest, AddChildIsIdempotentOnDoubleCall)
@@ -75,7 +82,7 @@ TEST_F(HierarchyTest, AddChildIsIdempotentOnDoubleCall)
     hierarchy::AddChild(parent, child);
     hierarchy::AddChild(parent, child); // 重复添加
 
-    const auto* pHier = Registry::TryGet<components::Hierarchy>(parent);
+    const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     ASSERT_NE(pHier, nullptr);
     // children 中不应出现重复
     EXPECT_EQ(pHier->children.size(), 1U);
@@ -90,18 +97,19 @@ TEST_F(HierarchyTest, AddChildReparentsFromOldParent)
     hierarchy::AddChild(parentA, child);
     hierarchy::AddChild(parentB, child); // 重新挂到 B 下
 
-    const auto* cHier = Registry::TryGet<components::Hierarchy>(child);
-    const auto* pAHier = Registry::TryGet<components::Hierarchy>(parentA);
-    const auto* pBHier = Registry::TryGet<components::Hierarchy>(parentB);
+    auto& registry = ActiveRegistry();
+    const auto* cHier = registry.try_get<components::Hierarchy>(child);
+    const auto* pAHier = registry.try_get<components::Hierarchy>(parentA);
+    const auto* pBHier = registry.try_get<components::Hierarchy>(parentB);
 
     ASSERT_NE(cHier, nullptr);
     ASSERT_NE(pAHier, nullptr);
     ASSERT_NE(pBHier, nullptr);
 
-    EXPECT_EQ(cHier->parent, parentB);
+    EXPECT_EQ(cHier->parent, detail::ToInternal(parentB));
     EXPECT_TRUE(pAHier->children.empty());
     ASSERT_EQ(pBHier->children.size(), 1U);
-    EXPECT_EQ(pBHier->children.at(0), child);
+    EXPECT_EQ(pBHier->children.at(0), detail::ToInternal(child));
 }
 
 TEST_F(HierarchyTest, AddChildWithInvalidParentIsNoOp)
@@ -126,7 +134,7 @@ TEST_F(HierarchyTest, RemoveChildClearsParentOnChild)
     hierarchy::AddChild(parent, child);
     hierarchy::RemoveChild(parent, child);
 
-    const auto* cHier = Registry::TryGet<components::Hierarchy>(child);
+    const auto* cHier = ActiveRegistry().try_get<components::Hierarchy>(child);
     ASSERT_NE(cHier, nullptr);
     EXPECT_TRUE(cHier->parent == entt::null);
 }
@@ -139,7 +147,7 @@ TEST_F(HierarchyTest, RemoveChildErasesFromParentChildrenList)
     hierarchy::AddChild(parent, child);
     hierarchy::RemoveChild(parent, child);
 
-    const auto* pHier = Registry::TryGet<components::Hierarchy>(parent);
+    const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     ASSERT_NE(pHier, nullptr);
     EXPECT_TRUE(pHier->children.empty());
 }
@@ -150,11 +158,11 @@ TEST_F(HierarchyTest, RemoveChildRestoresRootTagOnChild)
     const auto child = factory::CreateLabel("C", "h_roottag_child");
 
     hierarchy::AddChild(parent, child);
-    ASSERT_FALSE(Registry::AllOf<components::RootTag>(child)); // AddChild 已移除
+    ASSERT_FALSE(ActiveRegistry().all_of<components::RootTag>(child)); // AddChild 已移除
 
     hierarchy::RemoveChild(parent, child);
 
-    EXPECT_TRUE(Registry::AllOf<components::RootTag>(child));
+    EXPECT_TRUE(ActiveRegistry().all_of<components::RootTag>(child));
 }
 
 TEST_F(HierarchyTest, RemoveChildOnNonChildEntityIsNoOp)
@@ -165,7 +173,7 @@ TEST_F(HierarchyTest, RemoveChildOnNonChildEntityIsNoOp)
     // stranger 从未被添加为 parent 的子节点
     EXPECT_NO_FATAL_FAILURE(hierarchy::RemoveChild(parent, stranger));
 
-    const auto* pHier = Registry::TryGet<components::Hierarchy>(parent);
+    const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     // children 应保持为空
     if (pHier != nullptr)
     {
@@ -195,8 +203,8 @@ TEST_F(HierarchyTest, TraverseChildrenVisitsAllDescendantsPreOrder)
     hierarchy::AddChild(firstChild, nestedChild);
     hierarchy::AddChild(parent, secondChild);
 
-    std::vector<entt::entity> visited;
-    hierarchy::TraverseChildren(parent, [&visited](entt::entity entity) { visited.push_back(entity); });
+    std::vector<ui::entity> visited;
+    hierarchy::TraverseChildren(parent, [&visited](ui::entity entity) { visited.push_back(entity); });
 
     // TraverseChildren 是后序（先递归子节点再访问当前节点）——按实现实际顺序断言：
     // grandchild → child1 → child2
@@ -211,7 +219,7 @@ TEST_F(HierarchyTest, TraverseChildrenOnLeafEntityCallsVisitorZeroTimes)
     const auto leaf = factory::CreateLabel("Leaf", "h_traverse_leaf");
 
     int callCount = 0;
-    hierarchy::TraverseChildren(leaf, [&callCount](entt::entity) { ++callCount; });
+    hierarchy::TraverseChildren(leaf, [&callCount](ui::entity) { ++callCount; });
 
     EXPECT_EQ(callCount, 0);
 }

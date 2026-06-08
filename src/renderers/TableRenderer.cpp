@@ -14,8 +14,6 @@
  */
 #include "TableRenderer.hpp"
 
-#include "api/Scale.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -27,6 +25,7 @@
 #include "SDL3/SDL_gpu.h"
 #include "SDL3/SDL_rect.h"
 #include "common/RenderTypes.hpp"
+#include "common/Scale.hpp"
 #include "common/Table.hpp"
 #include "common/Types.hpp"
 #include "common/components/Data.hpp"

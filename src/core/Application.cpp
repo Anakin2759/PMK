@@ -23,10 +23,10 @@
 #include "SDL3/SDL_timer.h"
 #include "TaskChain.hpp"
 
-#include "api/Factory.hpp"
 #include "common/AppConfig.hpp"
 #include "common/GlobalContext.hpp"
 #include "core/PlatformWindow.hpp"
+#include "detail/Factory.hpp"
 #include "singleton/Logger.hpp"
 #include "common/Events.hpp"
 #include "singleton/Dispatcher.hpp"

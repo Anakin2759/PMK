@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 
+#include "src/core/UiRuntime.hpp"
+
 #include <ui.hpp>
 
 namespace ui::tests
