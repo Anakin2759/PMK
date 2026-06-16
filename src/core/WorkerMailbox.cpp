@@ -19,9 +19,23 @@
 
 #include "RuntimeFacade.hpp"
 #include "singleton/Logger.hpp"
+#include "singleton/Registry.hpp"
 
 namespace ui
 {
+
+void WorkerMailbox::enqueue(worker::WorkerCommand cmd)
+{
+    if constexpr (!utils::ThreadPool::isMultithreaded())
+    {
+        // 单线程模式：命令在调用栈直接执行，绕过双缓冲
+        // 通过 RuntimeFacade 而非弃用的 Registry::current() 访问
+        std::get<worker::RegistryCommand>(cmd).apply(RuntimeFacade::current().registry());
+        return;
+    }
+    std::lock_guard lock(m_mutex);
+    m_writeBuffer.push_back(std::move(cmd));
+}
 
 void WorkerMailbox::flush()
 {

@@ -861,11 +861,15 @@ LayoutSystem& LayoutSystem::operator=(LayoutSystem&& other) noexcept
 void LayoutSystem::registerHandlersImpl()
 {
     m_disp->sink<events::UpdateLayout>().connect<&LayoutSystem::update>(*this);
+
+    // P1-4: 实体销毁时自动释放对应 YGNode（替代 O(n) cleanupInvalidNodes 扫描）
+    m_onDestroyConnection = m_reg->onDestroy<components::Hierarchy>().template connect<&LayoutSystem::onEntityDestroyed>(*this);
 }
 
 void LayoutSystem::unregisterHandlersImpl()
 {
     m_disp->sink<events::UpdateLayout>().disconnect<&LayoutSystem::update>(*this);
+    m_onDestroyConnection.release();
 }
 
 void LayoutSystem::update()
@@ -973,6 +977,31 @@ void LayoutSystem::clearYogaNodes()
     m_entityToNode->clear();
 }
 
+void LayoutSystem::onEntityDestroyed(entt::entity entity)
+{
+    if (m_entityToNode == nullptr)
+    {
+        return;
+    }
+
+    const auto it = m_entityToNode->find(entity);
+    if (it != m_entityToNode->end())
+    {
+        if (it->second != nullptr)
+        {
+            YGNodeFree(it->second);
+        }
+        m_entityToNode->erase(it);
+    }
+}
+
+/**
+ * @brief 清理失效节点的安全网扫描（O(n)）
+ *
+ * @note 主要清理路径已迁移至 onEntityDestroyed()（O(1) 信号驱动），
+ *       此方法保留作为防御性扫描，捕获信号未覆盖的边缘情况
+ *       （如实体在 LayoutSystem 未注册期间被销毁）。
+ */
 void LayoutSystem::cleanupInvalidNodes()
 {
     auto nodeIterator = m_entityToNode->begin();

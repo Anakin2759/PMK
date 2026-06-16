@@ -36,7 +36,11 @@ static_assert(ui::null_entity == static_cast<ui::entity>(entt::null), "ui::null_
 {
     return static_cast<ui::entity>(entity);
 }
-
+/**
+ * @brief 将内部 entt::entity 的 Result 转换为公开的 ui::entity 的 Result。
+ * @param result 内部 entt::entity 的 Result。
+ * @return ui::Result<ui::entity> 转换后的公开 ui::entity 的 Result。
+ */
 [[nodiscard]] inline ui::Result<ui::entity> ToPublic(ui::Result<entt::entity>&& result)
 {
     if (!result)
@@ -45,7 +49,11 @@ static_assert(ui::null_entity == static_cast<ui::entity>(entt::null), "ui::null_
     }
     return ToPublic(*result);
 }
-
+/**
+ * @brief 将内部 entt::entity 的 Result 转换为公开的 ui::entity 的 Result（const 版本）。
+ * @param result 内部 entt::entity 的 Result（const 版本）。
+ * @return ui::Result<ui::entity> 转换后的公开 ui::entity 的 Result。
+ */
 [[nodiscard]] inline ui::Result<ui::entity> ToPublic(const ui::Result<entt::entity>& result)
 {
     if (!result)

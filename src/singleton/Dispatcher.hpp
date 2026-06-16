@@ -43,6 +43,9 @@ class Dispatcher
     friend class RuntimeFacade;
 
 public:
+    /// @deprecated 请通过系统构造函数依赖注入（Dispatcher&）或 RuntimeFacade::dispatcher() 访问。
+    /// 直接调用 current() 破坏可测试性，将在 v0.5 中移除。
+    [[deprecated("Use dependency-injected Dispatcher& or RuntimeFacade::dispatcher() instead")]]
     static Dispatcher& current()
     {
         auto* instance = activeInstance();

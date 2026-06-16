@@ -57,7 +57,12 @@
 #include <vector>
 
 #include "common/ThreadPool.hpp"
-#include "singleton/Registry.hpp"
+
+// 前向声明，避免引入完整的 Registry 头（通过 RuntimeFacade 间接访问）
+namespace ui
+{
+class Registry;
+} // namespace ui
 
 namespace ui::worker
 {
@@ -112,20 +117,9 @@ public:
      * 单线程模式（UI_ENABLE_MULTITHREAD=0）下命令在调用栈内立即执行，
      * 消除多线程与单线程之间"命令延迟一帧"的行为差异（R2 修复）。
      *
-     * @note 单线程 bypass 下须确保 UiRuntimeScope 已激活（Registry::current() 可用），
-     *       且调用方不持有 registry 写锁或其他互斥资源。
+     * @note 实现移至 WorkerMailbox.cpp 以使用 RuntimeFacade::registry() 替代弃用的 Registry::current()
      */
-    void enqueue(worker::WorkerCommand cmd)
-    {
-        if constexpr (!utils::ThreadPool::isMultithreaded())
-        {
-            // 单线程模式：命令在调用栈直接执行，绕过双缓冲
-            std::get<worker::RegistryCommand>(cmd).apply(Registry::current());
-            return;
-        }
-        std::lock_guard lock(m_mutex);
-        m_writeBuffer.push_back(std::move(cmd));
-    }
+    void enqueue(worker::WorkerCommand cmd);
 
     /**
      * @brief 主线程专用：排干所有待处理命令（实现见 WorkerMailbox.cpp）

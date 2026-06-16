@@ -7,29 +7,26 @@
  * @version 0.3
  * @brief 交互处理系统 - SDL事件捕获与分发层
  *
- * 职责：
- * 1. 捕获SDL原始事件（鼠标、键盘、滚轮、窗口）
- * 2. 将事件转换为内部事件并分发到事件总线
- * 3. 调用HitTestSystem进行碰撞检测
- * 4. 触发StateSystem和ActionSystem处理后续逻辑
+ * ## 职责（本系统实际执行的代码）
  *
- * 刷新路径说明：
- * 1. 常规帧刷新由 TaskChain::RenderTask 统一触发 UpdateLayout / UpdateRendering / EndFrame
- * 2. 本系统只在少数需要立即反馈的场景直接刷新：
- *    - 键盘长按重复输入后的即时重绘
- *    - 平台窗口消息阻塞时的即时布局与渲染补救
+ * 1. 捕获 SDL 原始事件（鼠标、键盘、滚轮、窗口）— pollSdlEvents()
+ * 2. 将事件转换为内部 ECS 事件（MouseMove/MouseButton/Scroll/Key 等）并 enqueue 到事件总线
  *
- * 事件链条：
- * SDL事件捕获（InteractionSystem）
- *   ├─→ 鼠标/滚轮事件 → HitTestSystem碰撞检测 → 触发Hover/Press/Release事件
+ * @note 本系统**不直接调用** HitTestSystem / StateSystem / ActionSystem。
+ *       这些系统同为独立的 ECS 系统，通过订阅本系统发布的事件异步响应：
+ *
+ * ## 逻辑事件流（跨系统协作，非本系统代码路径）
+ *
+ * SDL 事件捕获（InteractionSystem）
+ *   ├─→ 鼠标/滚轮事件 enqueue → HitTestSystem（LOGIC 阶段）碰撞检测 → 触发 Hover/Press/Release
  *   │                                              ↓
- *   │                                   StateSystem状态管理（Hover/Active/Focus）
+ *   │                                   StateSystem 状态管理（Hover/Active/Focus）
  *   │                                              ↓
- *   │                                   ActionSystem执行回调
+ *   │                                   ActionSystem 执行回调
  *   │
- *   ├─→ 键盘事件 → 文本输入/按键处理 → 更新TextEdit组件
+ *   ├─→ 键盘事件 enqueue → TextInputSystem / ShortcutSystem 处理
  *   │
- *   └─→ 窗口事件（DetailExposed监听）→ StateSystem窗口同步 → RenderSystem渲染更新
+ *   └─→ 窗口事件 enqueue → PlatformWindowSystem / StateSystem 窗口同步 → RenderSystem 渲染更新
 
  * 键盘长按处理：
     * - 记录按下时间戳

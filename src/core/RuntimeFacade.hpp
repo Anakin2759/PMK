@@ -69,9 +69,13 @@ public:
         return facade;
     }
 
-    [[nodiscard]] Registry& registry() const { return Registry::current(); }
+    /// @brief 获取当前激活运行时的 Registry 引用（由 activateRuntime 设置）
+    /// @note 替代已弃用的 Registry::current()，通过 Facade 内部状态跟踪而非静态单例逃逸
+    [[nodiscard]] Registry& registry() const { return *activeRegistryPtr(); }
 
-    [[nodiscard]] Dispatcher& dispatcher() const { return Dispatcher::current(); }
+    /// @brief 获取当前激活运行时的 Dispatcher 引用（由 activateRuntime 设置）
+    /// @note 替代已弃用的 Dispatcher::current()，通过 Facade 内部状态跟踪而非静态单例逃逸
+    [[nodiscard]] Dispatcher& dispatcher() const { return *activeDispatcherPtr(); }
 
     /**
      * @brief 获取当前激活运行时的 Worker Mailbox（仅主线程处调用）
@@ -149,6 +153,26 @@ public:
 
 private:
     RuntimeFacade() = default;
+
+    /**
+     * @brief 当前线程激活的 Registry 指针（由 activateRuntime 设置，restoreRuntime 恢复）
+     *
+     * 替代直接调用 Registry::current()（已弃用），使 RuntimeFacade 成为唯一的运行时访问入口。
+     */
+    static Registry*& activeRegistryPtr() noexcept
+    {
+        static thread_local Registry* instance = nullptr;
+        return instance;
+    }
+
+    /**
+     * @brief 当前线程激活的 Dispatcher 指针（由 activateRuntime 设置，restoreRuntime 恢复）
+     */
+    static Dispatcher*& activeDispatcherPtr() noexcept
+    {
+        static thread_local Dispatcher* instance = nullptr;
+        return instance;
+    }
 
     /**
      * @brief 当前线程激活的 WorkerMailbox 指针（thread_local，对称于 Registry::activeInstance）

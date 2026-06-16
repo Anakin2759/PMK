@@ -40,6 +40,9 @@ class Registry
     friend class WorkerMailbox;
 
 public:
+    /// @deprecated 请通过系统构造函数依赖注入（Registry&）或 RuntimeFacade::registry() 访问。
+    /// 直接调用 current() 破坏可测试性，将在 v0.5 中移除。
+    [[deprecated("Use dependency-injected Registry& or RuntimeFacade::registry() instead")]]
     static Registry& current()
     {
         auto* instance = activeInstance();
@@ -190,6 +193,14 @@ public:
     Type& get_or_emplace(ui::entity entity, Args&&... args)
     {
         return m_registry.get_or_emplace<Type>(toInternal(entity), std::forward<Args>(args)...);
+    }
+
+    /// @brief 订阅实体销毁信号（用于系统自动清理关联资源，如 Yoga 节点）
+    /// @note 替代直接调用 raw().on_destroy<T>()，避免暴露内部 entt::registry
+    template <ComponentOrUiTag Type>
+    [[nodiscard]] auto onDestroy()
+    {
+        return m_registry.on_destroy<Type>();
     }
 
     template <ComponentOrUiTag Type>

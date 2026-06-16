@@ -25,7 +25,24 @@
 
 namespace ui
 {
+// =========================================================================
+// TRY 宏 — 链式错误传播
+//
+// 使用 __LINE__ 生成唯一变量名，避免同作用域多次 TRY 产生的变量名冲突。
+// do-while(false) 确保变量作用域隔离，且要求调用方以分号结尾。
+// =========================================================================
+#define TRY_IMPL(var, expr, line)                                            \
+    do                                                                       \
+    {                                                                        \
+        auto _try_result_##line = (expr);                                    \
+        if (!_try_result_##line)                                             \
+        {                                                                    \
+            return std::unexpected(_try_result_##line.error());              \
+        }                                                                    \
+        var = std::move(_try_result_##line).value();                         \
+    } while (false)
 
+#define TRY(var, expr) TRY_IMPL(var, expr, __LINE__)
 /// @brief 主别名：T 可为 void。
 template <typename T>
 using Result = std::expected<T, std::error_code>;

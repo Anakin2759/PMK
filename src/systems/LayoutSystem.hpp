@@ -41,6 +41,9 @@ namespace ui::systems
  * @brief 基于 Yoga Flexbox 的布局系统
  *
  * 将 ECS 实体树映射到 Yoga 节点树，计算布局后回写到 Position/Size 组件。
+ *
+ * @trigger 订阅 events::UpdateLayout
+ * @subscribe Registry::on_destroy<Hierarchy> — 实体销毁时自动释放 YGNode
  */
 class LayoutSystem : public ui::interface::EnableRegister<LayoutSystem>
 {
@@ -71,10 +74,16 @@ private:
     void applyYogaLayout(entt::entity entity, YGNodeRef node);
     void applyWindowCentering(entt::entity root, float screenWidth, float screenHeight);
 
+    /// @brief 实体销毁时自动释放对应 YGNode（由 on_destroy<Hierarchy> 信号触发）
+    void onEntityDestroyed(entt::entity entity);
+
     YGConfigRef m_yogaConfig = nullptr;
     std::unique_ptr<std::unordered_map<entt::entity, YGNodeRef>> m_entityToNode;
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
+
+    /// @brief on_destroy 信号连接句柄（用于 unregisterHandlersImpl 时断开）
+    entt::connection m_onDestroyConnection;
 };
 
 } // namespace ui::systems
