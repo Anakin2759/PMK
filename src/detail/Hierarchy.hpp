@@ -18,12 +18,11 @@
  */
 #pragma once
 
-#include "Entity.hpp"
-#include "core/RuntimeFacade.hpp"
-#include "common/components/Layout.hpp"
-#include "Chains.hpp" // Changed: Include Chains.hpp for DSL
+#include <vector>
 
-namespace ui::hierarchy
+#include "entt/entity/fwd.hpp"
+
+namespace ui::detail::hierarchy
 {
 /**
  * @brief 从父节点移除子节点
@@ -37,48 +36,7 @@ void RemoveChild(entt::entity parent, entt::entity child);
  * @param child 子节点实体
  */
 void AddChild(entt::entity parent, entt::entity child);
-/**
- * @brief 遍历子元素
- * @param parent 父实体
- * @param visitor 访问函数，接受子实体作为参数
- */
-template <typename Func>
-void TraverseChildren(entt::entity parent, Func visitor)
-{
-    auto& reg = RuntimeFacade::current().registry();
-    if (!reg.valid(parent)) return;
 
-    const auto* hierarchy = reg.try_get<components::Hierarchy>(parent);
-    if (!hierarchy || hierarchy->children.empty()) return;
+[[nodiscard]] std::vector<entt::entity> ChildrenPostOrder(entt::entity parent);
 
-    const auto childrenCopy = hierarchy->children;
-    for (const entt::entity child : childrenCopy)
-    {
-        if (!reg.valid(child)) continue;
-        TraverseChildren(child, visitor);
-        visitor(child);
-    }
-}
-
-} // namespace ui::hierarchy
-
-namespace ui::actions
-{
-namespace hierarchy
-{
-inline constexpr EntityAction<&ui::hierarchy::AddChild> ADD_CHILD_ACTION{};
-inline constexpr EntityAction<&ui::hierarchy::RemoveChild> REMOVE_CHILD_ACTION{};
-} // namespace hierarchy
-} // namespace ui::actions
-
-namespace ui::chains
-{
-inline auto AddChild(entt::entity child)
-{
-    return ui::actions::hierarchy::ADD_CHILD_ACTION.bind(child);
-}
-inline auto RemoveChild(entt::entity child)
-{
-    return ui::actions::hierarchy::REMOVE_CHILD_ACTION.bind(child);
-}
-} // namespace ui::chains
+} // namespace ui::detail::hierarchy

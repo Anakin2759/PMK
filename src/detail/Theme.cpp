@@ -1,8 +1,8 @@
-#include "Theme.hpp"
+#include "ThemeBridge.hpp"
 
 #include "core/RuntimeFacade.hpp"
 
-namespace ui::theme
+namespace ui::theme::bridge
 {
 
 ThemePalette DefaultDarkTheme()
@@ -36,4 +36,4 @@ const ThemePalette& CurrentTheme()
     return RuntimeFacade::current().ensureContext<ThemeContext>().palette;
 }
 
-} // namespace ui::theme
+} // namespace ui::theme::bridge

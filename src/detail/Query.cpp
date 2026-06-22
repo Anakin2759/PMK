@@ -1,18 +1,18 @@
-#include "Query.hpp"
+#include "QueryBridge.hpp"
 
 #include "common/ErrorCodes.hpp"
 #include "common/components/Data.hpp"
 #include "core/RuntimeFacade.hpp"
 
-namespace ui::query
+namespace ui::query::bridge
 {
 
-bool IsValid(entity ent) noexcept
+bool IsValid(entt::entity ent) noexcept
 {
     return RuntimeFacade::current().registry().valid(ent);
 }
 
-Result<entity> FindByAlias(std::string_view alias)
+Result<entt::entity> FindByAlias(std::string_view alias)
 {
     if (alias.empty()) return MakeError(UiErrc::INVALID_ARGUMENT);
 
@@ -24,7 +24,7 @@ Result<entity> FindByAlias(std::string_view alias)
     return MakeError(UiErrc::INVALID_ENTITY);
 }
 
-std::string GetAlias(entity ent)
+std::string GetAlias(entt::entity ent)
 {
     auto& reg = RuntimeFacade::current().registry();
     if (!reg.valid(ent)) return {};
@@ -32,4 +32,4 @@ std::string GetAlias(entity ent)
     return info != nullptr ? info->alias : std::string{};
 }
 
-} // namespace ui::query
+} // namespace ui::query::bridge

@@ -17,8 +17,11 @@
  * ************************************************************************
  */
 #pragma once
-#include "Entity.hpp"
+
+#include <cstdint>
 #include <string>
+
+#include "Entity.hpp"
 #include "common/Policies.hpp"
 #include "Chains.hpp"
 namespace ui::icon

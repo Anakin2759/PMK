@@ -14,15 +14,15 @@
  */
 #pragma once
 
-#include "Entity.hpp"
 #include <string>
 #include <vector>
+
 #include "common/Types.hpp"
 #include "common/Policies.hpp"
 #include "common/components/Data.hpp"
-#include "Chains.hpp"
+#include "entt/entity/fwd.hpp"
 
-namespace ui::table
+namespace ui::detail::table
 {
 
 /**
@@ -116,124 +116,4 @@ void SetRowHeight(entt::entity entity, float height);
  */
 [[nodiscard]] std::vector<float> ComputeColumnWidths(const components::TableInfo& info, float tableWidth);
 
-} // namespace ui::table
-
-// ===================== EntityAction 常量 =====================
-
-namespace ui::actions::table
-{
-
-inline constexpr EntityAction<&ui::table::SetColumns> SET_COLUMNS_ACTION{};
-inline constexpr EntityAction<&ui::table::SetColumnWidths> SET_COLUMN_WIDTHS_ACTION{};
-inline constexpr EntityAction<&ui::table::AddRow> ADD_ROW_ACTION{};
-inline constexpr EntityAction<&ui::table::ClearRows> CLEAR_ROWS_ACTION{};
-inline constexpr EntityAction<&ui::table::SetSelectedRow> SET_SELECTED_ROW_ACTION{};
-inline constexpr EntityAction<&ui::table::SetCellWidget> SET_CELL_WIDGET_ACTION{};
-
-} // namespace ui::actions::table
-
-// ===================== Chain DSL =====================
-
-namespace ui::chains
-{
-
-/**
- * @brief Chain DSL：设置表格列数和可选表头
- *
- * 示例：entity | TableColumns(3, {"姓名", "年龄", "城市"});
- */
-inline auto TableColumns(int count, std::vector<std::string> headers = {})
-{
-    return ui::actions::table::SET_COLUMNS_ACTION.bind(count, std::move(headers));
-}
-
-/**
- * @brief Chain DSL：设置每列宽度
- */
-inline auto TableColumnWidths(std::vector<float> widths)
-{
-    return ui::actions::table::SET_COLUMN_WIDTHS_ACTION.bind(std::move(widths));
-}
-
-/**
- * @brief Chain DSL：追加一行数据
- *
- * 示例：entity | TableAddRow({"张三", "25", "北京"});
- */
-inline auto TableAddRow(std::vector<std::string> texts)
-{
-    return ui::actions::table::ADD_ROW_ACTION.bind(std::move(texts));
-}
-
-/**
- * @brief Chain DSL：清空所有行
- */
-inline auto TableClearRows()
-{
-    return ui::actions::table::CLEAR_ROWS_ACTION.bind();
-}
-
-/**
- * @brief Chain DSL：设置表头文字颜色
- */
-inline auto TableHeaderTextColor(Color color)
-{
-    return Chain{[color](entt::entity entity) { ui::table::SetHeaderTextColor(entity, color); }};
-}
-
-/**
- * @brief Chain DSL：设置选中行
- */
-inline auto TableSelectedRow(int row)
-{
-    return ui::actions::table::SET_SELECTED_ROW_ACTION.bind(row);
-}
-
-/**
- * @brief Chain DSL：在指定单元格嵌入任意控件
- *
- * 示例：table | TableSetCellWidget(0, 2, btnEntity);
- */
-inline auto TableSetCellWidget(int row, int col, entt::entity widgetEntity)
-{
-    return ui::actions::table::SET_CELL_WIDGET_ACTION.bind(row, col, widgetEntity);
-}
-
-/**
- * @brief Chain DSL：设置列宽分配策略
- *
- * 示例：entity | TableColumnSizingMode(policies::TableColumnSizing::FIXED);
- */
-inline auto TableColumnSizingMode(policies::TableColumnSizing sizing)
-{
-    return Chain{[sizing](entt::entity entity) { ui::table::SetColumnSizing(entity, sizing); }};
-}
-
-/**
- * @brief Chain DSL：设置各列最小宽度
- *
- * 示例：entity | TableMinColumnWidths({60.0F, 80.0F, 40.0F});
- */
-inline auto TableMinColumnWidths(std::vector<float> minWidths)
-{
-    return Chain{[minWidths = std::move(minWidths)](entt::entity entity) mutable
-                 { ui::table::SetMinColumnWidths(entity, std::move(minWidths)); }};
-}
-
-/**
- * @brief Chain DSL：设置行最小高度
- */
-inline auto TableMinRowHeight(float height)
-{
-    return Chain{[height](entt::entity entity) { ui::table::SetMinRowHeight(entity, height); }};
-}
-
-/**
- * @brief Chain DSL：设置行高
- */
-inline auto TableRowHeight(float height)
-{
-    return Chain{[height](entt::entity entity) { ui::table::SetRowHeight(entity, height); }};
-}
-
-} // namespace ui::chains
+} // namespace ui::detail::table

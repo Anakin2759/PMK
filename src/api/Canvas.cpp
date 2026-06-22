@@ -1,138 +1,52 @@
 #include "Canvas.hpp"
 
-#include "Scale.hpp"
+#include "detail/Canvas.hpp"
+#include "detail/EntityCast.hpp"
 
-#include "core/RuntimeFacade.hpp"
-#include "common/components/Data.hpp"
-#include "common/Types.hpp"
 #include <vector>
 #include <utility>
 
 namespace ui::canvas
 {
 
-namespace
-{
-[[nodiscard]] Registry& CurrentRegistry()
-{
-    return RuntimeFacade::current().registry();
-}
-} // namespace
-
 void Clear(ui::entity entity)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& list = reg.get_or_emplace<components::CanvasDrawList>(entity);
-    list.commands.clear();
+    detail::canvas::Clear(detail::ToInternal(entity));
 }
 
 void DrawLine(ui::entity entity, Vec2 from, Vec2 endPos, Color color, float lineWidth)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& list = reg.get_or_emplace<components::CanvasDrawList>(entity);
-    list.commands.push_back({.type = components::CanvasDrawType::LINE,
-                             .p1 = scale::Metric(from),
-                             .p2 = scale::Metric(endPos),
-                             .p3 = {},
-                             .p4 = {},
-                             .color = color,
-                             .lineWidth = scale::Metric(lineWidth),
-                             .points = {}});
+    detail::canvas::DrawLine(detail::ToInternal(entity), from, endPos, color, lineWidth);
 }
 
 void DrawRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, float lineWidth)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& list = reg.get_or_emplace<components::CanvasDrawList>(entity);
-    list.commands.push_back({.type = components::CanvasDrawType::RECT,
-                             .p1 = scale::Metric(topLeft),
-                             .p2 = scale::Metric(bottomRight),
-                             .p3 = {},
-                             .p4 = {},
-                             .color = color,
-                             .lineWidth = scale::Metric(lineWidth),
-                             .points = {}});
+    detail::canvas::DrawRect(detail::ToInternal(entity), topLeft, bottomRight, color, lineWidth);
 }
 
 void DrawFilledRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& list = reg.get_or_emplace<components::CanvasDrawList>(entity);
-    list.commands.push_back({.type = components::CanvasDrawType::FILLED_RECT,
-                             .p1 = scale::Metric(topLeft),
-                             .p2 = scale::Metric(bottomRight),
-                             .p3 = {},
-                             .p4 = {},
-                             .color = color,
-                             .lineWidth = scale::Metric(1.0F),
-                             .points = {}});
+    detail::canvas::DrawFilledRect(detail::ToInternal(entity), topLeft, bottomRight, color);
 }
 
 void DrawCircle(ui::entity entity, Vec2 center, float radius, Color color, float lineWidth)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& list = reg.get_or_emplace<components::CanvasDrawList>(entity);
-    list.commands.push_back({.type = components::CanvasDrawType::CIRCLE,
-                             .p1 = scale::Metric(center),
-                             .p2 = {scale::Metric(radius), 0.0F},
-                             .p3 = {},
-                             .p4 = {},
-                             .color = color,
-                             .lineWidth = scale::Metric(lineWidth),
-                             .points = {}});
+    detail::canvas::DrawCircle(detail::ToInternal(entity), center, radius, color, lineWidth);
 }
 
 void DrawFilledCircle(ui::entity entity, Vec2 center, float radius, Color color)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& list = reg.get_or_emplace<components::CanvasDrawList>(entity);
-    list.commands.push_back({.type = components::CanvasDrawType::FILLED_CIRCLE,
-                             .p1 = scale::Metric(center),
-                             .p2 = {scale::Metric(radius), 0.0F},
-                             .p3 = {},
-                             .p4 = {},
-                             .color = color,
-                             .lineWidth = scale::Metric(1.0F),
-                             .points = {}});
+    detail::canvas::DrawFilledCircle(detail::ToInternal(entity), center, radius, color);
 }
 
 void DrawPolyline(ui::entity entity, std::vector<Vec2> points, Color color, float lineWidth)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity) || points.size() < 2) return;
-    auto& list = reg.get_or_emplace<components::CanvasDrawList>(entity);
-    components::CanvasDrawCommand cmd;
-    cmd.type = components::CanvasDrawType::POLYLINE;
-    cmd.color = color;
-    cmd.lineWidth = scale::Metric(lineWidth);
-    for (auto& point : points)
-    {
-        point = scale::Metric(point);
-    }
-    cmd.points = std::move(points);
-    list.commands.push_back(std::move(cmd));
+    detail::canvas::DrawPolyline(detail::ToInternal(entity), std::move(points), color, lineWidth);
 }
 
 void DrawCubicBezier(ui::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color, float lineWidth)
 {
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& list = reg.get_or_emplace<components::CanvasDrawList>(entity);
-    components::CanvasDrawCommand cmd;
-    cmd.type = components::CanvasDrawType::CUBIC_BEZIER;
-    cmd.p1 = scale::Metric(startPos);
-    cmd.p2 = scale::Metric(cp1);
-    cmd.p3 = scale::Metric(cp2);
-    cmd.p4 = scale::Metric(endPos);
-    cmd.color = color;
-    cmd.lineWidth = scale::Metric(lineWidth);
-    list.commands.push_back(std::move(cmd));
+    detail::canvas::DrawCubicBezier(detail::ToInternal(entity), startPos, cp1, cp2, endPos, color, lineWidth);
 }
 
 // ---- Painter 实现 ----

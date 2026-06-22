@@ -14,7 +14,6 @@
  */
 #pragma once
 
-#include "Entity.hpp"
 #include "common/Policies.hpp"
 #include "common/Types.hpp"
 #include "common/components/Interaction.hpp"

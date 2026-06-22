@@ -1,6 +1,6 @@
 #include "Table.hpp"
 
-#include "Scale.hpp"
+#include "common/Scale.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -17,7 +17,7 @@
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 
-namespace ui::table
+namespace ui::detail::table
 {
 
 namespace
@@ -310,4 +310,4 @@ void SetCellWidget(entt::entity tableEntity, int row, int col, entt::entity widg
     }
 }
 
-} // namespace ui::table
+} // namespace ui::detail::table

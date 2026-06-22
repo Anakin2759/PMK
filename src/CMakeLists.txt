@@ -169,6 +169,14 @@ set(UI_SOURCES
     detail/Visibility.cpp
     detail/Layout.cpp
     detail/Animation.cpp
+    detail/Hierarchy.cpp
+    detail/Table.cpp
+    detail/Text.cpp
+    detail/Canvas.cpp
+    detail/Controls.cpp
+    detail/Icon.cpp
+    detail/Query.cpp
+    detail/Theme.cpp
     detail/EventBridge.cpp
     api/Hierarchy.cpp
     api/Icon.cpp
@@ -178,6 +186,7 @@ set(UI_SOURCES
     api/Event.cpp
     api/Query.cpp
     api/Canvas.cpp
+    api/Image.cpp
     api/Table.cpp
     api/Theme.cpp
     api/Shortcut.cpp

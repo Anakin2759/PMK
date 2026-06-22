@@ -1,5 +1,5 @@
 #include "Text.hpp"
-#include "Scale.hpp"
+#include "common/Scale.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "common/Tags.hpp"
 #include "detail/Utils.hpp"
@@ -11,7 +11,8 @@
 #include <algorithm>
 #include "common/components/Interaction.hpp"
 #include <utility>
-namespace ui::text
+
+namespace ui::detail::text
 {
 namespace
 {
@@ -182,4 +183,4 @@ void SetFontSize(::entt::entity entity, float size)
     utils::MarkLayoutDirty(entity);
 }
 
-} // namespace ui::text
+} // namespace ui::detail::text

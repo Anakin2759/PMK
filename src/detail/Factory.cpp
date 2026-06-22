@@ -794,7 +794,7 @@ void CloseDropDownPopup(entt::entity ddEntity)
             const auto* popupHier = reg.try_get<components::Hierarchy>(popupToDestroy);
             if (popupHier != nullptr && popupHier->parent != entt::null)
             {
-                hierarchy::RemoveChild(popupHier->parent, popupToDestroy);
+                detail::hierarchy::RemoveChild(popupHier->parent, popupToDestroy);
             }
 
             std::vector<entt::entity> toDestroy;
@@ -901,10 +901,10 @@ void OpenDropDownPopup(entt::entity ddEntity)
             CloseDropDownPopup(ddEntity);
         };
 
-        hierarchy::AddChild(popup, optBtn);
+        detail::hierarchy::AddChild(popup, optBtn);
     }
 
-    hierarchy::AddChild(windowRoot, popup);
+    detail::hierarchy::AddChild(windowRoot, popup);
     dropDown->popupEntity = popup;
     dropDown->open = true;
     ui::utils::MarkLayoutAndVisualChanged(windowRoot);

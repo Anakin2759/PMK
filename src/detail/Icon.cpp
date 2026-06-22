@@ -1,5 +1,7 @@
 #include "Icon.hpp"
-#include "Scale.hpp"
+
+#include "common/Scale.hpp"
+
 #include <string>
 #include <cstdint>
 #include <unordered_set>
@@ -8,7 +10,8 @@
 #include "common/Policies.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Data.hpp"
-namespace ui::icon
+
+namespace ui::detail::icon
 {
 namespace
 {
@@ -75,4 +78,4 @@ void RemoveIcon(entt::entity entity)
         ui::utils::MarkLayoutAndVisualChanged(entity);
     }
 }
-} // namespace ui::icon
+} // namespace ui::detail::icon

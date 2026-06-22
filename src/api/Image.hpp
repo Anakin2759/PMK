@@ -15,49 +15,23 @@
 #pragma once
 
 #include <string_view>
+
 #include "Entity.hpp"
-#include "common/components/Data.hpp"
 #include "common/Types.hpp"
-#include "core/RuntimeFacade.hpp"
 #include "Chains.hpp"
 
 namespace ui::image
 {
-inline Registry& CurrentRegistry()
-{
-    return RuntimeFacade::current().registry();
-}
 /**
  * @brief 设置 Image 组件的图片路径。路径变更会重置加载状态，触发资源系统重新加载。
  * @param entity 实体ID
  * @param path 图片文件路径（相对于资源目录，支持 bmp/png/jpeg 等格式
  */
-inline void SetImagePath(ui::entity entity, std::string_view path)
-{
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& src = reg.get_or_emplace<components::ImageSource>(entity);
-    src.path = std::string(path);
-    src.loaded = false;
-    src.loadFailed = false;
-}
+void SetImagePath(ui::entity entity, std::string_view path);
 
-inline void SetImageTint(ui::entity entity, Color color)
-{
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& img = reg.get_or_emplace<components::Image>(entity);
-    img.tintColor = color;
-}
+void SetImageTint(ui::entity entity, Color color);
 
-inline void SetImageUV(ui::entity entity, Vec2 uvMin, Vec2 uvMax)
-{
-    auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
-    auto& img = reg.get_or_emplace<components::Image>(entity);
-    img.uvMin = uvMin;
-    img.uvMax = uvMax;
-}
+void SetImageUV(ui::entity entity, Vec2 uvMin, Vec2 uvMax);
 
 } // namespace ui::image
 

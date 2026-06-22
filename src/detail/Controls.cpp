@@ -1,5 +1,4 @@
-#include "Controls.hpp"
-#include "Scale.hpp"
+#include "ControlsBridge.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,6 +6,7 @@
 #include <vector>
 #include <string>
 #include "Utils.hpp"
+#include "common/Scale.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Data.hpp"
@@ -15,8 +15,12 @@
 #include "common/components/Interaction.hpp"
 #include "common/Types.hpp"
 
-namespace ui::controls
+namespace
 {
+namespace controls_impl
+{
+using namespace ui;
+
 namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
@@ -339,4 +343,161 @@ void SetDroppable(::entt::entity entity, bool enabled)
     droppable.enabled = enabled ? policies::Feature::ENABLED : policies::Feature::DISABLED;
 }
 
-} // namespace ui::controls
+} // namespace controls_impl
+} // namespace
+
+namespace ui::controls::bridge
+{
+
+void SetSliderRange(entt::entity entity, float minValue, float maxValue)
+{
+    controls_impl::SetSliderRange(entity, minValue, maxValue);
+}
+
+void SetSliderValue(entt::entity entity, float value)
+{
+    controls_impl::SetSliderValue(entity, value);
+}
+
+void SetSliderStep(entt::entity entity, float step)
+{
+    controls_impl::SetSliderStep(entity, step);
+}
+
+void SetSliderOrientation(entt::entity entity, policies::Orientation orientation)
+{
+    controls_impl::SetSliderOrientation(entity, orientation);
+}
+
+void SetSliderOnValueChanged(entt::entity entity, components::on_event<float> callback)
+{
+    controls_impl::SetSliderOnValueChanged(entity, std::move(callback));
+}
+
+void SetSliderTrackColor(entt::entity entity, const Color& color)
+{
+    controls_impl::SetSliderTrackColor(entity, color);
+}
+
+void SetSliderFillColor(entt::entity entity, const Color& color)
+{
+    controls_impl::SetSliderFillColor(entity, color);
+}
+
+void SetSliderThumbColor(entt::entity entity, const Color& color)
+{
+    controls_impl::SetSliderThumbColor(entity, color);
+}
+
+void SetSliderThumbSize(entt::entity entity, float size)
+{
+    controls_impl::SetSliderThumbSize(entity, size);
+}
+
+void SetSliderTrackThickness(entt::entity entity, float thickness)
+{
+    controls_impl::SetSliderTrackThickness(entity, thickness);
+}
+
+void SetProgressValue(entt::entity entity, float progress)
+{
+    controls_impl::SetProgressValue(entity, progress);
+}
+
+void SetProgressFillColor(entt::entity entity, const Color& color)
+{
+    controls_impl::SetProgressFillColor(entity, color);
+}
+
+void SetProgressBackgroundColor(entt::entity entity, const Color& color)
+{
+    controls_impl::SetProgressBackgroundColor(entity, color);
+}
+
+void SetProgressLabelVisibility(entt::entity entity, policies::LabelVisibility visibility)
+{
+    controls_impl::SetProgressLabelVisibility(entity, visibility);
+}
+
+void SetProgressAnimated(entt::entity entity, policies::AnimationState animated)
+{
+    controls_impl::SetProgressAnimated(entity, animated);
+}
+
+void SetScrollMode(entt::entity entity, policies::Scroll mode)
+{
+    controls_impl::SetScrollMode(entity, mode);
+}
+
+void SetScrollBarPolicy(entt::entity entity, policies::ScrollBar policy)
+{
+    controls_impl::SetScrollBarPolicy(entity, policy);
+}
+
+void SetScrollAnchor(entt::entity entity, policies::ScrollAnchor anchor)
+{
+    controls_impl::SetScrollAnchor(entity, anchor);
+}
+
+void SetScrollSpeed(entt::entity entity, float speed)
+{
+    controls_impl::SetScrollSpeed(entity, speed);
+}
+
+void SetCheckBoxChecked(entt::entity entity, bool checked)
+{
+    controls_impl::SetCheckBoxChecked(entity, checked);
+}
+
+void SetCheckBoxOnChanged(entt::entity entity, components::on_event<bool> callback)
+{
+    controls_impl::SetCheckBoxOnChanged(entity, std::move(callback));
+}
+
+void SetDropDownOptions(entt::entity entity, std::vector<std::string> options)
+{
+    controls_impl::SetDropDownOptions(entity, std::move(options));
+}
+
+void SetDropDownSelected(entt::entity entity, int index)
+{
+    controls_impl::SetDropDownSelected(entity, index);
+}
+
+void SetDropDownOnChanged(entt::entity entity, components::on_event<int> callback)
+{
+    controls_impl::SetDropDownOnChanged(entity, std::move(callback));
+}
+
+void SetDraggable(entt::entity entity, bool enabled)
+{
+    controls_impl::SetDraggable(entity, enabled);
+}
+
+void SetDragLockAxis(entt::entity entity, bool lockX, bool lockY)
+{
+    controls_impl::SetDragLockAxis(entity, lockX, lockY);
+}
+
+void SetOnDragStart(entt::entity entity, components::on_event<> callback)
+{
+    controls_impl::SetOnDragStart(entity, std::move(callback));
+}
+
+void SetOnDragEnd(entt::entity entity, components::on_event<> callback)
+{
+    controls_impl::SetOnDragEnd(entity, std::move(callback));
+}
+
+void SetOnDragMove(entt::entity entity, components::on_event<Vec2> callback)
+{
+    controls_impl::SetOnDragMove(entity, std::move(callback));
+}
+
+void SetDroppable(entt::entity entity, bool enabled)
+{
+    controls_impl::SetDroppable(entity, enabled);
+}
+
+} // namespace ui::controls::bridge
+

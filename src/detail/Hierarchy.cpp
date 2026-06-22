@@ -1,18 +1,34 @@
 #include "Hierarchy.hpp"
 
 #include "Utils.hpp"
-#include "entt/entity/fwd.hpp"
 #include "core/RuntimeFacade.hpp"
 #include "common/components/Layout.hpp"
 #include "entt/entity/entity.hpp"
 #include "common/Tags.hpp"
-namespace ui::hierarchy
+
+namespace ui::detail::hierarchy
 {
 namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
     return RuntimeFacade::current().registry();
+}
+
+void AppendChildrenPostOrder(Registry& reg, entt::entity parent, std::vector<entt::entity>& output)
+{
+    if (!reg.valid(parent)) return;
+
+    const auto* hierarchy = reg.try_get<components::Hierarchy>(parent);
+    if (hierarchy == nullptr || hierarchy->children.empty()) return;
+
+    const auto childrenCopy = hierarchy->children;
+    for (const entt::entity child : childrenCopy)
+    {
+        if (!reg.valid(child)) continue;
+        AppendChildrenPostOrder(reg, child, output);
+        output.push_back(child);
+    }
 }
 } // namespace
 
@@ -72,4 +88,11 @@ void AddChild(::entt::entity parent, ::entt::entity child)
     utils::MarkLayoutAndVisualChanged(child);
 }
 
-} // namespace ui::hierarchy
+std::vector<entt::entity> ChildrenPostOrder(entt::entity parent)
+{
+    std::vector<entt::entity> children;
+    AppendChildrenPostOrder(CurrentRegistry(), parent, children);
+    return children;
+}
+
+} // namespace ui::detail::hierarchy

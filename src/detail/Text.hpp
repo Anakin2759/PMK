@@ -19,13 +19,14 @@
  */
 #pragma once
 
-#include "Entity.hpp"
 #include <string>
+
 #include "common/Policies.hpp"
 #include "common/components/Interaction.hpp"
-#include "Chains.hpp" // Changed: Include Chains.hpp for DSL
+#include "common/Types.hpp"
+#include "entt/entity/fwd.hpp"
 
-namespace ui::text
+namespace ui::detail::text
 {
 /**
  * @brief 设置按钮文本内容
@@ -124,90 +125,4 @@ void SetTextWrapWidth(entt::entity entity, float width);
  */
 void SetFontSize(entt::entity entity, float size);
 
-} // namespace ui::text
-
-namespace ui::actions
-{
-namespace text
-{
-inline constexpr EntityAction<&ui::text::SetText> SET_TEXT_ACTION{};
-inline constexpr EntityAction<&ui::text::SetButtonEnabled> SET_BUTTON_ENABLED_ACTION{};
-inline constexpr EntityAction<&ui::text::SetTextContent> SET_TEXT_CONTENT_ACTION{};
-inline constexpr EntityAction<&ui::text::SetTextWordWrap> SET_TEXT_WORD_WRAP_ACTION{};
-inline constexpr EntityAction<&ui::text::SetTextAlignment> SET_TEXT_ALIGNMENT_ACTION{};
-inline constexpr EntityAction<&ui::text::SetTextColor> SET_TEXT_COLOR_ACTION{};
-inline constexpr EntityAction<&ui::text::SetTextEditContent> SET_TEXT_EDIT_CONTENT_ACTION{};
-inline constexpr EntityAction<&ui::text::SetPasswordMode> SET_PASSWORD_MODE_ACTION{};
-inline constexpr EntityAction<&ui::text::SetClickCallback> SET_CLICK_CALLBACK_ACTION{};
-inline constexpr EntityAction<&ui::text::SetOnSubmit> SET_ON_SUBMIT_ACTION{};
-inline constexpr EntityAction<&ui::text::SetOnTextChanged> SET_ON_TEXT_CHANGED_ACTION{};
-inline constexpr EntityAction<&ui::text::SetLineHeight> SET_LINE_HEIGHT_ACTION{};
-inline constexpr EntityAction<&ui::text::SetCharacterSpacing> SET_CHARACTER_SPACING_ACTION{};
-inline constexpr EntityAction<&ui::text::SetTextWrapWidth> SET_TEXT_WRAP_WIDTH_ACTION{};
-inline constexpr EntityAction<&ui::text::SetFontSize> SET_FONT_SIZE_ACTION{};
-} // namespace text
-} // namespace ui::actions
-
-namespace ui::chains
-{
-inline auto Text(const std::string& content)
-{
-    return ui::actions::text::SET_TEXT_ACTION.bind(content);
-}
-inline auto ButtonEnabled(bool enabled)
-{
-    return ui::actions::text::SET_BUTTON_ENABLED_ACTION.bind(enabled);
-}
-inline auto TextContent(const std::string& content)
-{
-    return ui::actions::text::SET_TEXT_CONTENT_ACTION.bind(content);
-}
-inline auto TextWordWrap(policies::TextWrap mode)
-{
-    return ui::actions::text::SET_TEXT_WORD_WRAP_ACTION.bind(mode);
-}
-inline auto TextAlignment(policies::Alignment align)
-{
-    return ui::actions::text::SET_TEXT_ALIGNMENT_ACTION.bind(align);
-}
-inline auto TextColor(const Color& color)
-{
-    return ui::actions::text::SET_TEXT_COLOR_ACTION.bind(color);
-}
-inline auto TextEditContent(const std::string& content)
-{
-    return ui::actions::text::SET_TEXT_EDIT_CONTENT_ACTION.bind(content);
-}
-inline auto PasswordMode(policies::TextFlag enabled)
-{
-    return ui::actions::text::SET_PASSWORD_MODE_ACTION.bind(enabled);
-}
-inline auto OnClick(ui::components::on_event<> callback)
-{
-    return ui::actions::text::SET_CLICK_CALLBACK_ACTION.bind(std::move(callback));
-}
-inline auto OnSubmit(ui::components::on_event<> callback)
-{
-    return ui::actions::text::SET_ON_SUBMIT_ACTION.bind(std::move(callback));
-}
-inline auto OnTextChanged(ui::components::on_event<const std::string&> callback)
-{
-    return ui::actions::text::SET_ON_TEXT_CHANGED_ACTION.bind(std::move(callback));
-}
-inline auto LineHeight(float height)
-{
-    return ui::actions::text::SET_LINE_HEIGHT_ACTION.bind(height);
-}
-inline auto CharacterSpacing(float spacing)
-{
-    return ui::actions::text::SET_CHARACTER_SPACING_ACTION.bind(spacing);
-}
-inline auto TextWrapWidth(float width)
-{
-    return ui::actions::text::SET_TEXT_WRAP_WIDTH_ACTION.bind(width);
-}
-inline auto FontSize(float size)
-{
-    return ui::actions::text::SET_FONT_SIZE_ACTION.bind(size);
-}
-} // namespace ui::chains
+} // namespace ui::detail::text
