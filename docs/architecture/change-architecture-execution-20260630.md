@@ -47,13 +47,14 @@
 | B2 runtime-aware 句柄骨架 | 已完成 | 新增 `RuntimeToken`、`EntityHandle`、`WindowHandle`、`MakeEntityHandle`、`MakeWindowHandle`、`SameRuntime`；`UiRuntime::token()`；`Application::runtime()`。 | 新增 `UiRuntimeTest.RuntimeTokenIdentifiesRuntimeOwnership`、`EntityAndWindowHandlesCarryRuntimeOwnership`。 |
 | B3 Factory 显式 runtime/window 创建 | 部分完成 | 新增 `CreateBaseWidget(UiRuntime&)`、`CreateButton(UiRuntime&)`、`CreateWindow(UiRuntime&)` 最小显式入口，返回 runtime-aware handle。 | 新增 `UiRuntimeTest.ExplicitRuntimeFactoryCreatesOwnedButtonHandle`。 |
 | B4 同线程多窗口验收 | 部分完成 | 新增无 SDL 冒烟测试，验证同 runtime 下多个 `WindowHandle` 归属一致但实体 ID 与平台窗口 ID 独立。 | 新增 `UiRuntimeTest.SameRuntimeWindowHandlesKeepIndependentEntityAndPlatformIds`。 |
+| B5 System 依赖注入路径 | 大部分完成 | 批量迁移 `TimerSystem`、`ThemeSystem`、`HitTestSystem`、`InteractionSystem`、`TweenSystem`、`TextInputSystem`/`TextEditingService`、`PlatformWindowSystem`、`ShapeRenderer`、`StateSystem`、`ActionSystem` 的 `RuntimeFacade::current()` 使用；对应 baseline 同步收缩。 | 架构边界检查通过；Debug 构建通过；全量测试 131/131 通过。 |
 | 测试构建债务修复 | 已完成 | 补齐测试 include；修复 `entt::null` 与 `ui::entity` 重载歧义；修复 `popupChildren(ui::entity)` 调用。 | `ctest --test-dir build --output-on-failure`：131/131 通过。 |
 
 ### 4.1 当前剩余重点
 
 1. B3 尚未完成：需要继续迁移示例和更多 `factory::Create*` 入口到显式 runtime/window 绑定；随后删除旧隐式 current 主入口。
 2. B4 尚未完成：当前只有 handle 层无 SDL 冒烟测试，还需要覆盖真实窗口实体、事件路由、关闭/resize/pointer hit 不串扰。
-3. B5 尚未开始：迁移 `TimerSystem`、`ThemeSystem`、`HitTestSystem` 等低风险系统，减少 `RuntimeFacade::current()` baseline。
+3. B5 剩余集中债务：`TimerSystem.cpp` 静态旧 API 3 处；API 层剩余 `Utils.cpp` 3 处、`Factory.cpp` 1 处、`Image.cpp` 1 处。
 4. B6-B8 尚未开始：Focus/Overlay 拆分、Windows/Linux 截图回归、渲染数据边界。
 
 ## 5. 风险控制

@@ -16,7 +16,6 @@
 #pragma once
 #include "interface/IRenderer.hpp"
 #include "common/Theme.hpp"
-#include "core/RuntimeFacade.hpp"
 #include "singleton/Registry.hpp"
 
 #include "common/components/Visual.hpp"
@@ -157,8 +156,10 @@ private:
         // 焦点状态仅提升边框粗细；颜色由 ThemeSystem 写入 Border 组件
         if (focused)
         {
-            const auto& themeContext = RuntimeFacade::current().ensureContext<theme::ThemeContext>();
-            thickness = std::max(thickness, themeContext.palette.focusBorderMinThickness);
+            const auto* themeContext = m_reg->ctx().template find<theme::ThemeContext>();
+            const auto minThickness = themeContext != nullptr ? themeContext->palette.focusBorderMinThickness
+                                                              : theme::ThemePalette{}.focusBorderMinThickness;
+            thickness = std::max(thickness, minThickness);
         }
 
         // 渲染边框线条

@@ -27,7 +27,7 @@ class TextInputSystem : public ui::interface::EnableRegister<TextInputSystem>
 {
 public:
     TextInputSystem() = default;
-    explicit TextInputSystem(Registry& /*reg*/, Dispatcher& disp) : m_disp(&disp) {}
+    explicit TextInputSystem(Registry& reg, Dispatcher& disp) : m_reg(&reg), m_disp(&disp) {}
 
     void registerHandlersImpl()
     {
@@ -48,7 +48,7 @@ public:
 private:
     void onRawTextInput(const events::RawTextInput& event)
     {
-        services::TextEditingService::handleTextInput(event.text);
+        services::TextEditingService::handleTextInput(*m_reg, event.text);
     }
 
     void onRawKeyInput(const events::RawKeyInput& event)
@@ -58,7 +58,7 @@ private:
         {
             if (event.repeat) return;
             beginKeyRepeat(key);
-            services::TextEditingService::handleKeyDown(key, static_cast<SDL_Keymod>(event.modifiers));
+            services::TextEditingService::handleKeyDown(*m_reg, key, static_cast<SDL_Keymod>(event.modifiers));
             return;
         }
 
@@ -74,7 +74,7 @@ private:
         if (now < m_lastRepeatTime + KEY_REPEAT_INTERVAL) return;
 
         m_lastRepeatTime = now;
-        services::TextEditingService::handleKeyDown(m_heldKey, SDL_GetModState());
+        services::TextEditingService::handleKeyDown(*m_reg, m_heldKey, SDL_GetModState());
         m_disp->trigger<ui::events::UpdateRendering>(ui::events::UpdateRendering{});
     }
 
@@ -99,6 +99,7 @@ private:
     uint64_t m_lastRepeatTime = 0;
     static constexpr uint64_t KEY_REPEAT_DELAY = 500;
     static constexpr uint64_t KEY_REPEAT_INTERVAL = 50;
+    Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
 };
 

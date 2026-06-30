@@ -14,9 +14,9 @@
 
 #include "common/Tags.hpp"
 #include "common/components/Data.hpp"
-#include "core/RuntimeFacade.hpp"
 #include "core/TextUtils.hpp"
 #include "detail/Utils.hpp"
+#include "singleton/Registry.hpp"
 
 namespace ui::services
 {
@@ -492,9 +492,8 @@ bool HandleClipboardShortcut(
 
 } // namespace
 
-void TextEditingService::handleTextInput(const std::string& rawText)
+void TextEditingService::handleTextInput(Registry& reg, const std::string& rawText)
 {
-    auto& reg = RuntimeFacade::current().registry();
     auto view = reg.view<components::FocusedTag, components::TextEdit, components::Text>();
     for (auto entity : view)
     {
@@ -508,9 +507,8 @@ void TextEditingService::handleTextInput(const std::string& rawText)
     }
 }
 
-void TextEditingService::handleKeyDown(SDL_Keycode key, SDL_Keymod modState)
+void TextEditingService::handleKeyDown(Registry& reg, SDL_Keycode key, SDL_Keymod modState)
 {
-    auto& reg = RuntimeFacade::current().registry();
     auto view = reg.view<components::FocusedTag, components::TextEdit, components::Text>();
     for (auto entity : view)
     {

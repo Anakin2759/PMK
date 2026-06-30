@@ -11,7 +11,6 @@
 #include "core/WindowSync.hpp"
 #include "singleton/Dispatcher.hpp"
 #include "singleton/Logger.hpp"
-#include "core/RuntimeFacade.hpp"
 #include "HitTestSystem.hpp"
 #include <SDL3/SDL_video.h>
 namespace ui::systems
@@ -35,6 +34,31 @@ namespace
     }
 
     return "unknown";
+}
+
+[[nodiscard]] globalcontext::StateContext& EnsureStateContext(Registry& reg)
+{
+    if (auto* state = reg.ctx().template find<globalcontext::StateContext>())
+    {
+        return *state;
+    }
+    return reg.ctx().template emplace<globalcontext::StateContext>();
+}
+
+[[nodiscard]] entt::entity FindWindowEntityById(Registry& reg, uint32_t windowId)
+{
+    if (windowId == 0) return entt::null;
+
+    auto view = reg.view<components::Window>();
+    for (const entt::entity entity : view)
+    {
+        if (view.get<components::Window>(entity).windowID == windowId)
+        {
+            return entity;
+        }
+    }
+
+    return entt::null;
 }
 
 [[nodiscard]] Rect GetHorizontalScrollbarTrackRect(entt::entity entity)
@@ -637,8 +661,8 @@ void StateSystem::PointerStateHelpers::handleHoverUpdate(StateSystem& system,
 
 void StateSystem::PointerStateHelpers::setFocus(StateSystem& system, entt::entity entity, SDL_Window* sdlWindow)
 {
-    auto& state = RuntimeFacade::current().state();
     auto& reg = *system.m_reg;
+    auto& state = EnsureStateContext(reg);
 
     if (state.focusedEntity != entt::null && reg.valid(state.focusedEntity))
     {
@@ -669,8 +693,8 @@ void StateSystem::PointerStateHelpers::setFocus(StateSystem& system, entt::entit
 
 void StateSystem::PointerStateHelpers::clearFocus(StateSystem& system, SDL_Window* sdlWindow)
 {
-    auto& state = RuntimeFacade::current().state();
     auto& reg = *system.m_reg;
+    auto& state = EnsureStateContext(reg);
 
     if (state.focusedEntity != entt::null && reg.valid(state.focusedEntity))
     {
@@ -903,7 +927,7 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
                                                              const events::WindowPixelSizeChanged& event)
 {
     auto& reg = *system.m_reg;
-    const auto entity = RuntimeFacade::current().windowLookup().findById(event.windowID);
+    const auto entity = FindWindowEntityById(reg, event.windowID);
     if (!reg.valid(entity) || !reg.all_of<components::Size>(entity))
     {
         return;
@@ -1015,7 +1039,7 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
 void StateSystem::WindowStateHelpers::handleExposed(StateSystem& system, const events::WindowExposed& event)
 {
     auto& reg = *system.m_reg;
-    const auto entity = RuntimeFacade::current().windowLookup().findById(event.windowID);
+    const auto entity = FindWindowEntityById(reg, event.windowID);
     if (!reg.valid(entity))
     {
         return;
@@ -1034,7 +1058,7 @@ void StateSystem::WindowStateHelpers::handleExposed(StateSystem& system, const e
 void StateSystem::WindowStateHelpers::handleMoved(StateSystem& system, const events::WindowMoved& event)
 {
     auto& reg = *system.m_reg;
-    const auto entity = RuntimeFacade::current().windowLookup().findById(event.windowID);
+    const auto entity = FindWindowEntityById(reg, event.windowID);
     if (!reg.valid(entity) || !reg.all_of<components::Position>(entity))
     {
         return;
@@ -1146,7 +1170,7 @@ void StateSystem::queueActiveClear(globalcontext::StateContext& state, entt::ent
  */
 void StateSystem::onHoverEvent(const events::HoverEvent& event)
 {
-    auto& state = RuntimeFacade::current().state();
+    auto& state = EnsureStateContext(*m_reg);
     queueHoveredEntity(state, event.entity);
 }
 
@@ -1155,7 +1179,7 @@ void StateSystem::onHoverEvent(const events::HoverEvent& event)
  */
 void StateSystem::onUnhoverEvent(const events::UnhoverEvent& event)
 {
-    auto& state = RuntimeFacade::current().state();
+    auto& state = EnsureStateContext(*m_reg);
     queueHoverClear(state, event.entity);
 }
 
@@ -1163,7 +1187,7 @@ void StateSystem::onUnhoverEvent(const events::UnhoverEvent& event)
  */
 void StateSystem::onMousePressEvent(const events::MousePressEvent& event)
 {
-    auto& state = RuntimeFacade::current().state();
+    auto& state = EnsureStateContext(*m_reg);
     queueActiveEntity(state, event.entity);
 }
 
@@ -1171,14 +1195,14 @@ void StateSystem::onMousePressEvent(const events::MousePressEvent& event)
  */
 void StateSystem::onMouseReleaseEvent(const events::MouseReleaseEvent& event)
 {
-    auto& state = RuntimeFacade::current().state();
+    auto& state = EnsureStateContext(*m_reg);
     queueActiveClear(state, event.entity);
 }
 
 void StateSystem::onHitPointerMove(const events::HitPointerMove& event)
 {
     auto& reg = *m_reg;
-    auto& state = RuntimeFacade::current().state();
+    auto& state = EnsureStateContext(reg);
     state.syncLatestPointer(event.raw.position, event.raw.delta);
 
     if (!state.activeDragMoved && state.activeEntity != entt::null && reg.valid(state.activeEntity))
@@ -1211,7 +1235,7 @@ void StateSystem::onHitPointerButton(const events::HitPointerButton& event)
         return;
     }
 
-    auto& state = RuntimeFacade::current().state();
+    auto& state = EnsureStateContext(*m_reg);
     state.latestMousePosition = event.raw.position;
 
     if (event.raw.pressed)
@@ -1235,7 +1259,7 @@ void StateSystem::onHitPointerButton(const events::HitPointerButton& event)
 
 void StateSystem::onHitPointerWheel(const events::HitPointerWheel& event)
 {
-    auto& state = RuntimeFacade::current().state();
+    auto& state = EnsureStateContext(*m_reg);
     state.syncLatestScroll(event.raw.delta);
 
     entt::entity target = findScrollTargetFromHit(event.hitEntity);
@@ -1303,7 +1327,7 @@ void StateSystem::onWindowMoved(const events::WindowMoved& event)
  */
 void StateSystem::updateScrollbarHoverStates(const events::HitPointerMove& event)
 {
-    ScrollbarStateHelpers::updateHoverStates(*this, event, RuntimeFacade::current().state());
+    ScrollbarStateHelpers::updateHoverStates(*this, event, EnsureStateContext(*m_reg));
 }
 
 void StateSystem::handleScrollbarDrag(const events::HitPointerMove& event, globalcontext::StateContext& state)
@@ -1479,8 +1503,6 @@ void StateSystem::destroyWidget(entt::entity entity)
         // 如果是窗口，查找并销毁关联的 SDL_Window 资源
         if (auto* windowComp = reg.try_get<components::Window>(entity))
         {
-            RuntimeFacade::current().windowLookup().invalidateId(windowComp->windowID);
-
             // 通过 WindowID 找回 SDL_Window 指针
             if (SDL_Window* sdlWindow = SDL_GetWindowFromID(windowComp->windowID))
             {

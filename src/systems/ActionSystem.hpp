@@ -36,7 +36,6 @@
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
 #include "common/Tags.hpp"
-#include "core/RuntimeFacade.hpp"
 #include "common/GlobalContext.hpp"
 namespace ui::systems
 {
@@ -80,6 +79,17 @@ private:
     Dispatcher* m_disp = nullptr;
     [[nodiscard]] Registry& effectiveReg() noexcept { return *m_reg; }
     [[nodiscard]] Dispatcher& effectiveDisp() noexcept { return *m_disp; }
+
+    [[nodiscard]] globalcontext::StateContext& stateContext()
+    {
+        auto& reg = effectiveReg();
+        if (auto* state = reg.ctx().template find<globalcontext::StateContext>())
+        {
+            return *state;
+        }
+        return reg.ctx().template emplace<globalcontext::StateContext>();
+    }
+
     void applyAnimation(entt::entity entity,
                         const std::optional<Vec2>& targetScale,
                         const std::optional<Vec2>& targetOffset,
@@ -176,7 +186,7 @@ private:
         if (draggable.dragging) return;
 
         draggable.dragging = true;
-        RuntimeFacade::current().trigger(events::DragStartEvent{entity});
+        effectiveDisp().trigger(events::DragStartEvent{entity});
         if (draggable.onDragStart) draggable.onDragStart();
     }
 
@@ -209,7 +219,7 @@ private:
     void onHitPointerMove(const ui::events::HitPointerMove& event)
     {
         auto& reg = effectiveReg();
-        auto& ctx = RuntimeFacade::current().state();
+        auto& ctx = stateContext();
         entt::entity entity = ctx.activeEntity;
 
         if (!reg.valid(entity)) return;
@@ -222,7 +232,7 @@ private:
         startDragging(entity, *draggable);
         applyDragDelta(reg, entity, *draggable, event.raw.delta);
 
-        RuntimeFacade::current().trigger(events::DragMoveEvent{
+        effectiveDisp().trigger(events::DragMoveEvent{
             .source = entity,
             .delta = event.raw.delta,
             .hoverTarget = ctx.hoveredEntity,
@@ -259,7 +269,7 @@ private:
     void onMouseRelease(const ui::events::MouseReleaseEvent& event)
     {
         auto& reg = effectiveReg();
-        auto& ctx = RuntimeFacade::current().state();
+        auto& ctx = stateContext();
         entt::entity entity = event.entity;
 
         if (!reg.valid(entity)) return;
@@ -273,10 +283,10 @@ private:
                 if (isDropTargetEnabled(reg, hovered) && !wouldCreateHierarchyCycle(reg, entity, hovered))
                 {
                     dropTarget = hovered;
-                    RuntimeFacade::current().trigger(events::DragDroppedEvent{.source = entity, .target = dropTarget});
+                    effectiveDisp().trigger(events::DragDroppedEvent{.source = entity, .target = dropTarget});
                 }
 
-                RuntimeFacade::current().trigger(events::DragEndEvent{.source = entity, .dropTarget = dropTarget});
+                effectiveDisp().trigger(events::DragEndEvent{.source = entity, .dropTarget = dropTarget});
                 if (draggable->onDragEnd) draggable->onDragEnd();
             }
             draggable->dragging = false;

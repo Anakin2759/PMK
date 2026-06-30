@@ -79,14 +79,7 @@ ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
 
 ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
     {
-        ("src/renderers/ShapeRenderer.hpp", "RuntimeFacade::current()"): 1,
-        ("src/services/TextEditingService.cpp", "RuntimeFacade::current()"): 2,
-        ("src/systems/ActionSystem.hpp", "RuntimeFacade::current()"): 6,
-        ("src/systems/InteractionSystem.hpp", "RuntimeFacade::current()"): 1,
-        ("src/systems/PlatformWindowSystem.hpp", "RuntimeFacade::current()"): 3,
-        ("src/systems/StateSystem.cpp", "RuntimeFacade::current()"): 14,
         ("src/systems/TimerSystem.cpp", "RuntimeFacade::current()"): 3,
-        ("src/systems/TweenSystem.hpp", "RuntimeFacade::current()"): 1,
     }
 )
 

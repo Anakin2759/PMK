@@ -54,7 +54,7 @@
 #include <string>
 #include <SDL3/SDL.h>
 #include "common/Events.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "common/components/Window.hpp"
 #include "singleton/Registry.hpp"
 #include "singleton/Dispatcher.hpp"
 #include "interface/ISystem.hpp"
@@ -151,7 +151,16 @@ private:
      */
     void enqueueCloseWindowRequest(uint32_t windowId)
     {
-        const auto targetWindow = RuntimeFacade::current().windowLookup().findById(windowId);
+        entt::entity targetWindow = entt::null;
+        auto view = m_reg->view<components::Window>();
+        for (const entt::entity entity : view)
+        {
+            if (view.get<components::Window>(entity).windowID == windowId)
+            {
+                targetWindow = entity;
+                break;
+            }
+        }
         if (!m_reg->valid(targetWindow)) return;
 
         m_disp->enqueue<ui::events::CloseWindow>(ui::events::CloseWindow{targetWindow});
