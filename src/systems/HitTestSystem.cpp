@@ -4,8 +4,8 @@
 #include "common/components/Data.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
+#include "common/components/Window.hpp"
 #include "common/Tags.hpp"
-#include "core/RuntimeFacade.hpp"
 
 namespace ui::systems
 {
@@ -209,7 +209,17 @@ int HitTestSystem::calculateZOrder(entt::entity entity) const
 
 entt::entity HitTestSystem::resolveHitEntity(const Vec2& pos, uint32_t windowID)
 {
-    entt::entity topWindow = RuntimeFacade::current().windowLookup().findById(windowID);
+    entt::entity topWindow = entt::null;
+    auto view = m_reg->view<components::Window>();
+    for (const entt::entity entity : view)
+    {
+        if (view.get<components::Window>(entity).windowID == windowID)
+        {
+            topWindow = entity;
+            break;
+        }
+    }
+
     if (topWindow == entt::null) return entt::null;
     return findHitEntity(pos, topWindow);
 }

@@ -17,6 +17,7 @@ Checks: >
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-arrays,
   -performance-avoid-endl,
+  -performance-enum-size,
   -hicpp-avoid-c-arrays,
   -hicpp-no-array-decay,
   -hicpp-uppercase-literal-suffix,
@@ -31,23 +32,26 @@ Checks: >
   -hicpp-signed-bitwise
   
 CheckOptions:
-  # === Naming Conventions ===
-  # 命名规范：命名风格和规则，确保代码中的标识符（如变量、函数、类等）遵循一致的命名约定，提高代码的可读性和维护性
-  # 命名空间使用小写字母，单词之间用下划线分隔
-  - key: readability-identifier-naming-suffix
-    value: 'lowercase'
+  # === Naming Conventions (LLVM style) ===
+  # LLVM 风格：类型 / 枚举值使用 CamelCase；函数、方法、变量、参数、成员使用 camelBack；命名空间使用 lower_case。
   - key: readability-identifier-naming.NamespaceCase
     value: lower_case
   - key: readability-identifier-naming.ClassCase
     value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.UnionCase
+    value: CamelCase
   - key: readability-identifier-naming.EnumCase
     value: CamelCase
-  - key: readability-identifier-naming.FunctionCase
+  - key: readability-identifier-naming.TypedefCase
     value: CamelCase
+  - key: readability-identifier-naming.TypeAliasCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
   - key: readability-identifier-naming.MethodCase
     value: camelBack
-
-
   - key: readability-identifier-naming.VariableCase
     value: camelBack
   - key: readability-identifier-naming.ParameterCase
@@ -58,25 +62,20 @@ CheckOptions:
     value: camelBack
   - key: readability-identifier-naming.MemberIgnoredRegexp
     value: '^pro_.*'
-  - key: readability-identifier-naming.PrivateMemberPrefix
-    value: m_
-  # const 变量使用普通命名 (camelBack)
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
   - key: readability-identifier-naming.ConstantCase
-    value: camelBack
-  # constexpr 变量使用全大写
+    value: CamelCase
   - key: readability-identifier-naming.ConstexprVariableCase
-    value: UPPER_CASE
-
-      #枚举 常量使用全大写
+    value: CamelCase
   - key: readability-identifier-naming.EnumConstantCase
-    value: UPPER_CASE
-  #全局常量使用全大写
+    value: CamelCase
   - key: readability-identifier-naming.GlobalConstantCase
-    value: UPPER_CASE
-      #静态constexpr变量使用全大写
+    value: CamelCase
   - key: readability-identifier-naming.StaticConstexprCase
+    value: CamelCase
+  - key: readability-identifier-naming.MacroDefinitionCase
     value: UPPER_CASE
-    # 结构体、联合体、类等类型名允许以 type、impl、tag、proxy、base 结尾，表示其特定用途
   - key: readability-identifier-naming.ClassIgnoredRegexp
     value: '^(type|impl|tag|proxy|base)$'
 
@@ -128,3 +127,11 @@ SystemHeaders: false
 # Don't inherit .clang-tidy from parent folders
 InheritParentConfig: false
 
+# Compiler args for correct parsing
+ExtraArgs:
+  - -std=c++23
+  - -DASIO_STANDALONE
+  - -DUNICODE
+  - -D_UNICODE
+  - -Wno-unknown-pragmas
+  - /EHsc

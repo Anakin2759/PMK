@@ -20,6 +20,7 @@
 
 #include <ui.hpp>
 
+#include "common/Tags.hpp"
 #include "common/components/Layout.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Visual.hpp"

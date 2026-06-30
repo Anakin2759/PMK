@@ -72,6 +72,15 @@ public:
      */
     void exec();
 
+    /**
+     * @brief 获取应用持有的 UI runtime。
+     *
+     * 新的公开创建入口应显式绑定到该 runtime，避免依赖隐式 thread-local current runtime。
+     */
+    [[nodiscard]] UiRuntime& runtime() noexcept;
+
+    [[nodiscard]] const UiRuntime& runtime() const noexcept;
+
 private:
     std::unique_ptr<UiRuntime> m_runtime;           // 管理全局状态和资源
     std::unique_ptr<UiRuntimeScope> m_runtimeScope; // 管理 UiRuntime 生命周期

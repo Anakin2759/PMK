@@ -19,6 +19,7 @@
 #include "RuntimeFacade.hpp"
 #include "WorkerMailbox.hpp"
 
+#include "common/EntityTypes.hpp"
 #include "common/ThreadPool.hpp"
 #include "singleton/Dispatcher.hpp"
 #include "singleton/Registry.hpp"
@@ -59,6 +60,16 @@ public:
     [[nodiscard]] WorkerMailbox& mailbox() noexcept { return m_mailbox; }
 
     [[nodiscard]] const WorkerMailbox& mailbox() const noexcept { return m_mailbox; }
+
+    /**
+     * @brief 获取本运行时的公开归属令牌。
+     *
+     * token 由 UiRuntime 地址派生，生命周期上只保证在该 runtime 存活期间可用于归属比较。
+     */
+    [[nodiscard]] RuntimeToken token() const noexcept
+    {
+        return RuntimeToken{this};
+    }
 
 private:
     friend class UiRuntimeScope;

@@ -25,6 +25,7 @@
 #include "common/components/Data.hpp"
 #include "common/Result.hpp"
 #include "core/Application.hpp"
+#include "core/UiRuntime.hpp"
 #include "detail/EntityCast.hpp"
 #include "entt/entity/entity.hpp"
 #include <SDL3/SDL_mouse.h>
@@ -340,6 +341,17 @@ ui::entity CreateBaseWidget(std::string_view alias)
     return entity;
 }
 
+ui::Result<ui::EntityHandle> CreateBaseWidget(UiRuntime& runtime, std::string_view alias)
+{
+    UiRuntimeScope const scope(runtime);
+    const ui::entity entity = CreateBaseWidget(alias);
+    if (entity == ui::null_entity)
+    {
+        return ui::MakeError(UiErrc::INVALID_ENTITY);
+    }
+    return ui::MakeEntityHandle(runtime.token(), entity);
+}
+
 void CreateFadeInAnimation(ui::entity entity, float duration)
 {
     auto& reg = CurrentRegistry();
@@ -366,6 +378,17 @@ ui::entity CreateButton(const std::string& content, std::string_view alias)
     text.fontSize = 0.0F;
     reg.get<components::Size>(entity).sizePolicy = policies::Size::AUTO;
     return entity;
+}
+
+ui::Result<ui::EntityHandle> CreateButton(UiRuntime& runtime, const std::string& content, std::string_view alias)
+{
+    UiRuntimeScope const scope(runtime);
+    const ui::entity entity = CreateButton(content, alias);
+    if (entity == ui::null_entity)
+    {
+        return ui::MakeError(UiErrc::INVALID_ENTITY);
+    }
+    return ui::MakeEntityHandle(runtime.token(), entity);
 }
 
 ui::entity CreateLabel(const std::string& content, std::string_view alias)
@@ -560,6 +583,20 @@ ui::entity CreateWindow(std::string_view title, std::string_view alias)
     reg.remove<components::VisibleTag>(entity);
 
     return entity;
+}
+
+ui::Result<ui::WindowHandle> CreateWindow(UiRuntime& runtime, std::string_view title, std::string_view alias)
+{
+    UiRuntimeScope const scope(runtime);
+    const ui::entity entity = CreateWindow(title, alias);
+    if (entity == ui::null_entity)
+    {
+        return ui::MakeError(UiErrc::INVALID_ENTITY);
+    }
+
+    const auto* window = runtime.registry().try_get<components::Window>(entity);
+    const std::uint32_t windowId = window != nullptr ? window->windowID : 0U;
+    return ui::MakeWindowHandle(runtime.token(), entity, windowId);
 }
 
 ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias)

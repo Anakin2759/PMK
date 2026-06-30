@@ -19,7 +19,6 @@
 #include "common/Theme.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Visual.hpp"
-#include "core/RuntimeFacade.hpp"
 
 namespace ui::systems
 {
@@ -31,6 +30,16 @@ namespace
 // =====================================================================
 
 constexpr float FLOAT_EPSILON = 0.0001F;
+
+template <typename Context>
+[[nodiscard]] Context& EnsureRegistryContext(Registry& reg)
+{
+    if (auto* existing = reg.ctx().template find<Context>())
+    {
+        return *existing;
+    }
+    return reg.ctx().template emplace<Context>();
+}
 
 bool NearlyEqual(float lhs, float rhs)
 {
@@ -1102,16 +1111,12 @@ bool ApplyThemeToEntity(Registry& reg,
 
 void ThemeSystem::registerHandlersImpl()
 {
-    m_disp != nullptr
-        ? m_disp->sink<events::UpdateEvent>().connect<&ThemeSystem::update>(*this)
-        : RuntimeFacade::current().dispatcher().sink<events::UpdateEvent>().connect<&ThemeSystem::update>(*this);
+    m_disp->sink<events::UpdateEvent>().connect<&ThemeSystem::update>(*this);
 }
 
 void ThemeSystem::unregisterHandlersImpl()
 {
-    m_disp != nullptr
-        ? m_disp->sink<events::UpdateEvent>().disconnect<&ThemeSystem::update>(*this)
-        : RuntimeFacade::current().dispatcher().sink<events::UpdateEvent>().disconnect<&ThemeSystem::update>(*this);
+    m_disp->sink<events::UpdateEvent>().disconnect<&ThemeSystem::update>(*this);
 }
 
 ui::interface::SystemPhase ThemeSystem::getPhase()
@@ -1121,15 +1126,15 @@ ui::interface::SystemPhase ThemeSystem::getPhase()
 
 void ThemeSystem::update()
 {
-    auto& reg = m_reg != nullptr ? *m_reg : RuntimeFacade::current().registry();
-    auto& themeContext = RuntimeFacade::current().ensureContext<theme::ThemeContext>();
+    auto& reg = *m_reg;
+    auto& themeContext = EnsureRegistryContext<theme::ThemeContext>(reg);
 
     if (themeContext.reapplyRequested)
     {
         ClearThemedTags(reg);
     }
 
-    auto unthemedView = m_reg->view<components::BaseInfo>(entt::exclude<components::ThemedTag>);
+    auto unthemedView = reg.view<components::BaseInfo>(entt::exclude<components::ThemedTag>);
     for (const entt::entity entity : unthemedView)
     {
         const bool changed = ApplyThemeToEntity(reg, entity, themeContext.palette, themeContext.previousPalette);

@@ -315,14 +315,14 @@ TEST_F(DragDropTest, DragDroppedWithInvalidSourceIsNoOp)
     const auto target = factory::CreateVBoxLayout("dd_null_tgt");
     controls::SetDroppable(target, true);
 
-    EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(entt::null, target));
+    EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(static_cast<entt::entity>(entt::null), target));
 }
 
 TEST_F(DragDropTest, DragDroppedWithInvalidTargetIsNoOp)
 {
     const auto source = factory::CreateLabel("SRC", "dd_null_src");
 
-    EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(source, entt::null));
+    EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(source, static_cast<entt::entity>(entt::null)));
 }
 
 } // namespace ui::tests

@@ -64,11 +64,8 @@ ALLOWED_COMMON_RUNTIME_INCLUDE_COUNTS = Counter(
 
 ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter(
     {
-        ("src/api/Controls.cpp", "RuntimeFacade::current()"): 1,
         ("src/api/Factory.cpp", "RuntimeFacade::current()"): 1,
         ("src/api/Image.cpp", "RuntimeFacade::current()"): 1,
-        ("src/api/Query.cpp", "RuntimeFacade::current()"): 3,
-        ("src/api/Theme.cpp", "RuntimeFacade::current()"): 3,
         ("src/api/Utils.cpp", "RuntimeFacade::current()"): 3,
     }
 )
@@ -85,12 +82,10 @@ ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
         ("src/renderers/ShapeRenderer.hpp", "RuntimeFacade::current()"): 1,
         ("src/services/TextEditingService.cpp", "RuntimeFacade::current()"): 2,
         ("src/systems/ActionSystem.hpp", "RuntimeFacade::current()"): 6,
-        ("src/systems/HitTestSystem.cpp", "RuntimeFacade::current()"): 1,
         ("src/systems/InteractionSystem.hpp", "RuntimeFacade::current()"): 1,
         ("src/systems/PlatformWindowSystem.hpp", "RuntimeFacade::current()"): 3,
         ("src/systems/StateSystem.cpp", "RuntimeFacade::current()"): 14,
-        ("src/systems/ThemeSystem.cpp", "RuntimeFacade::current()"): 4,
-        ("src/systems/TimerSystem.cpp", "RuntimeFacade::current()"): 7,
+        ("src/systems/TimerSystem.cpp", "RuntimeFacade::current()"): 3,
         ("src/systems/TweenSystem.hpp", "RuntimeFacade::current()"): 1,
     }
 )
@@ -102,16 +97,7 @@ ALLOWED_RAW_ACCESS_COUNTS = Counter(
     }
 )
 
-ALLOWED_UNLISTED_DETAIL_CPP_COUNTS = Counter(
-    {
-        ("src/detail/Factory.cpp", "detail-cpp-not-in-ui-sources"): 1,
-        ("src/detail/Canvas.cpp", "detail-cpp-not-in-ui-sources"): 1,
-        ("src/detail/Timer.cpp", "detail-cpp-not-in-ui-sources"): 1,
-        ("src/detail/Shortcut.cpp", "detail-cpp-not-in-ui-sources"): 1,
-        ("src/detail/Utils.cpp", "detail-cpp-not-in-ui-sources"): 1,
-        ("src/detail/Log.cpp", "detail-cpp-not-in-ui-sources"): 1,
-    }
-)
+ALLOWED_UNLISTED_DETAIL_CPP_COUNTS = Counter({})
 
 
 class Violation:
@@ -268,6 +254,31 @@ def collect_extra(
     return violations
 
 
+def collect_stale_baseline(
+    rule: str,
+    actual: Counter[tuple[str, str]],
+    allowed: Counter[tuple[str, str]],
+) -> list[Violation]:
+    """Fail when a baseline entry is larger than current debt.
+
+    This turns the guard from "no new debt" into "baseline only shrinks". When
+    a debt occurrence disappears, the matching allowed counter must be removed
+    in the same change so old debt cannot silently remain baselined forever.
+    """
+
+    violations: list[Violation] = []
+    for key, count in sorted(allowed.items()):
+        current = actual.get(key, 0)
+        if current >= count:
+            continue
+
+        path, token = key
+        text = f"stale baseline allows {count}, current debt is {current}: {token}"
+        violations.append(Violation(f"{rule}-stale-baseline", path, 0, text))
+
+    return violations
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Check VMP-ui architecture boundary debt does not grow.")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
@@ -290,9 +301,14 @@ def main(argv: list[str]) -> int:
 
     violations: list[Violation] = []
     violations.extend(collect_extra("api-include", api_counts, ALLOWED_API_INCLUDE_COUNTS, locations))
+    violations.extend(collect_stale_baseline("api-include", api_counts, ALLOWED_API_INCLUDE_COUNTS))
     violations.extend(collect_extra("static-runtime", runtime_counts, ALLOWED_STATIC_RUNTIME_COUNTS, locations))
+    violations.extend(collect_stale_baseline("static-runtime", runtime_counts, ALLOWED_STATIC_RUNTIME_COUNTS))
     violations.extend(
         collect_extra("common-runtime-include", common_counts, ALLOWED_COMMON_RUNTIME_INCLUDE_COUNTS, locations)
+    )
+    violations.extend(
+        collect_stale_baseline("common-runtime-include", common_counts, ALLOWED_COMMON_RUNTIME_INCLUDE_COUNTS)
     )
     violations.extend(
         collect_extra("public-api-forbidden-include", public_api_forbidden_include_counts, Counter(), locations)
@@ -304,16 +320,29 @@ def main(argv: list[str]) -> int:
         )
     )
     violations.extend(
+        collect_stale_baseline("api-cpp-runtime-current", api_cpp_runtime_counts, ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS)
+    )
+    violations.extend(
         collect_extra("api-cpp-entt-entity", api_cpp_entt_entity_counts, ALLOWED_API_CPP_ENTT_ENTITY_COUNTS, locations)
     )
+    violations.extend(
+        collect_stale_baseline("api-cpp-entt-entity", api_cpp_entt_entity_counts, ALLOWED_API_CPP_ENTT_ENTITY_COUNTS)
+    )
     violations.extend(collect_extra("runtime-current", runtime_current_counts, ALLOWED_RUNTIME_CURRENT_COUNTS, locations))
+    violations.extend(collect_stale_baseline("runtime-current", runtime_current_counts, ALLOWED_RUNTIME_CURRENT_COUNTS))
     violations.extend(collect_extra("raw-access", raw_access_counts, ALLOWED_RAW_ACCESS_COUNTS, locations))
+    violations.extend(collect_stale_baseline("raw-access", raw_access_counts, ALLOWED_RAW_ACCESS_COUNTS))
     violations.extend(
         collect_extra(
             "detail-cpp-not-in-ui-sources",
             unlisted_detail_cpp_counts,
             ALLOWED_UNLISTED_DETAIL_CPP_COUNTS,
             locations,
+        )
+    )
+    violations.extend(
+        collect_stale_baseline(
+            "detail-cpp-not-in-ui-sources", unlisted_detail_cpp_counts, ALLOWED_UNLISTED_DETAIL_CPP_COUNTS
         )
     )
 

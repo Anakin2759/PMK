@@ -10,7 +10,10 @@
 
 #include <ui.hpp>
 
+#include "common/Tags.hpp"
+#include "common/components/Data.hpp"
 #include "common/components/Layout.hpp"
+#include "common/components/Visual.hpp"
 #include "src/systems/ThemeSystem.hpp"
 
 namespace ui::tests
@@ -47,6 +50,11 @@ protected:
         }
 
         return hierarchy->children;
+    }
+
+    static std::vector<entt::entity> popupChildren(ui::entity popupEntity)
+    {
+        return popupChildren(static_cast<entt::entity>(popupEntity));
     }
 
 private:

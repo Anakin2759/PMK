@@ -2,8 +2,8 @@
 
 #include <entt/entt.hpp>
 
-#include <entt/entt.hpp>
 #include "common/components/Window.hpp"
+#include "src/api/Factory.hpp"
 #include "src/common/Events.hpp"
 #include "src/common/GlobalContext.hpp"
 #include "src/core/RuntimeFacade.hpp"
@@ -94,6 +94,77 @@ TEST(UiRuntimeTest, RuntimeFacadeFollowsActiveRuntimeScope)
 
         EXPECT_EQ(RuntimeFacade::current().frame().intervalMs, 33U);
     }
+}
+
+TEST(UiRuntimeTest, RuntimeTokenIdentifiesRuntimeOwnership)
+{
+    UiRuntime firstRuntime;
+    UiRuntime secondRuntime;
+
+    const RuntimeToken emptyToken{};
+    const RuntimeToken firstToken = firstRuntime.token();
+    const RuntimeToken secondToken = secondRuntime.token();
+
+    EXPECT_FALSE(emptyToken.valid());
+    EXPECT_TRUE(firstToken.valid());
+    EXPECT_TRUE(secondToken.valid());
+    EXPECT_NE(firstToken, secondToken);
+    EXPECT_TRUE(SameRuntime(firstToken, firstToken));
+    EXPECT_FALSE(SameRuntime(firstToken, secondToken));
+    EXPECT_FALSE(SameRuntime(emptyToken, firstToken));
+}
+
+TEST(UiRuntimeTest, EntityAndWindowHandlesCarryRuntimeOwnership)
+{
+    UiRuntime firstRuntime;
+    UiRuntime secondRuntime;
+
+    const auto firstEntity = MakeEntityHandle(firstRuntime.token(), 7U);
+    const auto firstEntitySibling = MakeEntityHandle(firstRuntime.token(), 8U);
+    const auto secondEntity = MakeEntityHandle(secondRuntime.token(), 7U);
+    const EntityHandle emptyEntity{};
+
+    EXPECT_TRUE(firstEntity.valid());
+    EXPECT_FALSE(emptyEntity.valid());
+    EXPECT_EQ(firstEntity.id(), 7U);
+    EXPECT_TRUE(SameRuntime(firstEntity, firstEntitySibling));
+    EXPECT_FALSE(SameRuntime(firstEntity, secondEntity));
+
+    const auto firstWindow = MakeWindowHandle(firstRuntime.token(), 11U, 101U);
+    const auto secondWindow = MakeWindowHandle(secondRuntime.token(), 11U, 101U);
+    const WindowHandle emptyWindow{};
+
+    EXPECT_TRUE(firstWindow.valid());
+    EXPECT_FALSE(emptyWindow.valid());
+    EXPECT_EQ(firstWindow.id(), 11U);
+    EXPECT_EQ(firstWindow.platformWindowId(), 101U);
+    EXPECT_FALSE(SameRuntime(firstWindow, secondWindow));
+}
+
+TEST(UiRuntimeTest, SameRuntimeWindowHandlesKeepIndependentEntityAndPlatformIds)
+{
+    UiRuntime runtime;
+
+    const auto firstWindow = MakeWindowHandle(runtime.token(), 11U, 101U);
+    const auto secondWindow = MakeWindowHandle(runtime.token(), 12U, 202U);
+
+    EXPECT_TRUE(firstWindow.valid());
+    EXPECT_TRUE(secondWindow.valid());
+    EXPECT_TRUE(SameRuntime(firstWindow, secondWindow));
+    EXPECT_NE(firstWindow.id(), secondWindow.id());
+    EXPECT_NE(firstWindow.platformWindowId(), secondWindow.platformWindowId());
+}
+
+TEST(UiRuntimeTest, ExplicitRuntimeFactoryCreatesOwnedButtonHandle)
+{
+    UiRuntime runtime;
+
+    auto button = factory::CreateButton(runtime, "Owned", "ownedButton");
+
+    ASSERT_TRUE(button.has_value());
+    EXPECT_TRUE(button->valid());
+    EXPECT_EQ(button->runtime(), runtime.token());
+    EXPECT_TRUE(runtime.registry().valid(button->id()));
 }
 
 TEST(UiRuntimeTest, WindowLookupCacheIsolatedPerRuntime)

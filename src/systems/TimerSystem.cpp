@@ -27,6 +27,20 @@
 
 namespace ui::systems
 {
+namespace
+{
+
+template <typename Context>
+[[nodiscard]] Context& EnsureRegistryContext(Registry& reg)
+{
+    if (auto* existing = reg.ctx().template find<Context>())
+    {
+        return *existing;
+    }
+    return reg.ctx().template emplace<Context>();
+}
+
+} // namespace
 
 void TimerSystem::registerHandlersImpl()
 {
@@ -73,8 +87,8 @@ void TimerSystem::cancelTask(uint32_t handle)
 
 void TimerSystem::update(uint32_t deltaMs)
 {
-    auto& frameCtx = RuntimeFacade::current().frame();
-    auto& timerCtx = RuntimeFacade::current().ensureContext<globalcontext::TimerContext>();
+    auto& frameCtx = m_reg->ctx().get<globalcontext::FrameContext>();
+    auto& timerCtx = EnsureRegistryContext<globalcontext::TimerContext>(*m_reg);
 
     // 处理所有任务
     for (auto& [taskId, task] : timerCtx.tasks)
@@ -140,7 +154,7 @@ void TimerSystem::onUpdateTimer([[maybe_unused]] const events::UpdateTimer& even
 {
     // UpdateTimer 事件会在每帧触发，我们在这里更新定时器
     // 但实际的 deltaMs 需要从 FrameContext 获取
-    auto* frameCtx = RuntimeFacade::current().tryFrame();
+    auto* frameCtx = m_reg->ctx().find<globalcontext::FrameContext>();
     if (frameCtx != nullptr)
     {
         update(frameCtx->intervalMs);

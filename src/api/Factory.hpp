@@ -35,6 +35,11 @@
 #undef CreateDialogA
 #endif
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::factory
 {
 /**
@@ -50,6 +55,7 @@ ui::Result<std::unique_ptr<Application>> CreateApplication(std::span<char*> argv
  * @return ui::entity 创建的实体
  */
 ui::entity CreateBaseWidget(std::string_view alias = "");
+ui::Result<ui::EntityHandle> CreateBaseWidget(UiRuntime& runtime, std::string_view alias = "");
 /**
  * @brief 为指定实体创建一个淡入动画组件
  * @param entity 目标实体
@@ -64,6 +70,9 @@ void CreateFadeInAnimation(ui::entity entity, float duration);
  * @return ui::entity 创建的实体
  */
 ui::entity CreateButton(const std::string& content, std::string_view alias = "");
+ui::Result<ui::EntityHandle> CreateButton(UiRuntime& runtime,
+                                          const std::string& content,
+                                          std::string_view alias = "");
 ui::entity CreateLabel(const std::string& content, std::string_view alias = "");
 ui::entity CreateTextEdit(const std::string& placeholder = "", bool multiline = false, std::string_view alias = "");
 ui::entity
@@ -74,6 +83,9 @@ ui::entity CreateSpacer(float width, float height, std::string_view alias = "");
 ui::entity CreateDialog(std::string_view title, std::string_view alias = "");
 ui::entity CreateScrollArea(std::string_view alias = "");
 ui::entity CreateWindow(std::string_view title, std::string_view alias = "");
+ui::Result<ui::WindowHandle> CreateWindow(UiRuntime& runtime,
+                                          std::string_view title,
+                                          std::string_view alias = "");
 
 /**
  * @brief 创建一个标题栏实体并关联到指定窗口

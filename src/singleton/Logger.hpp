@@ -54,8 +54,8 @@ struct LogLocation
 
 class Logger
 {
-    static constexpr size_t MAX_LOG_FILE_SIZE = 1024 * 1024 * 5; // 5MB
-    static constexpr size_t MAX_LOG_FILE_COUNT = 1;
+    static constexpr size_t kMaxLogFileSize = static_cast<size_t>(1024) * 1024 * 5; // 5MB
+    static constexpr size_t kMaxLogFileCount = 1;
 
 public:
     Logger(const Logger&) = delete;
@@ -121,7 +121,7 @@ private:
 
         // 2. 创建文件 sink
         auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            "logs/pestmankill.log", MAX_LOG_FILE_SIZE, MAX_LOG_FILE_COUNT);
+            "logs/pestmankill.log", kMaxLogFileSize, kMaxLogFileCount);
         fileSink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%# %!] %v");
 
         // 3. 创建 logger
@@ -146,7 +146,7 @@ private:
     void reconfigure_impl(std::string_view filePath)
     {
         auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            std::string(filePath), MAX_LOG_FILE_SIZE, MAX_LOG_FILE_COUNT);
+            std::string(filePath), kMaxLogFileSize, kMaxLogFileCount);
         fileSink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%# %!] %v");
         auto& sinks = m_logger->sinks();
         if (sinks.size() >= 2)

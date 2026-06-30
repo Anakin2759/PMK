@@ -162,4 +162,14 @@ void Application::exec()
     m_eventLoop.exec();
 }
 
+UiRuntime& Application::runtime() noexcept
+{
+    return *m_runtime;
+}
+
+const UiRuntime& Application::runtime() const noexcept
+{
+    return *m_runtime;
+}
+
 } // namespace ui
