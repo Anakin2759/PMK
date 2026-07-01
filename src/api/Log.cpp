@@ -14,6 +14,7 @@
  */
 #include "Log.hpp"
 
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 
 #include <atomic>
@@ -51,7 +52,7 @@ void SetCallback(Callback callback)
 
 void SetFilePath(std::string_view path)
 {
-    ui::Logger::reconfigure(path);
+    ui::UiRuntime::current().logger().reconfigure(path);
 }
 
 void LogImpl(Level level, std::string_view message)
@@ -62,19 +63,19 @@ void LogImpl(Level level, std::string_view message)
     switch (level)
     {
         case Level::DEBUG:
-            ui::Logger::debug("{}", message);
+            ui::UiRuntime::current().logger().debug("{}", message);
             break;
         case Level::INFO:
-            ui::Logger::info("{}", message);
+            ui::UiRuntime::current().logger().info("{}", message);
             break;
         case Level::WARNING:
-            ui::Logger::warn("{}", message);
+            ui::UiRuntime::current().logger().warn("{}", message);
             break;
         case Level::ERROR:
-            ui::Logger::error("{}", message);
+            ui::UiRuntime::current().logger().error("{}", message);
             break;
         case Level::CRITICAL:
-            ui::Logger::error("[CRITICAL] {}", message);
+            ui::UiRuntime::current().logger().error("[CRITICAL] {}", message);
             break;
         default:
             break;

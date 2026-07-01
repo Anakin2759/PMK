@@ -9,7 +9,7 @@
 #include "src/api/Hierarchy.hpp"
 #include "src/api/Utils.hpp"
 #include "src/common/Tags.hpp"
-#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntime.hpp"
 
 namespace ui::tests
@@ -20,7 +20,7 @@ namespace
 
 Registry& ActiveRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 
 class UtilsTest : public ::testing::Test

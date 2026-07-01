@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ************************************************************************
  *
  * @file EventBridge.cpp
@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 
 namespace ui::detail::event_bridge
 {
@@ -48,7 +48,7 @@ struct EventRegistryContext
 
 [[nodiscard]] EventRegistryContext& CurrentContext()
 {
-    return RuntimeFacade::current().ensureContext<EventRegistryContext>();
+    return UiRuntime::current().ensureContext<EventRegistryContext>();
 }
 
 [[nodiscard]] CallbackSlot* FindSlot(EventRegistryContext& ctx, std::uint64_t token) noexcept

@@ -1,4 +1,4 @@
-#include "Table.hpp"
+﻿#include "Table.hpp"
 
 #include "common/Scale.hpp"
 
@@ -10,7 +10,7 @@
 
 #include "common/Policies.hpp"
 #include "common/Tags.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/Types.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Layout.hpp"
@@ -25,7 +25,7 @@ namespace
 
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 
 [[nodiscard]] float MinColumnWidthAt(const components::TableInfo& info, int columnIndex)

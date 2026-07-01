@@ -35,6 +35,7 @@
 #include <SDL3/SDL.h>
 #include <Eigen/Core>
 #include "utils/Logger.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/GPUWrappers.hpp"
 #include "common/Result.hpp"
 
@@ -87,12 +88,12 @@ public:
         FT_Error error = FT_Init_FreeType(&m_ftLibrary);
         if (error != 0)
         {
-            Logger::error("[IconManager] Failed to initialize FreeType: error {}", error);
+            UiRuntime::current().logger().error("[IconManager] Failed to initialize FreeType: error {}", error);
             m_ftLibrary = nullptr;
         }
         else
         {
-            Logger::info("[IconManager] FreeType initialized");
+            UiRuntime::current().logger().info("[IconManager] FreeType initialized");
         }
     }
     ~IconManager() noexcept;

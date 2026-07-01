@@ -36,6 +36,7 @@
 #include <entt/entt.hpp>
 #include "common/Events.hpp"
 #include "interface/ISystem.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Registry.hpp"
 namespace ui::systems
@@ -47,7 +48,7 @@ class TimerSystem : public interface::EnableRegister<TimerSystem>
 {
 public:
     TimerSystem() = default;
-    explicit TimerSystem(Registry& reg, Dispatcher& disp) : m_reg(&reg), m_disp(&disp) {}
+    explicit TimerSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
 
     /**
      * @brief 注册事件处理器

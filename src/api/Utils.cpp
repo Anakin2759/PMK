@@ -5,7 +5,7 @@
 #include <ranges>
 #include <utility>
 #include <string>
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "core/UiRuntime.hpp"
 #include "detail/EntityCast.hpp"
 #include "systems/TimerSystem.hpp"
@@ -25,7 +25,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 } // namespace
 
@@ -131,12 +131,12 @@ void CloseWindow(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
-    RuntimeFacade::current().dispatcher().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
+    UiRuntime::current().dispatcher().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
 }
 
 void QuitUiEventLoop()
 {
-    RuntimeFacade::current().dispatcher().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
+    UiRuntime::current().dispatcher().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
 };
 
 Vec2 GetAbsolutePosition(ui::entity entity)
@@ -335,7 +335,7 @@ components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(entt::entity 
 
 void InvokeTask(UiRuntime& runtime, VoidCallback func)
 {
-    auto timerSystem = systems::TimerSystem{runtime.registry(), runtime.dispatcher()};
+    auto timerSystem = systems::TimerSystem{runtime};
     timerSystem.addTask(0, std::move(func), true);
 }
 /**
@@ -346,7 +346,7 @@ void InvokeTask(UiRuntime& runtime, VoidCallback func)
  */
 TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, VoidCallback func)
 {
-    auto timerSystem = systems::TimerSystem{runtime.registry(), runtime.dispatcher()};
+    auto timerSystem = systems::TimerSystem{runtime};
     return timerSystem.addTask(interval, std::move(func));
 }
 
@@ -356,7 +356,7 @@ TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, VoidCallback fun
  */
 void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle)
 {
-    auto timerSystem = systems::TimerSystem{runtime.registry(), runtime.dispatcher()};
+    auto timerSystem = systems::TimerSystem{runtime};
     timerSystem.cancelTask(handle);
 }
 /**

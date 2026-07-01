@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ************************************************************************
  *
  * @file Image.hpp
@@ -18,14 +18,14 @@
 #include "Entity.hpp"
 #include "common/components/Data.hpp"
 #include "common/Types.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "Chains.hpp"
 
 namespace ui::image
 {
 inline Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 /**
  * @brief 设置 Image 组件的图片路径。路径变更会重置加载状态，触发资源系统重新加载。

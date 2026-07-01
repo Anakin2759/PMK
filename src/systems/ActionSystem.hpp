@@ -39,6 +39,7 @@
 #include "common/GlobalContext.hpp"
 
 #include "utils/Logger.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Registry.hpp"
 
@@ -48,7 +49,7 @@ class ActionSystem : public ui::interface::EnableRegister<ActionSystem>
 {
 public:
     ActionSystem() = default;
-    explicit ActionSystem(Registry& reg, Dispatcher& disp) : m_reg(&reg), m_disp(&disp) {}
+    explicit ActionSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()), m_logger(&runtime.logger()) {}
 
     void registerHandlersImpl()
     {
@@ -82,6 +83,7 @@ public:
 private:
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
+    utils::Logger* m_logger = nullptr;
     [[nodiscard]] Registry& effectiveReg() noexcept { return *m_reg; }
     [[nodiscard]] Dispatcher& effectiveDisp() noexcept { return *m_disp; }
 
@@ -328,7 +330,7 @@ private:
         auto* clickable = reg.try_get<ui::components::Clickable>(event.entity);
         if (clickable != nullptr && clickable->enabled == policies::Feature::ENABLED && clickable->onClick)
         {
-            Logger::info("Entity {} clicked", static_cast<uint32_t>(event.entity));
+            m_logger->info("Entity {} clicked", static_cast<uint32_t>(event.entity));
             clickable->onClick();
         }
     }

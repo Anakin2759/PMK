@@ -69,7 +69,7 @@ uint32_t TimerSystem::addTask(uint32_t interval, VoidCallback func, bool singleS
 
     timerCtx.tasks.emplace(taskId, std::move(task));
 
-    Logger::info("TimerSystem: Added task {} with interval {}ms (singleShot={})", taskId, interval, singleShot);
+    UiRuntime::current().logger().info("TimerSystem: Added task {} with interval {}ms (singleShot={})", taskId, interval, singleShot);
     return taskId;
 }
 
@@ -80,7 +80,7 @@ void TimerSystem::cancelTask(uint32_t handle)
     if (taskIterator != timerCtx.tasks.end())
     {
         taskIterator->second.cancelled = true;
-        Logger::info("TimerSystem: Cancelled task {}", handle);
+        UiRuntime::current().logger().info("TimerSystem: Cancelled task {}", handle);
     }
 }
 

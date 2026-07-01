@@ -9,7 +9,7 @@
 #include <optional>
 #include <stdexcept>
 #include <utility>
-namespace myutils {
+namespace ui::utils {
 
 /**
  * @brief 固定容量 Chase-Lev 工作窃取双端队列。

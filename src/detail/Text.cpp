@@ -1,6 +1,6 @@
-#include "Text.hpp"
+﻿#include "Text.hpp"
 #include "common/Scale.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/Tags.hpp"
 #include "detail/Utils.hpp"
 #include "entt/entity/fwd.hpp"
@@ -18,7 +18,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 } // namespace
 

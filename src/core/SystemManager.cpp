@@ -1,8 +1,9 @@
-/**
+﻿/**
  * SystemManager implementation
  */
 
 #include "SystemManager.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 #include "utils/Registry.hpp"
 #include <algorithm>
@@ -27,49 +28,50 @@
 #include "systems/ThemeSystem.hpp"
 namespace ui
 {
-SystemManager::SystemManager(Registry& reg, Dispatcher& disp) : m_reg(reg), m_disp(disp)
+SystemManager::SystemManager(UiRuntime* runtime) : m_runtime(runtime)
 {
     registerBuiltInSystems();
-    Logger::info("[SystemManager] 系统管理器初始化完成，已注册 {} 个系统", m_systems.size());
+    m_runtime->logger().info("[SystemManager] 系统管理器初始化完成，已注册 {} 个系统", m_systems.size());
 }
 
 void SystemManager::registerBuiltInSystems()
 {
-    Logger::info("[SystemManager] 正在注册 PlatformWindowSystem...");
-    m_systems.emplace_back(systems::PlatformWindowSystem{m_reg, m_disp});
+    auto* runtime = m_runtime;
+    m_runtime->logger().info("[SystemManager] 正在注册 PlatformWindowSystem...");
+    m_systems.emplace_back(systems::PlatformWindowSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 InteractionSystem...");
-    m_systems.emplace_back(systems::InteractionSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 InteractionSystem...");
+    m_systems.emplace_back(systems::InteractionSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 TextInputSystem...");
-    m_systems.emplace_back(systems::TextInputSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 TextInputSystem...");
+    m_systems.emplace_back(systems::TextInputSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 HitTestSystem...");
-    m_systems.emplace_back(systems::HitTestSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 HitTestSystem...");
+    m_systems.emplace_back(systems::HitTestSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 TweenSystem...");
-    m_systems.emplace_back(systems::TweenSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 TweenSystem...");
+    m_systems.emplace_back(systems::TweenSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 LayoutSystem...");
-    m_systems.emplace_back(systems::LayoutSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 LayoutSystem...");
+    m_systems.emplace_back(systems::LayoutSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 RenderSystem...");
-    m_systems.emplace_back(systems::RenderSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 RenderSystem...");
+    m_systems.emplace_back(systems::RenderSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 StateSystem...");
-    m_systems.emplace_back(systems::StateSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 StateSystem...");
+    m_systems.emplace_back(systems::StateSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 ActionSystem...");
-    m_systems.emplace_back(systems::ActionSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 ActionSystem...");
+    m_systems.emplace_back(systems::ActionSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 TimerSystem...");
-    m_systems.emplace_back(systems::TimerSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 TimerSystem...");
+    m_systems.emplace_back(systems::TimerSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 ThemeSystem...");
-    m_systems.emplace_back(systems::ThemeSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 ThemeSystem...");
+    m_systems.emplace_back(systems::ThemeSystem{*runtime});
 
-    Logger::info("[SystemManager] 正在注册 ShortcutSystem...");
-    m_systems.emplace_back(systems::ShortcutSystem{m_reg, m_disp});
+    m_runtime->logger().info("[SystemManager] 正在注册 ShortcutSystem...");
+    m_systems.emplace_back(systems::ShortcutSystem{*runtime});
 }
 
 SystemManager::~SystemManager()
@@ -125,7 +127,7 @@ void SystemManager::removeSystem(uint8_t index)
 
 void SystemManager::clear()
 {
-    m_reg.clear();
+    m_runtime->registry().clear();
 }
 
 } // namespace ui

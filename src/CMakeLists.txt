@@ -142,8 +142,6 @@ endif()
 set(UI_SOURCES 
     core/Application.cpp
     core/EventLoop.cpp
-    core/RuntimeFacade.cpp
-    core/WorkerMailbox.cpp
     core/SystemManager.cpp
     services/TextEditingService.cpp
     systems/LayoutSystem.cpp
@@ -213,7 +211,7 @@ set(UI_HEADERS
     common/RenderTypes.hpp
     common/Result.hpp
     common/ErrorCodes.hpp
-    common/ThreadPool.hpp
+    utils/ThreadPool.hpp
     
     # Systems
     systems/InteractionSystem.hpp
@@ -243,7 +241,6 @@ set(UI_HEADERS
     core/SystemManager.hpp
     core/EventLoop.hpp
     core/UiRuntime.hpp
-    core/RuntimeFacade.hpp
     core/WindowEntityLookup.hpp
     core/WindowSync.hpp
     core/TaskChain.hpp
@@ -267,10 +264,8 @@ set(UI_HEADERS
     renderers/DropDownRenderer.hpp
 
 
-    singleton/Registry.hpp
     utils/Logger.hpp
-    singleton/Dispatcher.hpp
-    
+
     traits/ComponentsTraits.hpp
     traits/PoliciesTraits.hpp
 

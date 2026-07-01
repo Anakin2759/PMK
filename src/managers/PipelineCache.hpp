@@ -17,6 +17,7 @@
 #include <array>
 #include <memory>
 #include <SDL3/SDL_gpu.h>
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 #include "common/CustomizationPoints.hpp"
 #include "common/RenderTypes.hpp"
@@ -69,11 +70,11 @@ public:
 
         if (m_vertexShader == nullptr || m_fragmentShader == nullptr)
         {
-            Logger::error("着色器加载失败 (驱动: {})", driver);
+            ui::UiRuntime::current().logger().error("着色器加载失败 (驱动: {})", driver);
         }
         else
         {
-            Logger::info("着色器加载成功 (驱动: {})", driver);
+            ui::UiRuntime::current().logger().info("着色器加载成功 (驱动: {})", driver);
         }
     }
 
@@ -108,7 +109,7 @@ public:
         colorTargetDesc.format = SDL_GetGPUSwapchainTextureFormat(device, sdlWindow);
         if (colorTargetDesc.format == SDL_GPU_TEXTUREFORMAT_INVALID)
         {
-            Logger::warn("Swapchain format invalid, falling back to B8G8R8A8_UNORM");
+            ui::UiRuntime::current().logger().warn("Swapchain format invalid, falling back to B8G8R8A8_UNORM");
             colorTargetDesc.format = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
         }
         colorTargetDesc.blend_state = buildBlendState();
@@ -139,7 +140,7 @@ public:
 
         if (m_pipeline == nullptr)
         {
-            Logger::error("图形管线创建失败: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("图形管线创建失败: {}", SDL_GetError());
             m_creationFailed = true;                        // 标记失败，阻止后续重试
             return MakeError(UiErrc::PIPELINE_UNAVAILABLE); // 管线失败则不创建采样器，避免下次 guard 失效导致重复重试
         }
@@ -265,14 +266,14 @@ private:
     {
         if (m_resourceProvider == nullptr)
         {
-            Logger::error("着色器资源提供器未初始化: {}", resourcePath);
+            ui::UiRuntime::current().logger().error("着色器资源提供器未初始化: {}", resourcePath);
             return nullptr;
         }
 
         auto resourceResult = ui::cpo::load_binary_resource(*m_resourceProvider, resourcePath);
         if (!resourceResult.has_value())
         {
-            Logger::error("着色器资源加载失败: {} ({})", resourcePath, resourceResult.error().message());
+            ui::UiRuntime::current().logger().error("着色器资源加载失败: {} ({})", resourcePath, resourceResult.error().message());
             return nullptr;
         }
 

@@ -18,7 +18,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-namespace myutils {
+namespace ui::utils {
 
 /**
  * @brief 基于 C++23 的工作窃取线程池。

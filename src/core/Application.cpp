@@ -17,7 +17,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "RuntimeFacade.hpp"
+
 #include "SystemManager.hpp"
 #include "UiRuntime.hpp"
 #include "SDL3/SDL_error.h"
@@ -63,7 +63,6 @@ public:
 
 private:
     std::unique_ptr<UiRuntime> m_runtime;           // 管理全局状态和资源
-    std::unique_ptr<UiRuntimeScope> m_runtimeScope; // 管理 UiRuntime 生命周期
     EventLoop m_eventLoop;
 
     // 核心 ECS 系统封装
@@ -74,22 +73,21 @@ private:
 
 ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
     : m_runtime(std::make_unique<UiRuntime>()),
-      m_runtimeScope(std::make_unique<UiRuntimeScope>(*m_runtime)),
-      m_systems(std::make_unique<SystemManager>(m_runtime->registry(), m_runtime->dispatcher()))
+      m_systems(std::make_unique<SystemManager>(m_runtime.get()))
 {
     config::AppConfig::instance().parseCommandLine(arg);
 
     // 优先应用日志文件路径配置（在任何日志输出之前）
     if (const auto logPath = config::AppConfig::instance().logFilePath(); !logPath.empty())
     {
-        Logger::reconfigure(logPath);
+        m_runtime->logger().reconfigure(logPath);
     }
 
     if (auto backend = config::AppConfig::instance().preferredBackend(); !backend.empty())
     {
-        Logger::info("命令行指定 GPU 后端: {}", backend);
+        m_runtime->logger().info("命令行指定 GPU 后端: {}", backend);
     }
-    auto& runtime = RuntimeFacade::current();
+    auto& runtime = *m_runtime;
 
     if (config::AppConfig::instance().platformScalingEnabled())
     {
@@ -110,14 +108,19 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
         config::AppConfig::instance().setPlatformUiScale(platform::GetPrimaryDisplayUiScale());
     }
 
-    Logger::info("平台 UI 缩放: {:.2f}, framebuffer 初始缩放由窗口实时测量",
+    m_runtime->logger().info("平台 UI 缩放: {:.2f}, framebuffer 初始缩放由窗口实时测量",
                  config::AppConfig::instance().platformUiScale());
-    Logger::info("SDL 初始化成功");
-    (void)runtime.ensureContext<globalcontext::FrameContext>();
-    (void)runtime.ensureContext<globalcontext::StateContext>();
+    m_runtime->logger().info("SDL 初始化成功");
+
+    if (m_runtime->registry().findInCtx<globalcontext::StateContext>() == nullptr)
+    {
+        return;
+    } // 确保 StateContext 在系统初始化前可用
 
     m_systems->registerAllHandlers();
-    auto taskChain = tasks::QueuedTask{} | tasks::InputTask{.systems = m_systems.get()} | tasks::RenderTask{};
+    auto taskChain = tasks::QueuedTask{.runtime = m_runtime.get()}
+                     | tasks::InputTask{.systems = m_systems.get(), .runtime = m_runtime.get()}
+                     | tasks::RenderTask{.runtime = m_runtime.get()};
     m_eventLoop.registerDefaultHandler(
         [this, taskChain]() mutable
         {
@@ -140,17 +143,17 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
             SDL_Delay(LOOP_DELAY_MS);
         });
 
-    runtime.sink<events::QuitRequested>().connect<&ApplicationImpl::onQuitRequested>(*this);
-    runtime.sink<events::DropDownCloseRequested>().connect<&OnDropDownCloseRequested>();
+    m_runtime->dispatcher().sink<events::QuitRequested>().connect<&ApplicationImpl::onQuitRequested>(*this);
+    m_runtime->dispatcher().sink<events::DropDownCloseRequested>().connect<&OnDropDownCloseRequested>();
 }
 
 ApplicationImpl::~ApplicationImpl() noexcept
 {
     try
     {
-        auto& runtime = RuntimeFacade::current();
-        runtime.sink<events::QuitRequested>().disconnect<&ApplicationImpl::onQuitRequested>(*this);
-        runtime.sink<events::DropDownCloseRequested>().disconnect<&OnDropDownCloseRequested>();
+    
+        m_runtime->dispatcher().sink<events::QuitRequested>().disconnect<&ApplicationImpl::onQuitRequested>(*this);
+        m_runtime->dispatcher().sink<events::DropDownCloseRequested>().disconnect<&OnDropDownCloseRequested>();
         m_systems->unregisterAllHandlers();
         SDL_Quit();
     }

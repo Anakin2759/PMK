@@ -17,7 +17,36 @@
 #include <type_traits>
 #include <vector>
 #include "Entity.hpp"
+#include "common/Result.hpp"
 #include <string>
+
+namespace ui
+{
+class UiRuntime;
+
+/// 不透明句柄，由 Create* (UiRuntime&) 重载返回
+struct EntityHandle
+{
+    entity raw{null_entity};
+};
+
+struct WindowHandle
+{
+    entity raw{null_entity};
+    std::uint32_t windowId{0};
+    std::uintptr_t token{0};
+};
+
+inline Result<EntityHandle> MakeEntityHandle(std::uintptr_t /*token*/, entity raw)
+{
+    return EntityHandle{raw};
+}
+
+inline Result<WindowHandle> MakeWindowHandle(std::uintptr_t token, entity raw, std::uint32_t windowId)
+{
+    return WindowHandle{raw, windowId, token};
+}
+} // namespace ui
 #include <string_view>
 #include "common/Types.hpp"
 #include "core/Application.hpp"

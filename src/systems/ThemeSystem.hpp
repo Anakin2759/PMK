@@ -12,6 +12,7 @@
 
 #include <entt/entt.hpp>
 #include "interface/ISystem.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Registry.hpp"
 
@@ -22,7 +23,7 @@ class ThemeSystem : public ui::interface::EnableRegister<ThemeSystem>
 {
 public:
     ThemeSystem() = default;
-    explicit ThemeSystem(Registry& reg, Dispatcher& disp) : m_reg(&reg), m_disp(&disp) {}
+    explicit ThemeSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
 
     void registerHandlersImpl();
     void unregisterHandlersImpl();

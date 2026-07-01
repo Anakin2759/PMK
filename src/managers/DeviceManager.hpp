@@ -36,6 +36,7 @@
 // CMRC_DECLARE(ui_swiftshader);
 
 #include <SDL3/SDL_gpu.h>
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 #include "common/GPUWrappers.hpp"
 
@@ -86,7 +87,7 @@ public:
     {
         if (m_gpuDevice != nullptr) return Ok();
 
-        Logger::info("DeviceManager: 开始初始化 GPU 后端 (Strategy: Iterative Configuration)");
+        ui::UiRuntime::current().logger().info("DeviceManager: 开始初始化 GPU 后端 (Strategy: Iterative Configuration)");
 
         applyPreferredBackend();
 
@@ -98,7 +99,7 @@ public:
             }
         }
 
-        Logger::error("所有 GPU 后端方案均初始化失败！请检查显卡驱动或虚拟机 3D 加速设置。");
+        ui::UiRuntime::current().logger().error("所有 GPU 后端方案均初始化失败！请检查显卡驱动或虚拟机 3D 加速设置。");
         return MakeError(UiErrc::BACKEND_UNAVAILABLE);
     }
 
@@ -106,7 +107,7 @@ public:
     {
         if (m_gpuDevice == nullptr || sdlWindow == nullptr)
         {
-            Logger::error("claimWindow: 无效的设备或窗口句柄");
+            ui::UiRuntime::current().logger().error("claimWindow: 无效的设备或窗口句柄");
             return MakeError(UiErrc::INVALID_ARGUMENT);
         }
 
@@ -124,7 +125,7 @@ public:
         }
 
         // 核心修改：如果声明失败（例如 D3D12 在 VM 中无法渲染），尝试回退到其他后端
-        Logger::warn("当前后端 {} 无法声明窗口 ({}). 尝试切换其他后端...", m_gpuDriver, SDL_GetError());
+        ui::UiRuntime::current().logger().warn("当前后端 {} 无法声明窗口 ({}). 尝试切换其他后端...", m_gpuDriver, SDL_GetError());
 
         // 尝试后续的后端
         size_t nextIndex = m_currentBackendIndex + 1;
@@ -136,18 +137,18 @@ public:
             // 尝试创建下一个设备
             if (createDevice(nextIndex))
             {
-                Logger::info("已切换至后端: {}，重试声明窗口...", m_gpuDriver);
+                ui::UiRuntime::current().logger().info("已切换至后端: {}，重试声明窗口...", m_gpuDriver);
                 if (SDL_ClaimWindowForGPUDevice(m_gpuDevice.get(), sdlWindow))
                 {
                     m_claimedWindows.insert(windowID);
                     return Ok();
                 }
-                Logger::warn("后端 {} 也无法声明窗口，继续寻找...", m_gpuDriver);
+                ui::UiRuntime::current().logger().warn("后端 {} 也无法声明窗口，继续寻找...", m_gpuDriver);
             }
             nextIndex++;
         }
 
-        Logger::error("致命错误: 所有可用后端均无法声明/渲染窗口！");
+        ui::UiRuntime::current().logger().error("致命错误: 所有可用后端均无法声明/渲染窗口！");
         return MakeError(UiErrc::WINDOW_CLAIM_FAILED);
     }
 
@@ -203,14 +204,14 @@ private:
             m_backends.begin(), m_backends.end(), [&](const BackendConfig& cfg) { return cfg.name == preferred; });
         if (backendIter == m_backends.end())
         {
-            Logger::warn("未知 GPU 后端 \"{}\"，使用默认顺序。可选: direct3d12 / vulkan", preferred);
+            ui::UiRuntime::current().logger().warn("未知 GPU 后端 \"{}\"，使用默认顺序。可选: direct3d12 / vulkan", preferred);
             return;
         }
         if (backendIter != m_backends.begin())
         {
             std::rotate(m_backends.begin(), backendIter, backendIter + 1);
         }
-        Logger::info("应用命令行 GPU 后端偏好：优先尝试 {}", m_backends.front().name);
+        ui::UiRuntime::current().logger().info("应用命令行 GPU 后端偏好：优先尝试 {}", m_backends.front().name);
     }
 
     bool createDevice(size_t index)
@@ -218,7 +219,7 @@ private:
         if (index >= m_backends.size()) return false;
 
         const auto& config = m_backends[index];
-        Logger::info("尝试初始化后端: {}...", config.name);
+        ui::UiRuntime::current().logger().info("尝试初始化后端: {}...", config.name);
 
         wrappers::UniquePropertiesID props(SDL_CreateProperties());
         if (config.configure)
@@ -232,11 +233,11 @@ private:
             m_gpuDevice.reset(device);
             m_gpuDriver = config.name;
             m_currentBackendIndex = index;
-            Logger::info("GPU 初始化成功，锁定后端: {}", m_gpuDriver);
+            ui::UiRuntime::current().logger().info("GPU 初始化成功，锁定后端: {}", m_gpuDriver);
             return true;
         }
 
-        Logger::warn("后端 {} 初始化失败 ({})", config.name, SDL_GetError());
+        ui::UiRuntime::current().logger().warn("后端 {} 初始化失败 ({})", config.name, SDL_GetError());
         return false;
     }
 

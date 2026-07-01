@@ -32,6 +32,7 @@
 #include "common/Events.hpp"
 #include "common/Shortcut.hpp"
 #include "interface/ISystem.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Registry.hpp"
 
@@ -48,7 +49,7 @@ class ShortcutSystem final : public ui::interface::EnableRegister<ShortcutSystem
 {
 public:
     ShortcutSystem() = default;
-    explicit ShortcutSystem(Registry& /*reg*/, Dispatcher& disp) : m_disp(&disp) {}
+    explicit ShortcutSystem(UiRuntime& runtime) : m_disp(&runtime.dispatcher()) {}
 
     void registerHandlersImpl()
     {

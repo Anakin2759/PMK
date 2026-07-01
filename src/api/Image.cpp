@@ -1,9 +1,9 @@
-#include "Image.hpp"
+﻿#include "Image.hpp"
 
 #include <string>
 
 #include "common/components/Data.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "detail/EntityCast.hpp"
 
 namespace ui::image
@@ -12,7 +12,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 } // namespace
 

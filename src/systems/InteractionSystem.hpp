@@ -56,6 +56,7 @@
 #include "common/Events.hpp"
 #include "common/components/Window.hpp"
 #include "utils/Registry.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "interface/ISystem.hpp"
 #include "common/Types.hpp"
@@ -67,7 +68,7 @@ class InteractionSystem : public ui::interface::EnableRegister<InteractionSystem
 {
 public:
     InteractionSystem() = default;
-    explicit InteractionSystem(Registry& reg, Dispatcher& disp) : m_reg(&reg), m_disp(&disp) {}
+    explicit InteractionSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
 
     void registerHandlersImpl() {}
 

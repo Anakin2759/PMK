@@ -26,6 +26,7 @@
 #include "common/Events.hpp"
 #include "common/Result.hpp"
 #include "interface/ISystem.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Registry.hpp"
 
@@ -52,7 +53,7 @@ struct RenderSystemImpl;
 class RenderSystem final : public interface::EnableRegister<RenderSystem>
 {
 public:
-    explicit RenderSystem(Registry& reg, Dispatcher& disp);
+    explicit RenderSystem(UiRuntime& runtime);
     ~RenderSystem();
 
     RenderSystem(const RenderSystem&) = delete;

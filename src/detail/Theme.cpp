@@ -1,6 +1,6 @@
-#include "ThemeBridge.hpp"
+﻿#include "ThemeBridge.hpp"
 
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 
 namespace ui::theme::bridge
 {
@@ -12,7 +12,7 @@ ThemePalette DefaultDarkTheme()
 
 void SetTheme(const ThemePalette& palette)
 {
-    auto& context = RuntimeFacade::current().ensureContext<ThemeContext>();
+    auto& context = UiRuntime::current().ensureContext<ThemeContext>();
     context.previousPalette = context.palette;
     context.palette = palette;
     ++context.version;
@@ -26,14 +26,14 @@ void UseDefaultDarkTheme()
 
 void RequestThemeReapply()
 {
-    auto& context = RuntimeFacade::current().ensureContext<ThemeContext>();
+    auto& context = UiRuntime::current().ensureContext<ThemeContext>();
     context.previousPalette = context.palette;
     context.reapplyRequested = true;
 }
 
 const ThemePalette& CurrentTheme()
 {
-    return RuntimeFacade::current().ensureContext<ThemeContext>().palette;
+    return UiRuntime::current().ensureContext<ThemeContext>().palette;
 }
 
 } // namespace ui::theme::bridge

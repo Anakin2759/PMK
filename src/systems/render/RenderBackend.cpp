@@ -8,6 +8,7 @@
 
 #include "systems/RenderSystem.hpp"
 #include "RenderSystemImpl.hpp"
+#include "core/UiRuntime.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -17,6 +18,7 @@
 #include "common/Result.hpp"
 #include "common/AppConfig.hpp"
 #include <string_view>
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 #include "common/ErrorCodes.hpp"
 #include "managers/FontManager.hpp"
@@ -95,7 +97,7 @@ ui::Result<ui::managers::BinaryResource> LoadUiResource(std::string_view resourc
     const auto resourceProvider = GetUiResourceProvider();
     if (resourceProvider == nullptr)
     {
-        ui::Logger::error("[RenderSystem] UI resource provider unavailable");
+        ui::UiRuntime::current().logger().error("[RenderSystem] UI resource provider unavailable");
         return ui::MakeError(ui::UiErrc::BACKEND_UNAVAILABLE);
     }
 
@@ -114,12 +116,12 @@ const RenderSystem::RenderStats& RenderSystem::getStats() const
 
 void RenderSystem::registerHandlersImpl()
 {
-    Logger::info("[RenderSystem] Registering event handlers");
+    ui::UiRuntime::current().logger().info("[RenderSystem] Registering event handlers");
     m_disp->sink<events::WindowGraphicsContextSetEvent>().connect<&RenderSystem::onWindowsGraphicsContextSet>(*this);
     m_disp->sink<events::WindowGraphicsContextUnsetEvent>().connect<&RenderSystem::onWindowsGraphicsContextUnset>(
         *this);
     m_disp->sink<events::UpdateRendering>().connect<&RenderSystem::update>(*this);
-    Logger::info("[RenderSystem] Event handlers registered successfully");
+    ui::UiRuntime::current().logger().info("[RenderSystem] Event handlers registered successfully");
 }
 
 void RenderSystem::unregisterHandlersImpl()
@@ -135,8 +137,8 @@ interface::SystemPhase RenderSystem::getPhase()
     return interface::SystemPhase::RENDER;
 }
 
-RenderSystem::RenderSystem(Registry& reg, Dispatcher& disp)
-    : m_reg(&reg), m_disp(&disp), m_impl(std::make_unique<RenderSystemImpl>(
+RenderSystem::RenderSystem(UiRuntime& runtime)
+    : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()), m_impl(std::make_unique<RenderSystemImpl>(
 #ifdef UI_FORCE_CPU_RENDER
                                       true
 #else
@@ -147,9 +149,9 @@ RenderSystem::RenderSystem(Registry& reg, Dispatcher& disp)
     if (m_impl->m_forceFallback)
     {
 #ifdef UI_FORCE_CPU_RENDER
-        Logger::warn("[RenderSystem] 编译选项 UI_FORCE_CPU_RENDER 已启用，强制使用 CPU software 后端");
+        ui::UiRuntime::current().logger().warn("[RenderSystem] 编译选项 UI_FORCE_CPU_RENDER 已启用，强制使用 CPU software 后端");
 #else
-        Logger::warn("[RenderSystem] 检测到环境变量 PESTMANKILL_FORCE_FALLBACK，强制启用 SDL_Renderer fallback 后端");
+        ui::UiRuntime::current().logger().warn("[RenderSystem] 检测到环境变量 PESTMANKILL_FORCE_FALLBACK，强制启用 SDL_Renderer fallback 后端");
 #endif
     }
 }
@@ -208,13 +210,13 @@ RenderSystem& RenderSystem::operator=(RenderSystem&& other) noexcept
 
 void RenderSystem::onWindowsGraphicsContextSet(const events::WindowGraphicsContextSetEvent& event)
 {
-    Logger::info("[RenderSystem] 收到窗口图形上下文设置事件，实体ID: {}", static_cast<uint32_t>(event.entity));
+    ui::UiRuntime::current().logger().info("[RenderSystem] 收到窗口图形上下文设置事件，实体ID: {}", static_cast<uint32_t>(event.entity));
     ensureInitialized();
     uint32_t windowID = m_reg->get<components::Window>(event.entity).windowID;
     SDL_Window* sdlWindow = SDL_GetWindowFromID(windowID);
     if (sdlWindow == nullptr)
     {
-        Logger::warn("[RenderSystem] 无法获取 SDL_Window (ID: {})", windowID);
+        ui::UiRuntime::current().logger().warn("[RenderSystem] 无法获取 SDL_Window (ID: {})", windowID);
         return;
     }
 
@@ -222,22 +224,22 @@ void RenderSystem::onWindowsGraphicsContextSet(const events::WindowGraphicsConte
     {
         if (!tryInitializeFallback(sdlWindow))
         {
-            Logger::error("[RenderSystem] Fallback 初始化失败 (ID: {})", windowID);
+            ui::UiRuntime::current().logger().error("[RenderSystem] Fallback 初始化失败 (ID: {})", windowID);
         }
         return;
     }
 
     if (!m_impl->m_deviceManager->claimWindow(sdlWindow))
     {
-        Logger::error("[RenderSystem] 无法声明窗口 (ID: {})", windowID);
+        ui::UiRuntime::current().logger().error("[RenderSystem] 无法声明窗口 (ID: {})", windowID);
         return;
     }
 
     if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
     {
-        Logger::warn("[RenderSystem] 初始化时创建管线失败: {}", pipeResult.error().message());
+        ui::UiRuntime::current().logger().warn("[RenderSystem] 初始化时创建管线失败: {}", pipeResult.error().message());
     }
-    Logger::info("[RenderSystem] 窗口图形上下文设置完成 (Entity: {})", static_cast<uint32_t>(event.entity));
+    ui::UiRuntime::current().logger().info("[RenderSystem] 窗口图形上下文设置完成 (Entity: {})", static_cast<uint32_t>(event.entity));
 }
 
 void RenderSystem::onWindowsGraphicsContextUnset(const events::WindowGraphicsContextUnsetEvent& event)
@@ -253,7 +255,7 @@ void RenderSystem::onWindowsGraphicsContextUnset(const events::WindowGraphicsCon
         if (sdlWindow != nullptr)
         {
             m_impl->m_deviceManager->unclaimWindow(sdlWindow);
-            Logger::info("已从 GPU 设备释放窗口 (ID: {})", windowComp->windowID);
+            ui::UiRuntime::current().logger().info("已从 GPU 设备释放窗口 (ID: {})", windowComp->windowID);
         }
     }
 }
@@ -261,7 +263,7 @@ void RenderSystem::onWindowsGraphicsContextUnset(const events::WindowGraphicsCon
 void RenderSystem::cleanup()
 {
     if (!m_impl) return;
-    Logger::info("[RenderSystem] cleanup() 开始");
+    ui::UiRuntime::current().logger().info("[RenderSystem] cleanup() 开始");
 
     if (m_impl->m_backendRenderer)
     {
@@ -271,14 +273,14 @@ void RenderSystem::cleanup()
 
     if (!m_impl->m_deviceManager)
     {
-        Logger::info("[RenderSystem] m_deviceManager 为空，跳过 cleanup");
+        ui::UiRuntime::current().logger().info("[RenderSystem] m_deviceManager 为空，跳过 cleanup");
         return;
     }
 
     SDL_GPUDevice* device = m_impl->m_deviceManager->getDevice();
     if (device == nullptr)
     {
-        Logger::info("[RenderSystem] GPU 设备为空，执行轻量清理");
+        ui::UiRuntime::current().logger().info("[RenderSystem] GPU 设备为空，执行轻量清理");
         m_impl->m_renderers.clear();
         m_impl->m_commandBuffer.reset();
         m_impl->m_batchManager.reset();
@@ -290,22 +292,22 @@ void RenderSystem::cleanup()
         return;
     }
 
-    Logger::info("[RenderSystem] 等待 GPU 空闲...");
+    ui::UiRuntime::current().logger().info("[RenderSystem] 等待 GPU 空闲...");
     SDL_WaitForGPUIdle(device);
 
     if (m_impl->m_textTextureCache)
     {
-        Logger::info("[RenderSystem] 清理文本纹理缓存");
+        ui::UiRuntime::current().logger().info("[RenderSystem] 清理文本纹理缓存");
         m_impl->m_textTextureCache->clear();
     }
 
     if (m_impl->m_whiteTexture)
     {
-        Logger::info("[RenderSystem] 释放白色纹理");
+        ui::UiRuntime::current().logger().info("[RenderSystem] 释放白色纹理");
         m_impl->m_whiteTexture.reset();
     }
 
-    Logger::info("[RenderSystem] 清理渲染器");
+    ui::UiRuntime::current().logger().info("[RenderSystem] 清理渲染器");
     m_impl->m_renderers.clear();
     m_impl->m_commandBuffer.reset();
     m_impl->m_batchManager.reset();
@@ -315,9 +317,9 @@ void RenderSystem::cleanup()
     m_impl->m_iconManager.reset();
     m_impl->m_imageManager.reset();
 
-    Logger::info("[RenderSystem] 清理设备管理器");
+    ui::UiRuntime::current().logger().info("[RenderSystem] 清理设备管理器");
     m_impl->m_deviceManager->cleanup();
-    Logger::info("[RenderSystem] cleanup() 完成");
+    ui::UiRuntime::current().logger().info("[RenderSystem] cleanup() 完成");
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
@@ -325,7 +327,7 @@ void RenderSystem::ensureInitialized()
 {
     if ((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0)
     {
-        Logger::warn("[RenderSystem] SDL_INIT_VIDEO not initialized");
+        ui::UiRuntime::current().logger().warn("[RenderSystem] SDL_INIT_VIDEO not initialized");
         return;
     }
 
@@ -333,7 +335,7 @@ void RenderSystem::ensureInitialized()
     if (!m_impl->m_forceFallback && commandLineForcesFallback)
     {
         m_impl->m_forceFallback = true;
-        Logger::warn("[RenderSystem] 命令行后端 cpu/software/fallback 已启用，强制使用 SDL_Renderer fallback 后端");
+        ui::UiRuntime::current().logger().warn("[RenderSystem] 命令行后端 cpu/software/fallback 已启用，强制使用 SDL_Renderer fallback 后端");
     }
 
     if (m_impl->m_forceFallback)
@@ -342,26 +344,26 @@ void RenderSystem::ensureInitialized()
 
         if (!m_impl->m_backendSelectionLogged)
         {
-            Logger::info("[RenderSystem] 当前渲染后端: fallback (source={})",
+            ui::UiRuntime::current().logger().info("[RenderSystem] 当前渲染后端: fallback (source={})",
                          commandLineForcesFallback ? "command-line" : "environment");
             m_impl->m_backendSelectionLogged = true;
         }
     }
     else if (!m_impl->m_deviceManager->initialize())
     {
-        Logger::warn("Failed to initialize RenderSystem GPU backend, switching to fallback renderer");
+        ui::UiRuntime::current().logger().warn("Failed to initialize RenderSystem GPU backend, switching to fallback renderer");
         m_impl->m_useFallback = true;
 
         if (!m_impl->m_backendSelectionLogged)
         {
-            Logger::info("[RenderSystem] 当前渲染后端: fallback (source=gpu-init-failure)");
+            ui::UiRuntime::current().logger().info("[RenderSystem] 当前渲染后端: fallback (source=gpu-init-failure)");
             m_impl->m_backendSelectionLogged = true;
         }
     }
 
     if (!m_impl->m_useFallback && !m_impl->m_backendSelectionLogged)
     {
-        Logger::info("[RenderSystem] 当前渲染后端: gpu ({})", m_impl->m_deviceManager->getDriverName());
+        ui::UiRuntime::current().logger().info("[RenderSystem] 当前渲染后端: gpu ({})", m_impl->m_deviceManager->getDriverName());
         m_impl->m_backendSelectionLogged = true;
     }
 
@@ -377,12 +379,12 @@ void RenderSystem::ensureInitialized()
             if (auto loadResult = m_impl->m_fontManager->loadFromMemory(fontData.data(), fontData.size(), 14.0F);
                 !loadResult.has_value())
             {
-                Logger::error("[RenderSystem] 默认字体加载失败: {}", loadResult.error().message());
+                ui::UiRuntime::current().logger().error("[RenderSystem] 默认字体加载失败: {}", loadResult.error().message());
             }
         }
         else
         {
-            Logger::error(
+            ui::UiRuntime::current().logger().error(
                 "[RenderSystem] 默认字体资源加载失败: {} ({})", DEFAULT_FONT_RESOURCE, fontResource.error().message());
         }
     }
@@ -419,7 +421,7 @@ void RenderSystem::ensureInitialized()
         static bool iconsLoaded = false;
         if (!iconsLoaded)
         {
-            Logger::info("[RenderSystem] 初始化 IconManager 并加载默认图标字体");
+            ui::UiRuntime::current().logger().info("[RenderSystem] 初始化 IconManager 并加载默认图标字体");
             try
             {
                 constexpr std::string_view ICON_FONT_RESOURCE =
@@ -436,24 +438,24 @@ void RenderSystem::ensureInitialized()
                         *m_impl->m_iconManager, "MaterialSymbols", fontResource->bytes, codepointResource->bytes, 24);
                     if (loadResult.has_value())
                     {
-                        Logger::info("[RenderSystem]默认图标字体加载完成");
+                        ui::UiRuntime::current().logger().info("[RenderSystem]默认图标字体加载完成");
                     }
                     else
                     {
-                        Logger::error("[RenderSystem] 默认图标字体加载失败: {}", loadResult.error().message());
+                        ui::UiRuntime::current().logger().error("[RenderSystem] 默认图标字体加载失败: {}", loadResult.error().message());
                     }
                 }
                 else
                 {
                     if (!fontResource.has_value())
                     {
-                        Logger::warn("[RenderSystem] 默认图标字体资源不存在: {} ({})",
+                        ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标字体资源不存在: {} ({})",
                                      ICON_FONT_RESOURCE,
                                      fontResource.error().message());
                     }
                     if (!codepointResource.has_value())
                     {
-                        Logger::warn("[RenderSystem] 默认图标码点资源不存在: {} ({})",
+                        ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标码点资源不存在: {} ({})",
                                      ICON_CODEPOINT_RESOURCE,
                                      codepointResource.error().message());
                     }
@@ -461,7 +463,7 @@ void RenderSystem::ensureInitialized()
             }
             catch (const std::exception& e)
             {
-                Logger::error("[RenderSystem] 加载默认图标字体失败: {}", e.what());
+                ui::UiRuntime::current().logger().error("[RenderSystem] 加载默认图标字体失败: {}", e.what());
             }
             iconsLoaded = true;
         }

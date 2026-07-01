@@ -807,7 +807,7 @@ void StateSystem::PointerStateHelpers::handleEntityRelease(StateSystem& system,
         if (!suppressClick && event.hitEntity != entt::null
             && reg.try_get<components::Clickable>(event.hitEntity) != nullptr)
         {
-            Logger::debug("StateSystem: Click Event (fallback) on entity {}", static_cast<uint32_t>(event.hitEntity));
+            UiRuntime::current().logger().debug("StateSystem: Click Event (fallback) on entity {}", static_cast<uint32_t>(event.hitEntity));
             disp.trigger<events::ClickEvent>(events::ClickEvent{event.hitEntity});
         }
 
@@ -1019,7 +1019,7 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
 
     if (config::AppConfig::instance().debugScaling())
     {
-        Logger::info("[Scaling][StateSystem] entity={} windowId={} source={} eventSize=({}, {}) rootSize=({:.1f}, {:.1f}) "
+        UiRuntime::current().logger().info("[Scaling][StateSystem] entity={} windowId={} source={} eventSize=({}, {}) rootSize=({:.1f}, {:.1f}) "
                      "windowLogical=({:.1f}, {:.1f}) windowPixel=({:.1f}, {:.1f}) sizeChanged={}",
                      static_cast<uint32_t>(entity),
                      event.windowID,
@@ -1049,7 +1049,7 @@ void StateSystem::WindowStateHelpers::handleExposed(StateSystem& system, const e
 
     if (config::AppConfig::instance().debugScaling())
     {
-        Logger::info("[Scaling][StateSystem] entity={} windowId={} source=exposed repaint=true",
+        UiRuntime::current().logger().info("[Scaling][StateSystem] entity={} windowId={} source=exposed repaint=true",
                      static_cast<uint32_t>(entity),
                      event.windowID);
     }

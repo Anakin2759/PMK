@@ -1,7 +1,7 @@
-#include "Hierarchy.hpp"
+﻿#include "Hierarchy.hpp"
 
 #include "Utils.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/components/Layout.hpp"
 #include "entt/entity/entity.hpp"
 #include "common/Tags.hpp"
@@ -12,7 +12,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 
 void AppendChildrenPostOrder(Registry& reg, entt::entity parent, std::vector<entt::entity>& output)

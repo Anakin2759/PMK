@@ -1,4 +1,4 @@
-#include "Icon.hpp"
+﻿#include "Icon.hpp"
 
 #include "common/Scale.hpp"
 
@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <unordered_set>
 #include "Utils.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/Policies.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Data.hpp"
@@ -17,7 +17,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 } // namespace
 

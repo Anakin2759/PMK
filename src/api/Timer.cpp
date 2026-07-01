@@ -26,9 +26,8 @@ namespace
 {
 [[nodiscard]] systems::TimerSystem timerSystemFor(UiRuntime& runtime)
 {
-    auto& registry = runtime.registry();
-    registry.getOrEmplaceInCtx<globalcontext::FrameContext>();
-    return systems::TimerSystem{registry, runtime.dispatcher()};
+    runtime.registry().getOrEmplaceInCtx<globalcontext::FrameContext>();
+    return systems::TimerSystem{runtime};
 }
 } // namespace
 

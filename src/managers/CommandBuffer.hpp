@@ -24,6 +24,7 @@
 #include "managers/PipelineCache.hpp"
 #include "common/RenderTypes.hpp"
 #include "common/GPUWrappers.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 
 namespace ui::managers
@@ -76,13 +77,13 @@ public:
         // 确保缓冲区足够大
         if (hasGeometry && !resizeBuffers(device, currentFrame, totalVertexSize, totalIndexSize))
         {
-            Logger::error("Failed to resize buffers.");
+            ui::UiRuntime::current().logger().error("Failed to resize buffers.");
             return;
         }
 
         if (hasGeometry && !uploadToTransferBuffer(device, batches, totalVertexSize))
         {
-            Logger::error("Failed to map transfer buffer.");
+            ui::UiRuntime::current().logger().error("Failed to map transfer buffer.");
             return;
         }
 
@@ -95,7 +96,7 @@ public:
         if (!SDL_WaitAndAcquireGPUSwapchainTexture(
             cmdBuf, window, &swapchainTexture, &swapchainWidth, &swapchainHeight))
         {
-            Logger::warn("Swapchain texture not ready yet.");
+            ui::UiRuntime::current().logger().warn("Swapchain texture not ready yet.");
             SDL_CancelGPUCommandBuffer(cmdBuf);
             return;
         }
@@ -110,7 +111,7 @@ public:
         const int renderHeight = swapchainHeight > 0 ? static_cast<int>(swapchainHeight) : height;
         if (renderWidth != width || renderHeight != height)
         {
-            Logger::info("[Scaling][CommandBuffer] requested=({}, {}) swapchain=({}, {})",
+            ui::UiRuntime::current().logger().info("[Scaling][CommandBuffer] requested=({}, {}) swapchain=({}, {})",
                          width,
                          height,
                          renderWidth,

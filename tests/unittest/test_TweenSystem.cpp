@@ -7,7 +7,7 @@
 #include "common/components/Animation.hpp"
 #include "common/components/Visual.hpp"
 #include "src/common/GlobalContext.hpp"
-#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntime.hpp"
 #include "src/detail/EntityCast.hpp"
 #include "src/systems/ActionSystem.hpp"
@@ -20,22 +20,22 @@ namespace
 
 Registry& ActiveRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 
 void TriggerUpdate()
 {
-    RuntimeFacade::current().trigger<events::UpdateEvent>({});
+    UiRuntime::current().trigger<events::UpdateEvent>({});
 }
 
 void TriggerHover(ui::entity entity)
 {
-    RuntimeFacade::current().trigger<events::HoverEvent>({detail::ToInternal(entity)});
+    UiRuntime::current().trigger<events::HoverEvent>({detail::ToInternal(entity)});
 }
 
 void TriggerUnhover(ui::entity entity)
 {
-    RuntimeFacade::current().trigger<events::UnhoverEvent>({detail::ToInternal(entity)});
+    UiRuntime::current().trigger<events::UnhoverEvent>({detail::ToInternal(entity)});
 }
 
 class UiTweenSystemTest : public ::testing::Test
@@ -44,7 +44,7 @@ protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
-        RuntimeFacade::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
+        UiRuntime::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
     }
 
     void TearDown() override { m_scope.reset(); }
@@ -56,7 +56,7 @@ private:
 
 TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
 {
-    systems::TweenSystem tweenSystem{RuntimeFacade::current().registry(), RuntimeFacade::current().dispatcher()};
+    systems::TweenSystem tweenSystem{UiRuntime::current().registry(), UiRuntime::current().dispatcher()};
     tweenSystem.registerHandlers();
 
     const auto entity = factory::CreateLabel("Tween", "tween_label");
@@ -85,8 +85,8 @@ TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
 
 TEST_F(UiTweenSystemTest, InteractiveAnimationFlowsThroughTweenPipeline)
 {
-    systems::ActionSystem actionSystem{RuntimeFacade::current().registry(), RuntimeFacade::current().dispatcher()};
-    systems::TweenSystem tweenSystem{RuntimeFacade::current().registry(), RuntimeFacade::current().dispatcher()};
+    systems::ActionSystem actionSystem{UiRuntime::current().registry(), UiRuntime::current().dispatcher()};
+    systems::TweenSystem tweenSystem{UiRuntime::current().registry(), UiRuntime::current().dispatcher()};
     actionSystem.registerHandlers();
     tweenSystem.registerHandlers();
 
@@ -143,9 +143,9 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
         UiRuntimeScope const defaultScope(defaultRuntime);
 
         // ---- Setup entity & animation in the default runtime ----
-        RuntimeFacade::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
+        UiRuntime::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
 
-        systems::TweenSystem defaultTween{RuntimeFacade::current().registry(), RuntimeFacade::current().dispatcher()};
+        systems::TweenSystem defaultTween{UiRuntime::current().registry(), UiRuntime::current().dispatcher()};
         defaultTween.registerHandlers();
 
         const auto defaultEntity = factory::CreateLabel("Tween-Default", "tween_default");
@@ -164,11 +164,11 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
             UiRuntimeScope const altScope(alternateRuntime);
 
             // The alternate runtime is empty: facade-routed entt::registry must report so.
-            EXPECT_FALSE(RuntimeFacade::current().registry().valid(defaultEntity));
+            EXPECT_FALSE(UiRuntime::current().registry().valid(defaultEntity));
 
             // Triggering UpdateEvent in the alternate runtime must NOT advance the default
             // runtime animation — the handler is bound to default's dispatcher.
-            RuntimeFacade::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
+            UiRuntime::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
             TriggerUpdate();
         }
 

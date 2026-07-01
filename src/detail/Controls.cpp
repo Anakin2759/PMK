@@ -1,4 +1,4 @@
-#include "ControlsBridge.hpp"
+﻿#include "ControlsBridge.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <string>
 #include "Utils.hpp"
 #include "common/Scale.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Data.hpp"
 #include "common/Policies.hpp"
@@ -25,7 +25,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 } // namespace
 

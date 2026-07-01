@@ -64,9 +64,6 @@ ALLOWED_COMMON_RUNTIME_INCLUDE_COUNTS = Counter(
 
 ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter(
     {
-        ("src/api/Factory.cpp", "RuntimeFacade::current()"): 1,
-        ("src/api/Image.cpp", "RuntimeFacade::current()"): 1,
-        ("src/api/Utils.cpp", "RuntimeFacade::current()"): 3,
     }
 )
 
@@ -81,7 +78,6 @@ ALLOWED_RUNTIME_CURRENT_COUNTS = Counter({})
 
 ALLOWED_RAW_ACCESS_COUNTS = Counter(
     {
-        ("src/core/RuntimeFacade.hpp", ".raw()"): 8,
         ("src/renderers/RendererRegistry.hpp", ".raw()"): 2,
     }
 )

@@ -13,6 +13,7 @@
 #include "common/components/Window.hpp"
 #include "common/AppConfig.hpp"
 #include "core/WindowSync.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 #include "SDL3/SDL_gpu.h"
 #include "SDL3/SDL_video.h"
@@ -156,7 +157,7 @@ void LogScalingSnapshotIfNeeded(Registry& registry,
     }
     snapshots[entityKey] = snapshot;
 
-    Logger::info("[Scaling][RenderFrame] entity={} windowId={} logical=({}, {}) pixel=({}, {}) rootSize=({}, {}) "
+    ui::UiRuntime::current().logger().info("[Scaling][RenderFrame] entity={} windowId={} logical=({}, {}) pixel=({}, {}) rootSize=({}, {}) "
                  "displayScale={:.3f} uiScale={:.3f} renderScale={:.3f} clear=({:.2f}, {:.2f}, {:.2f}, {:.2f}) "
                  "batches={} nativeClient=({}, {}) nativeWindow=({}, {}) nativeBorderTB=({}, {})",
                  entityKey,
@@ -197,7 +198,7 @@ void RenderSystem::update()
 
     if (m_impl->m_firstUpdate)
     {
-        Logger::info("[RenderSystem] update first call");
+        ui::UiRuntime::current().logger().info("[RenderSystem] update first call");
         m_impl->m_firstUpdate = false;
     }
 
@@ -207,7 +208,7 @@ void RenderSystem::update()
     {
         if (m_impl->m_backendRenderer == nullptr)
         {
-            Logger::warn("Fallback backend not ready");
+            ui::UiRuntime::current().logger().warn("Fallback backend not ready");
             return;
         }
     }
@@ -216,14 +217,14 @@ void RenderSystem::update()
         SDL_GPUDevice const* device = m_impl->m_deviceManager->getDevice();
         if (device == nullptr)
         {
-            Logger::warn("GPU device not ready");
+            ui::UiRuntime::current().logger().warn("GPU device not ready");
             return;
         }
     }
 
     if (!m_impl->m_useFallback && m_impl->m_pipelineCache == nullptr)
     {
-        Logger::warn("Pipeline cache not initialized");
+        ui::UiRuntime::current().logger().warn("Pipeline cache not initialized");
         return;
     }
 
@@ -242,7 +243,7 @@ void RenderSystem::update()
         SDL_Window* sdlWindow = SDL_GetWindowFromID(windowComp.windowID);
         if (sdlWindow == nullptr)
         {
-            Logger::warn("Window entity has no SDL window");
+            ui::UiRuntime::current().logger().warn("Window entity has no SDL window");
             continue;
         }
 
@@ -270,21 +271,21 @@ void RenderSystem::update()
         {
             if (auto claimResult = m_impl->m_deviceManager->claimWindow(sdlWindow); !claimResult.has_value())
             {
-                Logger::warn("[RenderSystem] claimWindow failed: {}", claimResult.error().message());
+                ui::UiRuntime::current().logger().warn("[RenderSystem] claimWindow failed: {}", claimResult.error().message());
             }
             if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
             {
-                Logger::warn("[RenderSystem] pipeline creation failed: {}", pipeResult.error().message());
+                ui::UiRuntime::current().logger().warn("[RenderSystem] pipeline creation failed: {}", pipeResult.error().message());
             }
 
             if (m_impl->m_pipelineCache->getPipeline() == nullptr)
             {
-                Logger::warn("[RenderSystem] GPU pipeline unavailable; switching to fallback renderer. "
+                ui::UiRuntime::current().logger().warn("[RenderSystem] GPU pipeline unavailable; switching to fallback renderer. "
                              "Rebuild shaders with compile.bat to restore GPU rendering.");
                 m_impl->m_useFallback = true;
                 if (!tryInitializeFallback(sdlWindow))
                 {
-                    Logger::error("[RenderSystem] fallback initialization failed; skipping this frame");
+                    ui::UiRuntime::current().logger().error("[RenderSystem] fallback initialization failed; skipping this frame");
                 }
                 continue;
             }

@@ -6,7 +6,7 @@ namespace ui::managers
 TextTextureCache::TextTextureCache(ui::managers::DeviceManager& deviceManager, ui::managers::FontManager& fontManager)
     : m_deviceManager(deviceManager), m_fontManager(fontManager)
 {
-    Logger::info("[TextTextureCache] Initialized with max size: {}", MAX_CACHE_SIZE);
+    UiRuntime::current().logger().info("[TextTextureCache] Initialized with max size: {}", MAX_CACHE_SIZE);
 }
 
 TextTextureCache::~TextTextureCache()
@@ -17,7 +17,7 @@ TextTextureCache::~TextTextureCache()
 void TextTextureCache::clear()
 {
     m_cache.clear();
-    Logger::info("[TextTextureCache] Cleared all cached textures");
+    UiRuntime::current().logger().info("[TextTextureCache] Cleared all cached textures");
 }
 
 TextTextureCache::CacheStats TextTextureCache::getStats() const
@@ -86,7 +86,7 @@ bool TextTextureCache::isR8UnormSampledTextureSupported(SDL_GPUDevice* device)
 
         if (!supported)
         {
-            Logger::warn(
+            UiRuntime::current().logger().warn(
                 "[TextTextureCache] Device does not support sampled R8_UNORM format, skip text texture upload");
         }
     }
@@ -182,7 +182,7 @@ wrappers::UniqueGPUTexture TextTextureCache::createAndUploadTexture(SDL_GPUDevic
     auto texture = wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(device, SDL_CreateGPUTexture, &textureInfo);
     if (!texture)
     {
-        Logger::error("[TextTextureCache] Failed to create texture");
+        UiRuntime::current().logger().error("[TextTextureCache] Failed to create texture");
         return nullptr;
     }
 
@@ -206,14 +206,14 @@ bool TextTextureCache::uploadTextureData(
         device, SDL_CreateGPUTransferBuffer, &transferInfo);
     if (!transferBuffer)
     {
-        Logger::error("[TextTextureCache] Failed to create transfer buffer");
+        UiRuntime::current().logger().error("[TextTextureCache] Failed to create transfer buffer");
         return false;
     }
 
     void* data = SDL_MapGPUTransferBuffer(device, transferBuffer.get(), false);
     if (data == nullptr)
     {
-        Logger::error("[TextTextureCache] Failed to map transfer buffer");
+        UiRuntime::current().logger().error("[TextTextureCache] Failed to map transfer buffer");
         return false;
     }
 
@@ -266,7 +266,7 @@ void TextTextureCache::evictLRU()
     }
     */
 
-    Logger::debug("[TextTextureCache] Evicted LRU entry: {} (access count: {})",
+    UiRuntime::current().logger().debug("[TextTextureCache] Evicted LRU entry: {} (access count: {})",
                   lru->first.substr(0, 50),
                   lru->second.accessCount);
 
@@ -314,7 +314,7 @@ void TextTextureCache::evictBatch()
     }
 
     m_evictionCount += evicted;
-    Logger::info("[TextTextureCache] Batch evicted {} entries, cache size: {}", evicted, m_cache.size());
+    UiRuntime::current().logger().info("[TextTextureCache] Batch evicted {} entries, cache size: {}", evicted, m_cache.size());
 }
 
 } // namespace ui::managers

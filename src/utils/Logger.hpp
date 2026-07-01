@@ -25,36 +25,11 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-namespace ui
+namespace ui::utils
 {
-namespace log_detail
-{
+
 inline constexpr size_t kMaxLogFileSize = static_cast<size_t>(1024) * 1024 * 5; // 5MB
 inline constexpr size_t kMaxLogFileCount = 1;
-
-[[nodiscard]] inline std::shared_ptr<spdlog::logger> CreateLogger()
-{
-    auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    consoleSink->set_pattern("%^[%T] [%l] %n: %v%$");
-
-    auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-        "logs/pestmankill.log", kMaxLogFileSize, kMaxLogFileCount);
-    fileSink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%# %!] %v");
-
-    std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
-    auto logger = std::make_shared<spdlog::logger>("PestManKill", sinks.begin(), sinks.end());
-    logger->set_level(spdlog::level::debug);
-    logger->flush_on(spdlog::level::warn);
-    return logger;
-}
-
-// TODO(temporary): 迁移阶段的临时 logger 存储点；后续应接入统一 utils::Singleton/服务注入方案。
-[[nodiscard]] inline std::shared_ptr<spdlog::logger>& LoggerStorage()
-{
-    static auto logger = CreateLogger();
-    return logger;
-}
-} // namespace log_detail
 
 /**
  * @brief 辅助结构体：用于在调用点自动捕获位置和格式化字符串
@@ -73,21 +48,39 @@ struct LogLocation
     }
 };
 
+/**
+ * @brief 常规 Logger 类（非单例），每个实例持有独立的 spdlog::logger
+ */
 class Logger
 {
 public:
-    Logger() = delete;
+    /**
+     * @brief 使用默认配置构造 Logger（控制台 + 文件双 sink）
+     */
+    Logger()
+        : m_logger(CreateDefaultLogger())
+    {
+    }
+
+    /**
+     * @brief 使用外部 spdlog::logger 构造
+     */
+    explicit Logger(std::shared_ptr<spdlog::logger> logger)
+        : m_logger(std::move(logger))
+    {
+    }
+
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
-    Logger(Logger&&) = delete;
-    Logger& operator=(Logger&&) = delete;
-    ~Logger() = delete;
+    Logger(Logger&&) = default;
+    Logger& operator=(Logger&&) = default;
+    ~Logger() = default;
 
     /**
      * @brief 警告日志
      */
     template <typename... Args>
-    static void warn(LogLocation msg, Args&&... args)
+    void warn(LogLocation msg, Args&&... args)
     {
         log(spdlog::level::warn, msg, std::forward<Args>(args)...);
     }
@@ -96,7 +89,7 @@ public:
      * @brief 信息日志
      */
     template <typename... Args>
-    static void info(LogLocation msg, Args&&... args)
+    void info(LogLocation msg, Args&&... args)
     {
         log(spdlog::level::info, msg, std::forward<Args>(args)...);
     }
@@ -105,7 +98,7 @@ public:
      * @brief 错误日志
      */
     template <typename... Args>
-    static void error(LogLocation msg, Args&&... args)
+    void error(LogLocation msg, Args&&... args)
     {
         log(spdlog::level::err, msg, std::forward<Args>(args)...);
     }
@@ -114,7 +107,7 @@ public:
      * @brief 调试日志
      */
     template <typename... Args>
-    static void debug(LogLocation msg, Args&&... args)
+    void debug(LogLocation msg, Args&&... args)
     {
         log(spdlog::level::debug, msg, std::forward<Args>(args)...);
     }
@@ -123,13 +116,13 @@ public:
      * @brief 重新配置日志文件路径（替换文件 sink，控制台 sink 保持不变）
      * @param filePath 新的日志文件路径
      */
-    static void reconfigure(std::string_view filePath)
+    void reconfigure(std::string_view filePath)
     {
         auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            std::string(filePath), log_detail::kMaxLogFileSize, log_detail::kMaxLogFileCount);
+            std::string(filePath), kMaxLogFileSize, kMaxLogFileCount);
         fileSink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%# %!] %v");
 
-        auto& sinks = log_detail::LoggerStorage()->sinks();
+        auto& sinks = m_logger->sinks();
         if (sinks.size() >= 2)
         {
             sinks[1] = std::move(fileSink);
@@ -140,11 +133,34 @@ public:
         }
     }
 
+    /**
+     * @brief 获取底层 spdlog::logger
+     */
+    [[nodiscard]] std::shared_ptr<spdlog::logger> getLogger() const { return m_logger; }
+
 private:
-    template <typename... Args>
-    static void log(spdlog::level::level_enum level, const LogLocation& msg, Args&&... args)
+    std::shared_ptr<spdlog::logger> m_logger;
+
+    [[nodiscard]] static std::shared_ptr<spdlog::logger> CreateDefaultLogger()
     {
-        log_detail::LoggerStorage()->log(
+        auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+        consoleSink->set_pattern("%^[%T] [%l] %n: %v%$");
+
+        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+            "logs/pestmankill.log", kMaxLogFileSize, kMaxLogFileCount);
+        fileSink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%# %!] %v");
+
+        std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
+        auto logger = std::make_shared<spdlog::logger>("PestManKill", sinks.begin(), sinks.end());
+        logger->set_level(spdlog::level::debug);
+        logger->flush_on(spdlog::level::warn);
+        return logger;
+    }
+
+    template <typename... Args>
+    void log(spdlog::level::level_enum level, const LogLocation& msg, Args&&... args)
+    {
+        m_logger->log(
             spdlog::source_loc{msg.loc.file_name(), static_cast<int>(msg.loc.line()), msg.loc.function_name()},
             level,
             fmt::runtime(msg.fmt),
@@ -163,4 +179,5 @@ inline std::string NormalizePath(const char* path)
     return result;
 }
 
-} // namespace ui
+} // namespace ui::utils
+

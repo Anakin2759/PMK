@@ -1,6 +1,6 @@
-#include "Visibility.hpp"
+﻿#include "Visibility.hpp"
 #include "Scale.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/Tags.hpp"
 #include "common/Policies.hpp"
 #include "core/WindowSync.hpp"
@@ -19,7 +19,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 } // namespace
 

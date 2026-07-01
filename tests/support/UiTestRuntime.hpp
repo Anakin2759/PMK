@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntime.hpp"
 
 namespace ui::tests
@@ -17,7 +17,7 @@ protected:
 
     void TearDown() override
     {
-        RuntimeFacade::current().update();
+        UiRuntime::current().update();
         m_scope.reset();
     }
 

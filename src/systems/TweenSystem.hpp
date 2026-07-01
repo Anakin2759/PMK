@@ -35,6 +35,7 @@
 #include "common/Events.hpp"
 #include "detail/Utils.hpp"
 #include "interface/ISystem.hpp"
+#include "core/UiRuntime.hpp"
 #include <sys/stat.h>
 
 namespace ui::systems
@@ -44,7 +45,7 @@ class TweenSystem : public ui::interface::EnableRegister<TweenSystem>
 {
 public:
     TweenSystem() = default;
-    explicit TweenSystem(Registry& reg, Dispatcher& disp) : m_reg(&reg), m_disp(&disp) {}
+    explicit TweenSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
 
     void registerHandlersImpl() { m_disp->sink<events::UpdateEvent>().connect<&TweenSystem::update>(*this); }
     void unregisterHandlersImpl() { m_disp->sink<events::UpdateEvent>().disconnect<&TweenSystem::update>(*this); }

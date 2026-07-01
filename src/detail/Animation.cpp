@@ -1,5 +1,5 @@
-#include "Animation.hpp"
-#include "core/RuntimeFacade.hpp"
+﻿#include "Animation.hpp"
+#include "core/UiRuntime.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Animation.hpp"
 #include "common/Policies.hpp"
@@ -15,7 +15,7 @@ namespace
 
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 
 void ConfigureTiming(entt::entity entity, const ui::animation::TweenOptions& options)

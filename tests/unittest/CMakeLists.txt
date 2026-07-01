@@ -52,7 +52,6 @@ add_executable(ui_ecs_tests
     test_MainWindow.cpp
     test_TweenSystem.cpp
     test_TaskChain.cpp
-    test_UiRuntime.cpp
     test_Utils.cpp
     test_Visibility.cpp
     test_Hierarchy.cpp

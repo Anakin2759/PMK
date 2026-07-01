@@ -1,3 +1,4 @@
+#include "core/UiRuntime.hpp"
 /**
  * ************************************************************************
  *
@@ -40,7 +41,7 @@ public:
     explicit FontAtlasManager(DeviceManager& deviceManager)
         : m_deviceManager(deviceManager), m_fontManager(std::make_unique<FontManager>())
     {
-        Logger::info("[FontAtlasManager] Initialized");
+        ui::UiRuntime::current().logger().info("[FontAtlasManager] Initialized");
     }
 
     ~FontAtlasManager() = default;
@@ -69,12 +70,12 @@ public:
         SDL_GPUDevice* device = m_deviceManager.getDevice();
         if (device == nullptr)
         {
-            Logger::error("[FontAtlasManager] No GPU device available");
+            ui::UiRuntime::current().logger().error("[FontAtlasManager] No GPU device available");
             return MakeError(UiErrc::DEVICE_UNAVAILABLE);
         }
 
         m_atlas = std::make_unique<TextureAtlas>(device, 2048, 2);
-        Logger::info("[FontAtlasManager] Font loaded and atlas created");
+        ui::UiRuntime::current().logger().info("[FontAtlasManager] Font loaded and atlas created");
         return Ok();
     }
 
@@ -137,7 +138,7 @@ public:
         GlyphInfo glyph = m_fontManager->renderGlyph(static_cast<int>(codepoint));
         if (glyph.bitmap.empty())
         {
-            Logger::warn("[FontAtlasManager] Empty bitmap for codepoint {}", codepoint);
+            ui::UiRuntime::current().logger().warn("[FontAtlasManager] Empty bitmap for codepoint {}", codepoint);
             return std::nullopt;
         }
 
@@ -204,7 +205,7 @@ public:
         {
             m_atlas->clear();
         }
-        Logger::info("[FontAtlasManager] Cleared all caches");
+        ui::UiRuntime::current().logger().info("[FontAtlasManager] Cleared all caches");
     }
 
     /**

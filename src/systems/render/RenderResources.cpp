@@ -25,6 +25,7 @@
 #include "common/GPUWrappers.hpp"
 #include "SDL3/SDL_stdinc.h"
 #include "interface/IRenderer.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 
 namespace ui::systems
@@ -101,7 +102,7 @@ void RenderSystem::initializeRenderers()
         [](const std::unique_ptr<core::IRenderer>& leftRenderer, const std::unique_ptr<core::IRenderer>& rightRenderer)
         { return leftRenderer->getPriority() < rightRenderer->getPriority(); });
 
-    Logger::info("[RenderSystem] 初始化了 {} 个渲染器", m_impl->m_renderers.size());
+    ui::UiRuntime::current().logger().info("[RenderSystem] 初始化了 {} 个渲染器", m_impl->m_renderers.size());
 }
 
 } // namespace ui::systems

@@ -10,7 +10,7 @@
 #include "src/api/Hierarchy.hpp"
 #include "src/common/Events.hpp"
 #include "src/common/Tags.hpp"
-#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntime.hpp"
 #include "src/detail/EntityCast.hpp"
 #include "src/systems/ActionSystem.hpp"
@@ -22,23 +22,23 @@ namespace
 
 Registry& ActiveRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 
 void TriggerDragDropped(ui::entity source, ui::entity target)
 {
-    RuntimeFacade::current().trigger<events::DragDroppedEvent>(
+    UiRuntime::current().trigger<events::DragDroppedEvent>(
         {.source = detail::ToInternal(source), .target = detail::ToInternal(target)});
 }
 
 void TriggerDragDropped(entt::entity source, ui::entity target)
 {
-    RuntimeFacade::current().trigger<events::DragDroppedEvent>({.source = source, .target = detail::ToInternal(target)});
+    UiRuntime::current().trigger<events::DragDroppedEvent>({.source = source, .target = detail::ToInternal(target)});
 }
 
 void TriggerDragDropped(ui::entity source, entt::entity target)
 {
-    RuntimeFacade::current().trigger<events::DragDroppedEvent>({.source = detail::ToInternal(source), .target = target});
+    UiRuntime::current().trigger<events::DragDroppedEvent>({.source = detail::ToInternal(source), .target = target});
 }
 
 class DragDropTest : public ::testing::Test
@@ -47,8 +47,8 @@ protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
-        m_actionSystem = std::make_unique<systems::ActionSystem>(RuntimeFacade::current().registry(),
-                                                                 RuntimeFacade::current().dispatcher());
+        m_actionSystem = std::make_unique<systems::ActionSystem>(UiRuntime::current().registry(),
+                                                                 UiRuntime::current().dispatcher());
         m_actionSystem->registerHandlers();
     }
 

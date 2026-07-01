@@ -15,6 +15,7 @@
 
 #include "common/Events.hpp"
 #include "interface/ISystem.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Registry.hpp"
 
@@ -25,7 +26,7 @@ class PlatformWindowSystem : public ui::interface::EnableRegister<PlatformWindow
 {
 public:
     PlatformWindowSystem() = default;
-    explicit PlatformWindowSystem(Registry& /*reg*/, Dispatcher& disp) : m_disp(&disp) {}
+    explicit PlatformWindowSystem(UiRuntime& runtime) : m_disp(&runtime.dispatcher()) {}
 
     void registerHandlersImpl() { SDL_AddEventWatch(&PlatformWindowSystem::platformEventWatch, this); }
 

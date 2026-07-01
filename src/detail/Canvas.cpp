@@ -1,8 +1,8 @@
-#include "Canvas.hpp"
+﻿#include "Canvas.hpp"
 
 #include "common/Scale.hpp"
 
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/components/Data.hpp"
 #include <vector>
 #include <utility>
@@ -14,7 +14,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 } // namespace
 

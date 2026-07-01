@@ -40,7 +40,6 @@ class Dispatcher
 {
     friend class UiRuntime;
     friend class UiRuntimeScope;
-    friend class RuntimeFacade;
 
 public:
     Dispatcher() = default;

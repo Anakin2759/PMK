@@ -60,14 +60,14 @@ ui::Result<SDL_GPUTexture*> ImageManager::loadTexture(const std::string& path)
 {
     if (path.empty())
     {
-        Logger::error("[ImageManager] loadTexture: empty path");
+        UiRuntime::current().logger().error("[ImageManager] loadTexture: empty path");
         return ui::MakeError(ui::UiErrc::INVALID_ARGUMENT);
     }
 
     SDL_GPUDevice* device = (m_deviceManager != nullptr) ? m_deviceManager->getDevice() : nullptr;
     if (device == nullptr)
     {
-        Logger::error("[ImageManager] loadTexture: device is null, path={}", path);
+        UiRuntime::current().logger().error("[ImageManager] loadTexture: device is null, path={}", path);
         return ui::MakeError(ui::UiErrc::DEVICE_UNAVAILABLE);
     }
 
@@ -106,11 +106,11 @@ ui::Result<SDL_GPUTexture*> ImageManager::loadTexture(const std::string& path)
     if (tex != nullptr)
     {
         m_cache[path] = tex;
-        Logger::info("[ImageManager] Loaded texture: {}", path);
+        UiRuntime::current().logger().info("[ImageManager] Loaded texture: {}", path);
         return tex;
     }
 
-    Logger::error("[ImageManager] Failed to load texture: {}", path);
+    UiRuntime::current().logger().error("[ImageManager] Failed to load texture: {}", path);
     return ui::MakeError(ui::UiErrc::ASSET_DECODE_FAILED);
 }
 
@@ -121,7 +121,7 @@ void ImageManager::releaseAll()
     if (device == nullptr)
     {
         // 设备已经销毁，只能丢弃缓存；上层应保证 ImageManager 早于 device 析构
-        Logger::warn("[ImageManager] releaseAll: device already gone, leaking {} cached textures", m_cache.size());
+        UiRuntime::current().logger().warn("[ImageManager] releaseAll: device already gone, leaking {} cached textures", m_cache.size());
         m_cache.clear();
         return;
     }
@@ -145,7 +145,7 @@ SDL_GPUTexture* ImageManager::loadWithStb(const std::string& path, SDL_GPUDevice
     unsigned char* pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
     if (pixels == nullptr)
     {
-        Logger::error("[ImageManager] stbi_load failed: {} — {}", path, stbi_failure_reason());
+        UiRuntime::current().logger().error("[ImageManager] stbi_load failed: {} — {}", path, stbi_failure_reason());
         return nullptr;
     }
 
@@ -159,7 +159,7 @@ SDL_GPUTexture* ImageManager::loadWithSdlBmp(const std::string& path, SDL_GPUDev
     SDL_Surface* surface = SDL_LoadBMP(path.c_str());
     if (surface == nullptr)
     {
-        Logger::error("[ImageManager] SDL_LoadBMP failed: {} — {}", path, SDL_GetError());
+        UiRuntime::current().logger().error("[ImageManager] SDL_LoadBMP failed: {} — {}", path, SDL_GetError());
         return nullptr;
     }
 
@@ -169,7 +169,7 @@ SDL_GPUTexture* ImageManager::loadWithSdlBmp(const std::string& path, SDL_GPUDev
 
     if (converted == nullptr)
     {
-        Logger::error("[ImageManager] SDL_ConvertSurface failed: {}", SDL_GetError());
+        UiRuntime::current().logger().error("[ImageManager] SDL_ConvertSurface failed: {}", SDL_GetError());
         return nullptr;
     }
 
@@ -197,7 +197,7 @@ SDL_GPUTexture*
     SDL_GPUTexture* texture = SDL_CreateGPUTexture(device, &texInfo);
     if (texture == nullptr)
     {
-        Logger::error("[ImageManager] SDL_CreateGPUTexture failed: {}", SDL_GetError());
+        UiRuntime::current().logger().error("[ImageManager] SDL_CreateGPUTexture failed: {}", SDL_GetError());
         return nullptr;
     }
 
@@ -211,7 +211,7 @@ SDL_GPUTexture*
     SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
     if (transferBuffer == nullptr)
     {
-        Logger::error("[ImageManager] SDL_CreateGPUTransferBuffer failed: {}", SDL_GetError());
+        UiRuntime::current().logger().error("[ImageManager] SDL_CreateGPUTransferBuffer failed: {}", SDL_GetError());
         SDL_ReleaseGPUTexture(device, texture);
         return nullptr;
     }
@@ -220,7 +220,7 @@ SDL_GPUTexture*
     void* mapped = SDL_MapGPUTransferBuffer(device, transferBuffer, false);
     if (mapped == nullptr)
     {
-        Logger::error("[ImageManager] SDL_MapGPUTransferBuffer failed: {}", SDL_GetError());
+        UiRuntime::current().logger().error("[ImageManager] SDL_MapGPUTransferBuffer failed: {}", SDL_GetError());
         SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
         SDL_ReleaseGPUTexture(device, texture);
         return nullptr;
@@ -233,7 +233,7 @@ SDL_GPUTexture*
     SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device);
     if (cmd == nullptr)
     {
-        Logger::error("[ImageManager] SDL_AcquireGPUCommandBuffer failed: {}", SDL_GetError());
+        UiRuntime::current().logger().error("[ImageManager] SDL_AcquireGPUCommandBuffer failed: {}", SDL_GetError());
         SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
         SDL_ReleaseGPUTexture(device, texture);
         return nullptr;

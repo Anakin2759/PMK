@@ -22,6 +22,7 @@
 
 #include "interface/ISystem.hpp"
 #include "common/Events.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Registry.hpp"
 #include "common/GlobalContext.hpp"
@@ -35,7 +36,7 @@ class StateSystem : public ui::interface::EnableRegister<StateSystem>
 {
 public:
     StateSystem() = default;
-    explicit StateSystem(Registry& reg, Dispatcher& disp) : m_reg(&reg), m_disp(&disp) {}
+    explicit StateSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
 
     enum class ScrollbarHitType : std::uint8_t
     {

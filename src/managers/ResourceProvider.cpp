@@ -14,6 +14,7 @@
  */
 
 #include "ResourceProvider.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/ErrorCodes.hpp"
 #include "utils/Logger.hpp"
 #include <string_view>
@@ -52,7 +53,7 @@ public:
         const std::string normalizedPath(path);
         if (!fileSystem.exists(normalizedPath))
         {
-            ui::Logger::error("[ResourceProvider/cmrc] resource not found: {}", normalizedPath);
+            ui::UiRuntime::current().logger().error("[ResourceProvider/cmrc] resource not found: {}", normalizedPath);
             return ui::MakeError(ui::UiErrc::ASSET_NOT_FOUND);
         }
 
@@ -77,7 +78,7 @@ public:
         const StdEmbedResourceEntry* entry = FindStdEmbedResource(path);
         if (entry == nullptr)
         {
-            ui::Logger::error("[ResourceProvider/std_embed] resource not found: {}", path);
+            ui::UiRuntime::current().logger().error("[ResourceProvider/std_embed] resource not found: {}", path);
             return ui::MakeError(ui::ui_errc::asset_not_found);
         }
 
@@ -100,7 +101,7 @@ public:
 
     [[nodiscard]] ui::Result<BinaryResource> loadBinary(std::string_view path) const override
     {
-        ui::Logger::error("[ResourceProvider] no UI resource backend selected at compile time for: {}", path);
+        ui::UiRuntime::current().logger().error("[ResourceProvider] no UI resource backend selected at compile time for: {}", path);
         static_cast<void>(path);
         return ui::MakeError(ui::ui_errc::backend_unavailable);
     }

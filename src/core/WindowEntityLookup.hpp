@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ************************************************************************
  *
  * @file WindowEntityLookup.hpp
@@ -19,7 +19,7 @@
 
 #include <entt/entt.hpp>
 
-#include "RuntimeFacade.hpp"
+#include "UiRuntime.hpp"
 #include "common/components/Window.hpp"
 #include "utils/Registry.hpp"
 
@@ -34,7 +34,7 @@ struct WindowEntityLookupCache
 
 inline WindowEntityLookupCache& Cache()
 {
-    auto& runtime = RuntimeFacade::current();
+    auto& runtime = UiRuntime::current();
     if (auto* cache = runtime.tryContext<WindowEntityLookupCache>())
     {
         return *cache;
@@ -45,7 +45,7 @@ inline WindowEntityLookupCache& Cache()
 
 inline bool MatchesWindowId(entt::entity entity, uint32_t windowId)
 {
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return false;
@@ -56,7 +56,7 @@ inline bool MatchesWindowId(entt::entity entity, uint32_t windowId)
 
 inline void RememberWindowEntity(entt::entity entity)
 {
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return;
@@ -72,15 +72,20 @@ inline void InvalidateWindowId(uint32_t windowId)
 {
     if (windowId == 0) return;
 
-    if (auto* cache = RuntimeFacade::current().tryContext<WindowEntityLookupCache>())
+    if (auto* cache = UiRuntime::current().tryContext<WindowEntityLookupCache>())
     {
         cache->entitiesByWindowId.erase(windowId);
     }
 }
 
+/**
+ * @brief 使指定实体失效（从缓存中移除）
+ *
+ * @param entity 要失效的实体
+ */
 inline void InvalidateWindowEntity(entt::entity entity)
 {
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return;
@@ -104,7 +109,7 @@ inline entt::entity FindWindowEntityById(uint32_t windowId)
         cache.entitiesByWindowId.erase(cacheEntry);
     }
 
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     auto view = registry.view<components::Window>();
     for (auto entity : view)
     {

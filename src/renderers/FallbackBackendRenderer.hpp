@@ -24,6 +24,7 @@
 #include <vector>
 #include <SDL3/SDL.h>
 #include "interface/IBackendRenderer.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 
 namespace ui::renderers
@@ -80,12 +81,12 @@ public:
             {
                 SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
                 m_windowID = windowID;
-                Logger::warn("[FallbackBackendRenderer] using SDL_Renderer driver: {}", driver);
+                ui::UiRuntime::current().logger().warn("[FallbackBackendRenderer] using SDL_Renderer driver: {}", driver);
                 return ui::Ok();
             }
         }
 
-        Logger::error("[FallbackBackendRenderer] create renderer failed: {}", SDL_GetError());
+        ui::UiRuntime::current().logger().error("[FallbackBackendRenderer] create renderer failed: {}", SDL_GetError());
         return ui::MakeError(ui::UiErrc::BACKEND_UNAVAILABLE);
     }
 
@@ -260,7 +261,7 @@ private:
 
             if (newEntry.texture == nullptr)
             {
-                Logger::error("[FallbackBackendRenderer] create SDL_Texture failed: {}", SDL_GetError());
+                ui::UiRuntime::current().logger().error("[FallbackBackendRenderer] create SDL_Texture failed: {}", SDL_GetError());
                 m_bitmapTextureCache.erase(key);
                 return nullptr;
             }
@@ -271,7 +272,7 @@ private:
 
         if (!SDL_UpdateTexture(cacheIterator->second.texture, nullptr, rgbaPixels.data(), width * 4))
         {
-            Logger::error("[FallbackBackendRenderer] update SDL_Texture failed: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[FallbackBackendRenderer] update SDL_Texture failed: {}", SDL_GetError());
             return nullptr;
         }
 

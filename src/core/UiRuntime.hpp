@@ -14,13 +14,12 @@
  */
 #pragma once
 
-#include "RuntimeFacade.hpp"
-#include "WorkerMailbox.hpp"
 
-#include "common/EntityTypes.hpp"
-#include "common/ThreadPool.hpp"
+#include "utils/ThreadPool.hpp"
 #include "utils/Dispatcher.hpp"
+#include "utils/Logger.hpp"
 #include "utils/Registry.hpp"
+#include <memory>
 
 namespace ui
 {
@@ -28,15 +27,16 @@ namespace ui
 class UiRuntime
 {
 public:
-    UiRuntime() = default;
+    UiRuntime(): m_registry(std::make_unique<Registry>()),
+                 m_dispatcher(std::make_unique<Dispatcher>()),
+                 m_logger(std::make_unique<utils::Logger>())
+    {
+        s_current = this;
+    }
 
-    /**
-     * @brief 析构前等待本运行时所属线程池中全部 worker 任务完成，防止 UAF（R1 方案 D）。
-     * @see ThreadPool::wait()
-     */
     ~UiRuntime()
     {
-        m_threadPool.wait(); // 等待所属 worker 完成后再销毁 m_mailbox
+        if (s_current == this) s_current = nullptr;
     }
 
     UiRuntime(const UiRuntime&) = delete;
@@ -44,62 +44,54 @@ public:
     UiRuntime(UiRuntime&&) = delete;
     UiRuntime& operator=(UiRuntime&&) = delete;
 
-    [[nodiscard]] Registry& registry() noexcept { return m_registry; }
+    /// 获取当前线程活跃的 UiRuntime 实例（由构造 / 析构设定）
+    [[nodiscard]] static UiRuntime& current() { return *s_current; }
 
-    [[nodiscard]] const Registry& registry() const noexcept { return m_registry; }
+    [[nodiscard]] Registry& registry() noexcept { return *m_registry; }
 
-    [[nodiscard]] Dispatcher& dispatcher() noexcept { return m_dispatcher; }
+    [[nodiscard]] const Registry& registry() const noexcept { return *m_registry; }
 
-    [[nodiscard]] const Dispatcher& dispatcher() const noexcept { return m_dispatcher; }
+    [[nodiscard]] Dispatcher& dispatcher() noexcept { return *m_dispatcher; }
 
-    /**
-     * @brief 获取本运行时的 Worker Mailbox（供主线程 drain 和 Worker 线程 enqueue）
-     */
-    [[nodiscard]] WorkerMailbox& mailbox() noexcept { return m_mailbox; }
+    [[nodiscard]] const Dispatcher& dispatcher() const noexcept { return *m_dispatcher; }
 
-    [[nodiscard]] const WorkerMailbox& mailbox() const noexcept { return m_mailbox; }
+    [[nodiscard]] utils::Logger& logger() noexcept { return *m_logger; }
 
-    /**
-     * @brief 获取本运行时的公开归属令牌。
-     *
-     * token 由 UiRuntime 地址派生，生命周期上只保证在该 runtime 存活期间可用于归属比较。
-     */
-    [[nodiscard]] RuntimeToken token() const noexcept
+    [[nodiscard]] const utils::Logger& logger() const noexcept { return *m_logger; }
+
+    [[nodiscard]] std::uintptr_t token() const noexcept { return reinterpret_cast<std::uintptr_t>(this); }
+
+    /// 获取或创建类型化 context（委托 Registry::getOrEmplaceInCtx）
+    template <typename T>
+    [[nodiscard]] T& ensureContext()
     {
-        return RuntimeToken{this};
+        return m_registry->getOrEmplaceInCtx<T>();
     }
+
+    /// 尝试获取类型化 context，不存在则返回 nullptr
+    template <typename T>
+    [[nodiscard]] T* tryContext()
+    {
+        return m_registry->findInCtx<T>();
+    }
+
+    template <typename T>
+    [[nodiscard]] const T* tryContext() const
+    {
+        return m_registry->findInCtx<T>();
+    }
+
+
+    inline static thread_local UiRuntime* s_current = nullptr;
 
 private:
     friend class UiRuntimeScope;
-    friend class RuntimeFacade;
 
-    /// 每个运行时独立的线程池，声明在最前保证最后析构（workers 停止后 mailbox/registry 才释放）
-    utils::ThreadPool m_threadPool;
-    Registry m_registry;
-    Dispatcher m_dispatcher;
-    WorkerMailbox m_mailbox;
+    std::unique_ptr<utils::ThreadPool> m_threadPool;
+    std::unique_ptr<Registry> m_registry;
+    std::unique_ptr<Dispatcher> m_dispatcher;
+    std::unique_ptr<utils::Logger> m_logger;
 };
 
-class UiRuntimeScope
-{
-public:
-    explicit UiRuntimeScope(UiRuntime& runtime) : m_previousRuntime(RuntimeFacade::current().activateRuntime(runtime))
-    {
-    }
-
-    UiRuntimeScope(const UiRuntimeScope&) = delete;
-    UiRuntimeScope& operator=(const UiRuntimeScope&) = delete;
-    UiRuntimeScope(UiRuntimeScope&&) = delete;
-    UiRuntimeScope& operator=(UiRuntimeScope&&) = delete;
-    ~UiRuntimeScope();
-
-private:
-    RuntimeFacade::ActiveRuntimeState m_previousRuntime;
-};
-
-inline UiRuntimeScope::~UiRuntimeScope()
-{
-    RuntimeFacade::current().restoreRuntime(m_previousRuntime);
-}
 
 } // namespace ui

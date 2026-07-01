@@ -42,6 +42,7 @@
 #include <memory>
 #include <cstdint>
 #include <cmath>
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 #include "common/ErrorCodes.hpp"
 #include "common/Result.hpp"
@@ -105,12 +106,12 @@ public:
         FT_Error error = FT_Init_FreeType(&lib);
         if (error != 0)
         {
-            Logger::error("[FontManager] Failed to initialize FreeType: error {}", error);
+            ui::UiRuntime::current().logger().error("[FontManager] Failed to initialize FreeType: error {}", error);
         }
         else
         {
             m_ftLibrary.reset(lib);
-            Logger::info("[FontManager] FreeType initialized successfully");
+            ui::UiRuntime::current().logger().info("[FontManager] FreeType initialized successfully");
         }
     }
 
@@ -133,13 +134,13 @@ public:
     {
         if (m_ftLibrary == nullptr)
         {
-            Logger::error("[FontManager] FreeType not initialized");
+            ui::UiRuntime::current().logger().error("[FontManager] FreeType not initialized");
             return MakeError(UiErrc::DEVICE_UNAVAILABLE);
         }
 
         if (fontData == nullptr || dataSize == 0)
         {
-            Logger::error("[FontManager] Invalid font data");
+            ui::UiRuntime::current().logger().error("[FontManager] Invalid font data");
             return MakeError(UiErrc::INVALID_ARGUMENT);
         }
 
@@ -152,7 +153,7 @@ public:
             FT_New_Memory_Face(m_ftLibrary.get(), m_fontData.data(), static_cast<FT_Long>(dataSize), 0, &face);
         if (error != 0)
         {
-            Logger::error("[FontManager] Failed to load font face: error {}", error);
+            ui::UiRuntime::current().logger().error("[FontManager] Failed to load font face: error {}", error);
             return MakeError(UiErrc::ASSET_LOAD_FAILED);
         }
         m_ftFace.reset(face);
@@ -163,7 +164,7 @@ public:
         if (error != 0)
         {
             m_ftFace.reset();
-            Logger::error("[FontManager] Failed to set pixel size: error {}", error);
+            ui::UiRuntime::current().logger().error("[FontManager] Failed to set pixel size: error {}", error);
             return MakeError(UiErrc::ASSET_LOAD_FAILED);
         }
 
@@ -173,7 +174,7 @@ public:
         // 创建 HarfBuzz font
         createHarfBuzzFont();
 
-        Logger::info("[FontManager] Font loaded: {} at {}px", m_ftFace->family_name, fontSize);
+        ui::UiRuntime::current().logger().info("[FontManager] Font loaded: {} at {}px", m_ftFace->family_name, fontSize);
         return Ok();
     }
 
@@ -202,7 +203,7 @@ public:
         }
 
         clearCache();
-        Logger::info("[FontManager] DPI scale updated: {:.2f}, oversample: {:.2f}", m_dpiScale, getOversampleScale());
+        ui::UiRuntime::current().logger().info("[FontManager] DPI scale updated: {:.2f}, oversample: {:.2f}", m_dpiScale, getOversampleScale());
         return true;
     }
 
@@ -366,7 +367,7 @@ public:
         FT_Error error = FT_Load_Glyph(m_ftFace.get(), glyphIndex, FT_LOAD_DEFAULT | FT_LOAD_TARGET_NORMAL);
         if (error != 0)
         {
-            Logger::warn("[FontManager] Failed to load glyph for codepoint {}: error {}", codepoint, error);
+            ui::UiRuntime::current().logger().warn("[FontManager] Failed to load glyph for codepoint {}: error {}", codepoint, error);
             return info;
         }
 
@@ -374,7 +375,7 @@ public:
         error = FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL);
         if (error != 0)
         {
-            Logger::warn("[FontManager] Failed to render glyph for codepoint {}: error {}", codepoint, error);
+            ui::UiRuntime::current().logger().warn("[FontManager] Failed to render glyph for codepoint {}: error {}", codepoint, error);
             return info;
         }
 
@@ -602,7 +603,7 @@ public:
         FT_Error error = FT_Load_Glyph(m_ftFace.get(), glyphId, FT_LOAD_DEFAULT | FT_LOAD_TARGET_NORMAL);
         if (error != 0)
         {
-            Logger::warn("[FontManager] Failed to load glyph index {}: error {}", glyphId, error);
+            ui::UiRuntime::current().logger().warn("[FontManager] Failed to load glyph index {}: error {}", glyphId, error);
             return info;
         }
 
@@ -610,7 +611,7 @@ public:
         error = FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL);
         if (error != 0)
         {
-            Logger::warn("[FontManager] Failed to render glyph index {}: error {}", glyphId, error);
+            ui::UiRuntime::current().logger().warn("[FontManager] Failed to render glyph index {}: error {}", glyphId, error);
             return info;
         }
 
@@ -637,7 +638,7 @@ public:
     void clearCache()
     {
         m_glyphCache.clear();
-        Logger::info("[FontManager] Glyph cache cleared");
+        ui::UiRuntime::current().logger().info("[FontManager] Glyph cache cleared");
     }
 
     /**
@@ -702,7 +703,7 @@ private:
 
         if (m_ftFace == nullptr)
         {
-            Logger::warn("[FontManager] Cannot create HarfBuzz font: FreeType face not loaded");
+            ui::UiRuntime::current().logger().warn("[FontManager] Cannot create HarfBuzz font: FreeType face not loaded");
             return;
         }
 
@@ -710,11 +711,11 @@ private:
         m_hbFont.reset(hb_ft_font_create(m_ftFace.get(), nullptr));
         if (m_hbFont == nullptr)
         {
-            Logger::error("[FontManager] Failed to create HarfBuzz font");
+            ui::UiRuntime::current().logger().error("[FontManager] Failed to create HarfBuzz font");
             return;
         }
 
-        Logger::info("[FontManager] HarfBuzz font created successfully");
+        ui::UiRuntime::current().logger().info("[FontManager] HarfBuzz font created successfully");
     }
 
     /**

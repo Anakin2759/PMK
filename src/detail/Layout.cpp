@@ -1,6 +1,6 @@
-#include "Layout.hpp"
+﻿#include "Layout.hpp"
 #include "Scale.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "common/Policies.hpp"
 #include "Utils.hpp"
 #include "entt/entity/fwd.hpp"
@@ -12,7 +12,7 @@ namespace
 {
 [[nodiscard]] Registry& CurrentRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 } // namespace
 

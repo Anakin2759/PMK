@@ -9,7 +9,7 @@
 #include "src/common/Events.hpp"
 #include "src/common/GlobalContext.hpp"
 #include "src/core/TaskChain.hpp"
-#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntime.hpp"
 #include "src/utils/Dispatcher.hpp"
 #include "src/utils/Registry.hpp"
@@ -87,7 +87,7 @@ protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
-        auto& frame = RuntimeFacade::current().ensureContext<globalcontext::FrameContext>();
+        auto& frame = UiRuntime::current().ensureContext<globalcontext::FrameContext>();
         frame.intervalMs = 0;
         frame.frameSlot = 0;
     }
@@ -151,7 +151,7 @@ TEST_F(TaskChainTest, QueuedTaskUpdatesFrameContextBeforeDispatchingQueuedEvents
     tasks::QueuedTask queuedTask;
     queuedTask(33);
 
-    const auto& frameContext = RuntimeFacade::current().registry().ctx().get<globalcontext::FrameContext>();
+    const auto& frameContext = UiRuntime::current().registry().ctx().get<globalcontext::FrameContext>();
     EXPECT_EQ(frameContext.intervalMs, 33U);
     EXPECT_EQ(frameContext.frameSlot, 1U);
     ASSERT_EQ(observedEvents.size(), 2U);

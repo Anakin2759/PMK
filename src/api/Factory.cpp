@@ -8,10 +8,12 @@
 #include "common/Events.hpp"
 #include "common/ErrorCodes.hpp"
 #include "common/AppConfig.hpp"
-#include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
+#include "core/UiRuntimeScope.hpp"
+#include "core/WindowEntityLookup.hpp"
 #include "utils/Logger.hpp"
-#include "singleton/Registry.hpp"
-#include "singleton/Dispatcher.hpp"
+#include "utils/Registry.hpp"
+#include "utils/Dispatcher.hpp"
 #include "Hierarchy.hpp"
 #include "SDL3/SDL_error.h"
 #include "Utils.hpp"
@@ -50,21 +52,19 @@ namespace
 {
 struct RuntimeServices
 {
-    Registry* registry;
-    Dispatcher* dispatcher;
-    RuntimeFacade::WindowLookupService windowLookup;
+    Registry& registry;
+    Dispatcher& dispatcher;
 };
 
 RuntimeServices CurrentServices()
 {
-    auto& runtime = RuntimeFacade::current();
-    return {
-        .registry = &runtime.registry(), .dispatcher = &runtime.dispatcher(), .windowLookup = runtime.windowLookup()};
+    auto& runtime = UiRuntime::current();
+    return {.registry = runtime.registry(), .dispatcher = runtime.dispatcher()};
 }
 
 Registry& CurrentRegistry()
 {
-    return *CurrentServices().registry;
+    return CurrentServices().registry;
 }
 
 struct TitleBarDragState
@@ -81,7 +81,7 @@ SDL_Window* CreateSdlWindowOrRollback(
     SDL_Window* sdlWindow = SDL_CreateWindow(title, width, height, flags);
     if (sdlWindow == nullptr)
     {
-        Logger::error("[Factory] Failed to create SDL window for {} entity {}: {}",
+        UiRuntime::current().logger().error("[Factory] Failed to create SDL window for {} entity {}: {}",
                       entityType,
                       static_cast<uint32_t>(entity),
                       SDL_GetError());
@@ -107,13 +107,13 @@ SDL_Window* CreateSdlWindowOrRollback(
             }
             else
             {
-                Logger::warn("[Factory] Failed to create surface for app icon: {}", SDL_GetError());
+                UiRuntime::current().logger().warn("[Factory] Failed to create surface for app icon: {}", SDL_GetError());
             }
             stbi_image_free(pixels);
         }
         else
         {
-            Logger::warn("[Factory] Failed to load app icon '{}': {}", iconPath, stbi_failure_reason());
+            UiRuntime::current().logger().warn("[Factory] Failed to load app icon '{}': {}", iconPath, stbi_failure_reason());
         }
     }
 
@@ -133,14 +133,13 @@ SDL_WindowFlags DefaultWindowFlags()
 bool AssignWindowIdOrRollback(ui::entity entity,
                               components::Window& window,
                               SDL_Window* sdlWindow,
-                              RuntimeFacade::WindowLookupService windowLookup,
                               std::string_view entityType)
 {
     auto& reg = CurrentRegistry();
     window.windowID = SDL_GetWindowID(sdlWindow);
     if (window.windowID == 0)
     {
-        Logger::error("[Factory] Failed to fetch SDL window ID for {} entity {}: {}",
+        UiRuntime::current().logger().error("[Factory] Failed to fetch SDL window ID for {} entity {}: {}",
                       entityType,
                       static_cast<uint32_t>(entity),
                       SDL_GetError());
@@ -149,7 +148,7 @@ bool AssignWindowIdOrRollback(ui::entity entity,
         return false;
     }
 
-    windowLookup.remember(detail::ToInternal(entity));
+    window_lookup::RememberWindowEntity(detail::ToInternal(entity));
 
     return true;
 }
@@ -313,12 +312,12 @@ ui::Result<std::unique_ptr<Application>> CreateApplication(std::span<char*> argv
     }
     catch (const std::exception& e)
     {
-        Logger::error("[Factory] UI initialization failed: {}", e.what());
+        UiRuntime::current().logger().error("[Factory] UI initialization failed: {}", e.what());
         return ui::MakeError(UiErrc::DEVICE_UNAVAILABLE);
     }
     catch (...)
     {
-        Logger::error("[Factory] Unknown UI initialization failure");
+        UiRuntime::current().logger().error("[Factory] Unknown UI initialization failure");
         return ui::MakeError(UiErrc::UNKNOWN);
     }
 }
@@ -488,10 +487,9 @@ ui::entity CreateSpacer(float width, float height, std::string_view alias)
 ui::entity CreateDialog(std::string_view title, std::string_view alias)
 {
     const auto services = CurrentServices();
-    auto& reg = *services.registry;
-    auto& disp = *services.dispatcher;
-    const auto windowLookup = services.windowLookup;
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = services.registry;
+    auto& disp = services.dispatcher;
+        auto entity = CreateBaseWidget(alias);
     MarkAsRoot(entity);
     reg.emplace<components::DialogTag>(entity);
     auto& size = reg.get<components::Size>(entity);
@@ -508,7 +506,7 @@ ui::entity CreateDialog(std::string_view title, std::string_view alias)
         return ui::null_entity;
     }
 
-    if (!AssignWindowIdOrRollback(entity, dialog, sdlWindow, windowLookup, "dialog"))
+    if (!AssignWindowIdOrRollback(entity, dialog, sdlWindow, "dialog"))
     {
         return ui::null_entity;
     }
@@ -521,7 +519,7 @@ ui::entity CreateDialog(std::string_view title, std::string_view alias)
     dialogLayout.alignment = policies::Alignment::CENTER;
     reg.emplace<components::Padding>(entity);
     utils::MarkLayoutAndVisualChanged(entity);
-    Logger::info("[Factory] Triggering WindowGraphicsContextSetEvent for dialog entity {}",
+    UiRuntime::current().logger().info("[Factory] Triggering WindowGraphicsContextSetEvent for dialog entity {}",
                  static_cast<uint32_t>(entity));
     disp.trigger<events::WindowGraphicsContextSetEvent>({detail::ToInternal(entity)});
 
@@ -546,10 +544,9 @@ ui::entity CreateScrollArea(std::string_view alias)
 ui::entity CreateWindow(std::string_view title, std::string_view alias)
 {
     const auto services = CurrentServices();
-    auto& reg = *services.registry;
-    auto& disp = *services.dispatcher;
-    const auto windowLookup = services.windowLookup;
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = services.registry;
+    auto& disp = services.dispatcher;
+        auto entity = CreateBaseWidget(alias);
     MarkAsRoot(entity);
     reg.emplace<components::WindowTag>(entity);
     auto& window = reg.emplace<components::Window>(entity);
@@ -571,14 +568,14 @@ ui::entity CreateWindow(std::string_view title, std::string_view alias)
         return ui::null_entity;
     }
 
-    if (!AssignWindowIdOrRollback(entity, window, sdlWindow, windowLookup, "window"))
+    if (!AssignWindowIdOrRollback(entity, window, sdlWindow, "window"))
     {
         return ui::null_entity;
     }
 
     platform::InstallDarkClientAreaBackground(sdlWindow);
 
-    Logger::info("[Factory] Triggering WindowGraphicsContextSetEvent for window entity {}",
+    UiRuntime::current().logger().info("[Factory] Triggering WindowGraphicsContextSetEvent for window entity {}",
                  static_cast<uint32_t>(entity));
     disp.trigger<events::WindowGraphicsContextSetEvent>({detail::ToInternal(entity)});
     reg.remove<components::VisibleTag>(entity);
@@ -606,7 +603,7 @@ ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias)
     auto* windowComp = reg.try_get<components::Window>(windowEntity);
     if (windowComp == nullptr)
     {
-        Logger::warn("[Factory] CreateTitleBar: entity {} has no Window component",
+        UiRuntime::current().logger().warn("[Factory] CreateTitleBar: entity {} has no Window component",
                      static_cast<uint32_t>(windowEntity));
         return ui::null_entity;
     }
@@ -824,7 +821,7 @@ void CloseDropDownPopup(ui::entity ddEntity)
     dropDown->open = false;
     ui::utils::MarkVisualChanged(ddEntity);
 
-    auto timerSystem = systems::TimerSystem{reg, *CurrentServices().dispatcher};
+    auto timerSystem = systems::TimerSystem{runtime};
     timerSystem.addTask(
         0,
         [regPtr = &reg, popupToDestroy]()

@@ -31,6 +31,7 @@
 #include <yoga/Yoga.h>
 
 #include "interface/ISystem.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Registry.hpp"
 
@@ -48,7 +49,7 @@ namespace ui::systems
 class LayoutSystem : public ui::interface::EnableRegister<LayoutSystem>
 {
 public:
-    explicit LayoutSystem(Registry& reg, Dispatcher& disp);
+    explicit LayoutSystem(UiRuntime& runtime);
     ~LayoutSystem();
 
     LayoutSystem(const LayoutSystem&) = delete;

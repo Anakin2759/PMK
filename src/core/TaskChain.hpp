@@ -28,7 +28,7 @@
 #include <entt/entt.hpp>
 #include "common/Events.hpp"
 #include "common/GlobalContext.hpp"
-#include "RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "SystemManager.hpp"
 
 namespace ui::tasks
@@ -115,6 +115,7 @@ struct RenderTask
     using is_task_tag = void;
     uint32_t remainingTime = 0;
     uint32_t delayTime = 16;
+    UiRuntime* runtime = nullptr;
 
     void operator()(uint32_t delta)
     {
@@ -124,12 +125,12 @@ struct RenderTask
             return;
         }
         remainingTime = delayTime;
-        // 常规帧刷新顺序：补间动画更新，再布局，再渲染，最后提交帧尾状态。
-        auto& runtime = RuntimeFacade::current();
-        runtime.trigger<ui::events::UpdateEvent>();
-        runtime.trigger<ui::events::UpdateLayout>();
-        runtime.trigger<ui::events::UpdateRendering>();
-        runtime.trigger<ui::events::EndFrame>(); // 帧结束时批量应用状态更新
+
+        auto& disp = runtime->dispatcher();
+        disp.trigger<ui::events::UpdateEvent>();
+        disp.trigger<ui::events::UpdateLayout>();
+        disp.trigger<ui::events::UpdateRendering>();
+        disp.trigger<ui::events::EndFrame>(); // 帧结束时批量应用状态更新
     }
 };
 
@@ -137,6 +138,7 @@ struct InputTask
 {
     using is_task_tag = void;
     SystemManager* systems = nullptr; ///< 由 Application 注入，不可为 nullptr
+    UiRuntime* runtime = nullptr;
     uint32_t remainingTime = 0;
     uint32_t delayTime = 32;
 
@@ -150,35 +152,28 @@ struct InputTask
         remainingTime = delayTime;
         systems->pollInput();
 
-        auto& runtime = RuntimeFacade::current();
-        runtime.update<events::WindowPixelSizeChanged>();
-        runtime.update<events::WindowExposed>();
-        runtime.update<events::WindowMoved>();
-        runtime.trigger<events::TickKeyRepeat>(); // 驱动 TextInputSystem::doProcessKeyRepeat()
+        auto& disp = runtime->dispatcher();
+        disp.update<events::WindowPixelSizeChanged>();
+        disp.update<events::WindowExposed>();
+        disp.update<events::WindowMoved>();
+        disp.trigger<events::TickKeyRepeat>(); // 驱动 TextInputSystem::doProcessKeyRepeat()
     }
 };
 
 struct QueuedTask
 {
     using is_task_tag = void;
+    UiRuntime* runtime = nullptr;
 
     void operator()(uint32_t delta)
     {
-        // C18 修复：帧开始先排干 Worker Mailbox，确保 Worker 写回的 ECS 操作
-        // 在 Dispatcher::Update()（BUFFERED 事件派发）之前对本帧完全可见。
-        // tryMailbox() 为 nullptr 时（未激活 UiRuntimeScope 的帧/测试场景）静默跳过。
-        if (auto* mailbox = RuntimeFacade::current().tryMailbox())
-        {
-            mailbox->flush();
-        }
-
         // 队列阶段先推进帧上下文，再驱动定时器与缓冲事件派发。
-        auto& frameContext = RuntimeFacade::current().frame();
+        auto frameContext = runtime->registry().template getInCtx<globalcontext::FrameContext>();
         frameContext.intervalMs = delta;
         frameContext.frameSlot = (frameContext.frameSlot + 1) % 2;
-        auto& runtime = RuntimeFacade::current();
-        runtime.trigger<ui::events::UpdateTimer>();
-        runtime.update();
+        auto& disp = runtime->dispatcher();
+        disp.trigger<ui::events::UpdateTimer>();
+        disp.update();
     }
 };
 

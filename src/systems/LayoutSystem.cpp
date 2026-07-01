@@ -1,5 +1,6 @@
 #include "LayoutSystem.hpp"
 
+#include "core/UiRuntime.hpp"
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
@@ -810,9 +811,9 @@ struct LayoutTraversalFrame
 
 } // namespace
 
-LayoutSystem::LayoutSystem(Registry& reg, Dispatcher& disp)
+LayoutSystem::LayoutSystem(UiRuntime& runtime)
     : m_yogaConfig(YGConfigNew()), m_entityToNode(std::make_unique<std::unordered_map<entt::entity, YGNodeRef>>()),
-      m_reg(&reg), m_disp(&disp)
+      m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
 {
 }
 

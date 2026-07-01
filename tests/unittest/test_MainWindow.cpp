@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <string>
 
-#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntime.hpp"
 
 #include <ui.hpp>
@@ -34,7 +34,7 @@ namespace
 
 Registry& ActiveRegistry()
 {
-    return RuntimeFacade::current().registry();
+    return UiRuntime::current().registry();
 }
 
 class UiIntegrationTest : public ::testing::Test

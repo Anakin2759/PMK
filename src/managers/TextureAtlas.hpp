@@ -27,6 +27,7 @@
 #include <vector>
 #include <algorithm>
 #include "common/GPUWrappers.hpp"
+#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 
 namespace ui::wrappers
@@ -77,7 +78,7 @@ public:
     {
         if (!createTexture())
         {
-            Logger::error("[TextureAtlas] Failed to create initial texture");
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to create initial texture");
         }
     }
 
@@ -138,13 +139,13 @@ public:
             // 尝试扩展图集
             if (!expand())
             {
-                Logger::error("[TextureAtlas] Failed to expand atlas for codepoint {}", codepoint);
+                ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to expand atlas for codepoint {}", codepoint);
                 return std::nullopt;
             }
             pos = allocate(width, height);
             if (!pos.has_value())
             {
-                Logger::error("[TextureAtlas] Still cannot allocate after expansion");
+                ui::UiRuntime::current().logger().error("[TextureAtlas] Still cannot allocate after expansion");
                 return std::nullopt;
             }
         }
@@ -154,7 +155,7 @@ public:
         // 上传位图到 GPU
         if (!uploadBitmap(bitmap, xPos, yPos, width, height))
         {
-            Logger::error("[TextureAtlas] Failed to upload bitmap for codepoint {}", codepoint);
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to upload bitmap for codepoint {}", codepoint);
             return std::nullopt;
         }
 
@@ -201,7 +202,7 @@ public:
         m_glyphMap.clear();
         m_shelves.clear();
         m_currentShelfY = 0;
-        Logger::info("[TextureAtlas] Cleared all glyphs");
+        ui::UiRuntime::current().logger().info("[TextureAtlas] Cleared all glyphs");
     }
 
     /**
@@ -265,12 +266,12 @@ private:
         SDL_GPUTexture* texture = SDL_CreateGPUTexture(m_device, &textureInfo);
         if (texture == nullptr)
         {
-            Logger::error("[TextureAtlas] Failed to create texture: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to create texture: {}", SDL_GetError());
             return false;
         }
 
         m_texture.reset(texture);
-        Logger::info("[TextureAtlas] Created texture atlas {}x{}", m_size, m_size);
+        ui::UiRuntime::current().logger().info("[TextureAtlas] Created texture atlas {}x{}", m_size, m_size);
         return true;
     }
 
@@ -319,12 +320,12 @@ private:
     {
         if (m_size >= 4096)
         {
-            Logger::warn("[TextureAtlas] Cannot expand beyond 4096x4096");
+            ui::UiRuntime::current().logger().warn("[TextureAtlas] Cannot expand beyond 4096x4096");
             return false;
         }
 
         uint32_t newSize = m_size * 2;
-        Logger::info("[TextureAtlas] Expanding atlas from {}x{} to {}x{}", m_size, m_size, newSize, newSize);
+        ui::UiRuntime::current().logger().info("[TextureAtlas] Expanding atlas from {}x{} to {}x{}", m_size, m_size, newSize, newSize);
 
         // 创建新纹理
         SDL_GPUTextureCreateInfo textureInfo{};
@@ -340,7 +341,7 @@ private:
         SDL_GPUTexture* newTexture = SDL_CreateGPUTexture(m_device, &textureInfo);
         if (!newTexture)
         {
-            Logger::error("[TextureAtlas] Failed to create expanded texture");
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to create expanded texture");
             return false;
         }
 
@@ -362,7 +363,7 @@ private:
         m_shelves.clear();
         m_currentShelfY = 0;
 
-        Logger::warn("[TextureAtlas] Expansion requires re-uploading all glyphs");
+        ui::UiRuntime::current().logger().warn("[TextureAtlas] Expansion requires re-uploading all glyphs");
         return true;
     }
 
@@ -378,7 +379,7 @@ private:
         // 由于 SDL_UploadToGPUTexture 签名在不同版本可能不同，这里提供占位实现
         // TODO: 完整实现需要 CommandBuffer + CopyPass + TransferBuffer
 
-        Logger::warn("[TextureAtlas] uploadBitmap not fully implemented, atlas updates may not work");
+        ui::UiRuntime::current().logger().warn("[TextureAtlas] uploadBitmap not fully implemented, atlas updates may not work");
         return true;
     }
 

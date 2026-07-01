@@ -9,7 +9,7 @@
 #include "src/api/Visibility.hpp"
 #include "src/common/Policies.hpp"
 #include "src/common/Tags.hpp"
-#include "src/core/RuntimeFacade.hpp"
+#include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntime.hpp"
 #include "src/core/WindowSync.hpp"
 
@@ -39,7 +39,7 @@ private:
 TEST_F(VisibilityTest, ShowAddsVisibleTag)
 {
     const auto entity = factory::CreateLabel("Lbl", "vis_show_1");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     registry.remove<components::VisibleTag>(entity);
 
     visibility::Show(entity);
@@ -50,7 +50,7 @@ TEST_F(VisibilityTest, ShowAddsVisibleTag)
 TEST_F(VisibilityTest, ShowTriggersDirtyMarks)
 {
     const auto entity = factory::CreateLabel("Lbl", "vis_show_dirty");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     registry.remove<components::LayoutDirtyTag>(entity);
     registry.remove<components::RenderDirtyTag>(entity);
 
@@ -63,7 +63,7 @@ TEST_F(VisibilityTest, ShowTriggersDirtyMarks)
 TEST_F(VisibilityTest, HideRemovesVisibleTag)
 {
     const auto entity = factory::CreateLabel("Lbl", "vis_hide_1");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     registry.emplace_or_replace<components::VisibleTag>(entity);
 
     visibility::Hide(entity);
@@ -74,7 +74,7 @@ TEST_F(VisibilityTest, HideRemovesVisibleTag)
 TEST_F(VisibilityTest, HideTriggersDirtyMarks)
 {
     const auto entity = factory::CreateLabel("Lbl", "vis_hide_dirty");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     registry.remove<components::LayoutDirtyTag>(entity);
     registry.remove<components::RenderDirtyTag>(entity);
 
@@ -87,7 +87,7 @@ TEST_F(VisibilityTest, HideTriggersDirtyMarks)
 TEST_F(VisibilityTest, SetVisibleTrueEquivalentToShow)
 {
     const auto entity = factory::CreateLabel("Lbl", "vis_set_true");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     registry.remove<components::VisibleTag>(entity);
 
     visibility::SetVisible(entity, true);
@@ -98,7 +98,7 @@ TEST_F(VisibilityTest, SetVisibleTrueEquivalentToShow)
 TEST_F(VisibilityTest, SetVisibleFalseEquivalentToHide)
 {
     const auto entity = factory::CreateLabel("Lbl", "vis_set_false");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     registry.emplace_or_replace<components::VisibleTag>(entity);
 
     visibility::SetVisible(entity, false);
@@ -160,7 +160,7 @@ TEST_F(VisibilityTest, WindowSizeTargetRejectsNonFiniteSize)
 TEST_F(VisibilityTest, SetAlphaStoresValue)
 {
     const auto entity = factory::CreateLabel("A", "vis_alpha_1");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
 
     visibility::SetAlpha(entity, 0.5F);
 
@@ -172,7 +172,7 @@ TEST_F(VisibilityTest, SetAlphaStoresValue)
 TEST_F(VisibilityTest, SetAlphaClampsBelowZero)
 {
     const auto entity = factory::CreateLabel("A", "vis_alpha_clamp_low");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
 
     visibility::SetAlpha(entity, -0.5F);
 
@@ -184,7 +184,7 @@ TEST_F(VisibilityTest, SetAlphaClampsBelowZero)
 TEST_F(VisibilityTest, SetAlphaClampsAboveOne)
 {
     const auto entity = factory::CreateLabel("A", "vis_alpha_clamp_high");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
 
     visibility::SetAlpha(entity, 1.8F);
 
@@ -204,7 +204,7 @@ TEST_F(VisibilityTest, SetBackgroundColorStoresColorAndEnablesBackground)
 {
     const auto entity = factory::CreateLabel("B", "vis_bg_1");
     const Color red{1.0F, 0.0F, 0.0F, 1.0F};
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
 
     visibility::SetBackgroundColor(entity, red);
 
@@ -219,7 +219,7 @@ TEST_F(VisibilityTest, SetBackgroundColorStoresColorAndEnablesBackground)
 TEST_F(VisibilityTest, SetBackgroundColorTriggersRenderDirty)
 {
     const auto entity = factory::CreateLabel("B", "vis_bg_dirty");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
     registry.remove<components::RenderDirtyTag>(entity);
 
     visibility::SetBackgroundColor(entity, {0.2F, 0.4F, 0.6F, 1.0F});
@@ -232,7 +232,7 @@ TEST_F(VisibilityTest, SetBackgroundColorTriggersRenderDirty)
 TEST_F(VisibilityTest, SetBorderRadiusAppliesUniformRadiusToBackground)
 {
     const auto entity = factory::CreateLabel("R", "vis_radius_1");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
 
     visibility::SetBorderRadius(entity, 8.0F);
 
@@ -247,7 +247,7 @@ TEST_F(VisibilityTest, SetBorderRadiusAppliesUniformRadiusToBackground)
 TEST_F(VisibilityTest, SetBorderRadiusNegativeValueClampsToZero)
 {
     const auto entity = factory::CreateLabel("R", "vis_radius_clamp");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
 
     visibility::SetBorderRadius(entity, -5.0F);
 
@@ -262,7 +262,7 @@ TEST_F(VisibilityTest, SetBorderColorStoresColorAndEnablesBorder)
 {
     const auto entity = factory::CreateLabel("BC", "vis_border_color");
     const Color blue{0.0F, 0.0F, 1.0F, 1.0F};
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
 
     visibility::SetBorderColor(entity, blue);
 
@@ -277,7 +277,7 @@ TEST_F(VisibilityTest, SetBorderColorStoresColorAndEnablesBorder)
 TEST_F(VisibilityTest, SetBorderThicknessStoresValueAndEnablesBorder)
 {
     const auto entity = factory::CreateLabel("BT", "vis_border_thick");
-    auto& registry = RuntimeFacade::current().registry();
+    auto& registry = UiRuntime::current().registry();
 
     visibility::SetBorderThickness(entity, 3.0F);
 
