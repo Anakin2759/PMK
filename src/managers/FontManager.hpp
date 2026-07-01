@@ -42,7 +42,7 @@
 #include <memory>
 #include <cstdint>
 #include <cmath>
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "common/ErrorCodes.hpp"
 #include "common/Result.hpp"
 

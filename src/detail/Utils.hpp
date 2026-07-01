@@ -18,6 +18,11 @@
 #include <string>
 #include "common/components/Layout.hpp"
 #include "common/Policies.hpp"
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::utils
 {
 
@@ -41,7 +46,7 @@ void QuitUiEventLoop();
 [[nodiscard]] float GetScrollMaxOffset(entt::entity entity, bool isVertical);
 [[nodiscard]] components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(entt::entity entity);
 
-void InvokeTask(::ui::VoidCallback func);
+void InvokeTask(::ui::UiRuntime& runtime, ::ui::VoidCallback func);
 using TaskHandle = uint32_t;
 /**
  * @brief 注册一个定时任务，返回任务句柄
@@ -49,12 +54,12 @@ using TaskHandle = uint32_t;
  * @param func 任务函数
  * @return 任务句柄
  */
-TaskHandle TimerCallback(uint32_t interval, ::ui::VoidCallback func);
+TaskHandle TimerCallback(::ui::UiRuntime& runtime, uint32_t interval, ::ui::VoidCallback func);
 /**
  * @brief 取消注册一个定时任务
  * @param handle 任务句柄
  */
-void CancelQueuedTask(TaskHandle handle);
+void CancelQueuedTask(::ui::UiRuntime& runtime, TaskHandle handle);
 
 // 判断根据别名判断实体是否存在
 bool IsEntityExist(const std::string& alias);

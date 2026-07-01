@@ -17,7 +17,7 @@
 #include <array>
 #include <memory>
 #include <SDL3/SDL_gpu.h>
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "common/CustomizationPoints.hpp"
 #include "common/RenderTypes.hpp"
 #include "common/GPUWrappers.hpp"

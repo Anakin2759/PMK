@@ -47,7 +47,7 @@
 #include <entt/entt.hpp>
 
 #include "interface/IRenderer.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui::renderer_registry
 {

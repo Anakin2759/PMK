@@ -52,11 +52,6 @@ protected:
         return hierarchy->children;
     }
 
-    static std::vector<entt::entity> popupChildren(ui::entity popupEntity)
-    {
-        return popupChildren(static_cast<entt::entity>(popupEntity));
-    }
-
 private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;

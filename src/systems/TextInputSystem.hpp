@@ -17,8 +17,8 @@
 #include "common/Events.hpp"
 #include "interface/ISystem.hpp"
 #include "services/TextEditingService.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui::systems
 {

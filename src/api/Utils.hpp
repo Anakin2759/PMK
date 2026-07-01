@@ -26,6 +26,11 @@ namespace ui::components
 struct VerticalScrollbarGeometry;
 }
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::utils
 {
 
@@ -137,7 +142,7 @@ template <typename EntityLike>
     return GetScrollMaxOffset(static_cast<ui::entity>(entity), isVertical);
 }
 
-void InvokeTask(::ui::VoidCallback func);
+void InvokeTask(UiRuntime& runtime, ::ui::VoidCallback func);
 using TaskHandle = uint32_t;
 /**
  * @brief 注册一个定时任务，返回任务句柄
@@ -145,12 +150,12 @@ using TaskHandle = uint32_t;
  * @param func 任务函数
  * @return 任务句柄
  */
-TaskHandle TimerCallback(uint32_t interval, ::ui::VoidCallback func);
+TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, ::ui::VoidCallback func);
 /**
  * @brief 取消注册一个定时任务
  * @param handle 任务句柄
  */
-void CancelQueuedTask(TaskHandle handle);
+void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle);
 
 // 判断根据别名判断实体是否存在
 bool IsEntityExist(const std::string& alias);

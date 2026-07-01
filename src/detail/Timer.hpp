@@ -29,6 +29,11 @@
 #include <cstdint>
 #include <functional>
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::timer
 {
 
@@ -46,7 +51,7 @@ inline constexpr Handle NULL_HANDLE = 0;
  * @param delayMs  延迟时间（毫秒），实际精度受帧率限制
  * @return 定时器句柄，可用于 Clear
  */
-Handle SetTimeout(std::function<void()> callback, std::uint32_t delayMs);
+Handle SetTimeout(UiRuntime& runtime, std::function<void()> callback, std::uint32_t delayMs);
 
 /**
  * @brief 周期性执行回调（重复触发）
@@ -54,12 +59,12 @@ Handle SetTimeout(std::function<void()> callback, std::uint32_t delayMs);
  * @param intervalMs 间隔时间（毫秒），实际精度受帧率限制
  * @return 定时器句柄，可用于 Clear
  */
-Handle SetInterval(std::function<void()> callback, std::uint32_t intervalMs);
+Handle SetInterval(UiRuntime& runtime, std::function<void()> callback, std::uint32_t intervalMs);
 
 /**
  * @brief 取消一个定时任务
  * @param handle 由 SetTimeout / SetInterval 返回的句柄；无效句柄静默忽略
  */
-void Clear(Handle handle) noexcept;
+void Clear(UiRuntime& runtime, Handle handle) noexcept;
 
 } // namespace ui::timer

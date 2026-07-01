@@ -9,8 +9,8 @@
 #include "common/Policies.hpp"
 #include "common/Tags.hpp"
 #include "core/WindowSync.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Logger.hpp"
 #include "HitTestSystem.hpp"
 #include <SDL3/SDL_video.h>
 namespace ui::systems

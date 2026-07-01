@@ -36,8 +36,8 @@
 #include <entt/entt.hpp>
 #include "common/Events.hpp"
 #include "interface/ISystem.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Registry.hpp"
 namespace ui::systems
 {
 /**
@@ -68,13 +68,13 @@ public:
      * @param singleShot 是否单次执行（默认为false，重复执行）
      * @return 任务句柄
      */
-    static uint32_t addTask(uint32_t interval, VoidCallback func, bool singleShot = false);
+    uint32_t addTask(uint32_t interval, VoidCallback func, bool singleShot = false);
 
     /**
      * @brief 取消定时任务
      * @param handle 任务句柄
      */
-    static void cancelTask(uint32_t handle);
+    void cancelTask(uint32_t handle);
 
     /**
      * @brief 更新定时器状态（每帧调用）

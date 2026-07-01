@@ -27,7 +27,7 @@
 #include <vector>
 #include <algorithm>
 #include "common/GPUWrappers.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 
 namespace ui::wrappers
 {

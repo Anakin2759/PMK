@@ -34,7 +34,7 @@
 #include <freetype/freetype.h>
 #include <SDL3/SDL.h>
 #include <Eigen/Core>
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "common/GPUWrappers.hpp"
 #include "common/Result.hpp"
 

@@ -26,8 +26,8 @@
 #include "common/Events.hpp"
 #include "common/Result.hpp"
 #include "interface/ISystem.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Registry.hpp"
 
 struct SDL_Window;
 

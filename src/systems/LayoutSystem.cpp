@@ -21,7 +21,7 @@
 #include "common/Types.hpp"
 #include "entt/entity/entity.hpp"
 #include "common/components/Data.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Registry.hpp"
 #include <memory>
 #include <unordered_map>
 #include "yoga/YGConfig.h"

@@ -5,9 +5,7 @@
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-03-26
  * @version 0.1
-
-    Runtime owns Registry and Dispatcher instances.
-    UiRuntimeScope temporarily activates a runtime and restores the previous one on destruction.
+ * @brief UI运行时上下文 - 提供全局访问点和上下文管理功能
  *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
@@ -21,8 +19,8 @@
 
 #include "common/EntityTypes.hpp"
 #include "common/ThreadPool.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui
 {

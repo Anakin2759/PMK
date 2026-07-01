@@ -55,8 +55,8 @@
 #include <SDL3/SDL.h>
 #include "common/Events.hpp"
 #include "common/components/Window.hpp"
-#include "singleton/Registry.hpp"
-#include "singleton/Dispatcher.hpp"
+#include "utils/Registry.hpp"
+#include "utils/Dispatcher.hpp"
 #include "interface/ISystem.hpp"
 #include "common/Types.hpp"
 

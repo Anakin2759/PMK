@@ -18,8 +18,8 @@
 #include <exception>
 
 #include "RuntimeFacade.hpp"
-#include "singleton/Logger.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Logger.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui
 {

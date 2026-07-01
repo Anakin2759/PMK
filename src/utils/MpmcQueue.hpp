@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace ui {
+namespace ui::utils {
 
 /**
  * @brief 有界无锁 MPMC 队列。

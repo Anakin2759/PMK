@@ -9,7 +9,7 @@
 #include "common/ErrorCodes.hpp"
 #include "common/AppConfig.hpp"
 #include "core/RuntimeFacade.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "singleton/Registry.hpp"
 #include "singleton/Dispatcher.hpp"
 #include "Hierarchy.hpp"
@@ -17,6 +17,7 @@
 #include "Utils.hpp"
 #include "Animation.hpp"
 #include "core/PlatformWindow.hpp"
+#include "systems/TimerSystem.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Window.hpp"
 #include "common/components/Layout.hpp"
@@ -823,7 +824,9 @@ void CloseDropDownPopup(ui::entity ddEntity)
     dropDown->open = false;
     ui::utils::MarkVisualChanged(ddEntity);
 
-    ui::utils::InvokeTask(
+    auto timerSystem = systems::TimerSystem{reg, *CurrentServices().dispatcher};
+    timerSystem.addTask(
+        0,
         [regPtr = &reg, popupToDestroy]()
         {
             auto& reg = *regPtr;
@@ -858,7 +861,8 @@ void CloseDropDownPopup(ui::entity ddEntity)
                     reg.destroy(ent);
                 }
             }
-        });
+        },
+        true);
 }
 
 void CloseDropDownPopup(entt::entity ddEntity)

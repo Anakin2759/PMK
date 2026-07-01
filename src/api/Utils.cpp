@@ -6,6 +6,7 @@
 #include <utility>
 #include <string>
 #include "core/RuntimeFacade.hpp"
+#include "core/UiRuntime.hpp"
 #include "detail/EntityCast.hpp"
 #include "systems/TimerSystem.hpp"
 #include "entt/entity/fwd.hpp"
@@ -130,12 +131,12 @@ void CloseWindow(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
     if (!reg.valid(entity)) return;
-    RuntimeFacade::current().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
+    RuntimeFacade::current().dispatcher().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
 }
 
 void QuitUiEventLoop()
 {
-    RuntimeFacade::current().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
+    RuntimeFacade::current().dispatcher().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
 };
 
 Vec2 GetAbsolutePosition(ui::entity entity)
@@ -332,9 +333,10 @@ components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(entt::entity 
     return GetVerticalScrollbarGeometry(detail::ToPublic(entity));
 }
 
-void InvokeTask(VoidCallback func)
+void InvokeTask(UiRuntime& runtime, VoidCallback func)
 {
-    systems::TimerSystem::addTask(0, std::move(func), true);
+    auto timerSystem = systems::TimerSystem{runtime.registry(), runtime.dispatcher()};
+    timerSystem.addTask(0, std::move(func), true);
 }
 /**
  * @brief 注册一个定时任务，返回任务句柄
@@ -342,18 +344,20 @@ void InvokeTask(VoidCallback func)
  * @param func 任务函数
  * @return 任务句柄
  */
-TaskHandle TimerCallback(uint32_t interval, VoidCallback func)
+TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, VoidCallback func)
 {
-    return systems::TimerSystem::addTask(interval, std::move(func));
+    auto timerSystem = systems::TimerSystem{runtime.registry(), runtime.dispatcher()};
+    return timerSystem.addTask(interval, std::move(func));
 }
 
 /**
  * @brief 取消注册一个定时任务
  * @param handle 任务句柄
  */
-void CancelQueuedTask(TaskHandle handle)
+void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle)
 {
-    systems::TimerSystem::cancelTask(handle);
+    auto timerSystem = systems::TimerSystem{runtime.registry(), runtime.dispatcher()};
+    timerSystem.cancelTask(handle);
 }
 /**
  * @brief 判断实体别名是否存在

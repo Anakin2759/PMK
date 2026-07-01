@@ -22,8 +22,8 @@
 
 // 引入系统接口
 #include "interface/ISystem.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui
 {

@@ -16,7 +16,7 @@
 #include "common/components/Data.hpp"
 #include "core/TextUtils.hpp"
 #include "detail/Utils.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui::services
 {

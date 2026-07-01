@@ -3,8 +3,8 @@
  */
 
 #include "SystemManager.hpp"
-#include "singleton/Logger.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Logger.hpp"
+#include "utils/Registry.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>

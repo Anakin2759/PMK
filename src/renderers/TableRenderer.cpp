@@ -36,7 +36,7 @@
 #include "managers/BatchManager.hpp"
 #include "managers/FontManager.hpp"
 #include "managers/TextTextureCache.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui::renderers
 {

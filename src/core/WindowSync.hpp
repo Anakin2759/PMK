@@ -30,7 +30,7 @@
 #include "common/components/Layout.hpp"
 #include "common/components/Visual.hpp"
 #include "common/components/Window.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 
 namespace ui::window_sync
 {

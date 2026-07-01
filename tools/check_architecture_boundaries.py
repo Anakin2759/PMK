@@ -77,11 +77,7 @@ ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
     }
 )
 
-ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
-    {
-        ("src/systems/TimerSystem.cpp", "RuntimeFacade::current()"): 3,
-    }
-)
+ALLOWED_RUNTIME_CURRENT_COUNTS = Counter({})
 
 ALLOWED_RAW_ACCESS_COUNTS = Counter(
     {

@@ -25,7 +25,7 @@
 #include "common/GPUWrappers.hpp"
 #include "SDL3/SDL_stdinc.h"
 #include "interface/IRenderer.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 
 namespace ui::systems
 {

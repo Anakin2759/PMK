@@ -28,7 +28,7 @@
 
 #include <entt/entt.hpp>
 #include "common/Events.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "interface/ISystem.hpp"
 #include "detail/Animation.hpp"
 #include "detail/Utils.hpp"
@@ -37,6 +37,11 @@
 #include "common/components/Layout.hpp"
 #include "common/Tags.hpp"
 #include "common/GlobalContext.hpp"
+
+#include "utils/Logger.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Registry.hpp"
+
 namespace ui::systems
 {
 class ActionSystem : public ui::interface::EnableRegister<ActionSystem>

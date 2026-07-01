@@ -13,7 +13,7 @@
 #include "common/components/Window.hpp"
 #include "common/AppConfig.hpp"
 #include "core/WindowSync.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "SDL3/SDL_gpu.h"
 #include "SDL3/SDL_video.h"
 #include "core/RenderContext.hpp"
@@ -32,7 +32,7 @@
 #include "common/components/Interaction.hpp"
 #include "common/Types.hpp"
 #include "SDL3/SDL_rect.h"
-#include "singleton/Registry.hpp"
+#include "utils/Registry.hpp"
 #include "common/Tags.hpp"
 #include "detail/Utils.hpp"
 

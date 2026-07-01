@@ -24,7 +24,7 @@
 #include <vector>
 #include <SDL3/SDL.h>
 #include "interface/IBackendRenderer.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 
 namespace ui::renderers
 {

@@ -11,8 +11,8 @@
 #include "src/core/TaskChain.hpp"
 #include "src/core/RuntimeFacade.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/singleton/Dispatcher.hpp"
-#include "src/singleton/Registry.hpp"
+#include "src/utils/Dispatcher.hpp"
+#include "src/utils/Registry.hpp"
 
 namespace ui::tests
 {

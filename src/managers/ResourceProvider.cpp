@@ -15,7 +15,7 @@
 
 #include "ResourceProvider.hpp"
 #include "common/ErrorCodes.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include <string_view>
 #include <string>
 #include "common/Result.hpp"

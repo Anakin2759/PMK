@@ -1,7 +1,7 @@
 #include "IconManager.hpp"
 #include "DeviceManager.hpp"
 #include "freetype/config/ftheader.h"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "freetype/fttypes.h"
 #include "common/Result.hpp"
 #include "common/ErrorCodes.hpp"

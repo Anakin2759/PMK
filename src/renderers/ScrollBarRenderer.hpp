@@ -15,7 +15,7 @@
 
 #pragma once
 #include "interface/IRenderer.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Registry.hpp"
 #include "common/RenderTypes.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"

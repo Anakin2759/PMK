@@ -14,8 +14,7 @@
  */
 
 #include "TimerSystem.hpp"
-#include "core/RuntimeFacade.hpp"
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "common/GlobalContext.hpp"
 #include "common/Tags.hpp"
 #include "detail/Utils.hpp"
@@ -31,7 +30,7 @@ namespace
 {
 
 template <typename Context>
-[[nodiscard]] Context& EnsureRegistryContext(Registry& reg)
+[[nodiscard]] Context& ensureRegistryContext(Registry& reg)
 {
     if (auto* existing = reg.ctx().template find<Context>())
     {
@@ -54,8 +53,8 @@ void TimerSystem::unregisterHandlersImpl()
 
 uint32_t TimerSystem::addTask(uint32_t interval, VoidCallback func, bool singleShot)
 {
-    auto& frameCtx = RuntimeFacade::current().frame();
-    auto& timerCtx = RuntimeFacade::current().ensureContext<globalcontext::TimerContext>();
+    auto& frameCtx = ensureRegistryContext<globalcontext::FrameContext>(*m_reg);
+    auto& timerCtx = ensureRegistryContext<globalcontext::TimerContext>(*m_reg);
 
     uint32_t taskId = timerCtx.nextTaskId++;
 
@@ -76,7 +75,7 @@ uint32_t TimerSystem::addTask(uint32_t interval, VoidCallback func, bool singleS
 
 void TimerSystem::cancelTask(uint32_t handle)
 {
-    auto& timerCtx = RuntimeFacade::current().ensureContext<globalcontext::TimerContext>();
+    auto& timerCtx = ensureRegistryContext<globalcontext::TimerContext>(*m_reg);
     auto taskIterator = timerCtx.tasks.find(handle);
     if (taskIterator != timerCtx.tasks.end())
     {
@@ -88,7 +87,7 @@ void TimerSystem::cancelTask(uint32_t handle)
 void TimerSystem::update(uint32_t deltaMs)
 {
     auto& frameCtx = m_reg->ctx().get<globalcontext::FrameContext>();
-    auto& timerCtx = EnsureRegistryContext<globalcontext::TimerContext>(*m_reg);
+    auto& timerCtx = ensureRegistryContext<globalcontext::TimerContext>(*m_reg);
 
     // 处理所有任务
     for (auto& [taskId, task] : timerCtx.tasks)

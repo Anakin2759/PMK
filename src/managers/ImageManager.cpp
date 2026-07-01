@@ -1,6 +1,6 @@
 #include "common/Result.hpp"
 #include <string>
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "common/ErrorCodes.hpp"
 #include <cctype>
 #include <cstdio>

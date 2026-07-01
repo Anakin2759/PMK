@@ -268,7 +268,7 @@ set(UI_HEADERS
 
 
     singleton/Registry.hpp
-    singleton/Logger.hpp
+    utils/Logger.hpp
     singleton/Dispatcher.hpp
     
     traits/ComponentsTraits.hpp

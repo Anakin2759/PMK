@@ -31,8 +31,8 @@
 #include <yoga/Yoga.h>
 
 #include "interface/ISystem.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui::systems
 {

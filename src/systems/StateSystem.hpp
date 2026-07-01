@@ -22,8 +22,8 @@
 
 #include "interface/ISystem.hpp"
 #include "common/Events.hpp"
-#include "singleton/Dispatcher.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Dispatcher.hpp"
+#include "utils/Registry.hpp"
 #include "common/GlobalContext.hpp"
 
 namespace ui::systems

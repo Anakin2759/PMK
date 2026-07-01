@@ -29,18 +29,13 @@
 
 #pragma once
 
-#include <chrono>
-#include <span>
 #include <memory>
-
-#include "EventLoop.hpp"
-#include "common/EntityTypes.hpp"
+#include <span>
 
 namespace ui
 {
-class SystemManager;
+class ApplicationImpl;
 class UiRuntime;
-class UiRuntimeScope;
 
 namespace events
 {
@@ -62,10 +57,8 @@ public:
     Application& operator=(const Application&) = delete;
     Application(Application&&) = delete;
     Application& operator=(Application&&) = delete;
-
+    ~Application() noexcept = default;
     void onQuitRequested([[maybe_unused]] ui::events::QuitRequested& event);
-
-    virtual ~Application() noexcept;
 
     /**
      * @brief 应用主循环
@@ -82,15 +75,6 @@ public:
     [[nodiscard]] const UiRuntime& runtime() const noexcept;
 
 private:
-    std::unique_ptr<UiRuntime> m_runtime;           // 管理全局状态和资源
-    std::unique_ptr<UiRuntimeScope> m_runtimeScope; // 管理 UiRuntime 生命周期
-    EventLoop m_eventLoop;
-
-    // 核心 ECS 系统封装
-    std::unique_ptr<SystemManager> m_systems;
-    // ECS 根实体，代表整个屏幕/应用区域
-    ui::entity m_rootEntity = ui::null_entity;
-
-    std::chrono::steady_clock::time_point m_lastUpdateTime = std::chrono::steady_clock::now();
+    std::unique_ptr<ApplicationImpl> m_impl;
 };
 } // namespace ui

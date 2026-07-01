@@ -22,7 +22,7 @@
 #include <cmath>
 
 #include "interface/IRenderer.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Registry.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Layout.hpp"
 #include "common/CustomizationPoints.hpp"

@@ -36,7 +36,7 @@
 // CMRC_DECLARE(ui_swiftshader);
 
 #include <SDL3/SDL_gpu.h>
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "common/GPUWrappers.hpp"
 
 namespace ui::managers

@@ -17,7 +17,7 @@
 #include "common/Result.hpp"
 #include "common/AppConfig.hpp"
 #include <string_view>
-#include "singleton/Logger.hpp"
+#include "utils/Logger.hpp"
 #include "common/ErrorCodes.hpp"
 #include "managers/FontManager.hpp"
 #include "managers/ImageManager.hpp"
@@ -36,7 +36,7 @@
 #include "SDL3/SDL_init.h"
 #include <exception>
 #include "managers/CommandBuffer.hpp"
-#include "singleton/Registry.hpp"
+#include "utils/Registry.hpp"
 #include "renderers/FallbackBackendRenderer.hpp"
 #include "managers/IconManager.hpp"
 #include "managers/ResourceProvider.hpp"
@@ -48,7 +48,12 @@
 
 namespace
 {
-
+/**
+ * @brief 是否将环境变量值视为 true
+ * @param value 环境变量的值
+ * @return true 如果值表示 true
+ * @return false 如果值表示 false   
+ */
 bool IsTruthyEnvironmentValue(const char* value)
 {
     if (value == nullptr)
