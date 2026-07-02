@@ -23,15 +23,15 @@
 
 #pragma once
 
-// 防止 Windows.h 宏污染 ASIO 的 execution 命名空间
-
-#include <asio.hpp>
-#include <memory>
 #include <atomic>
 #include <concepts>
 #include <functional>
+#include <memory>
+#include <thread>
 #include <type_traits>
 #include <utility>
+
+#include "utils/EventLoop.hpp"
 
 namespace ui
 {
@@ -56,17 +56,16 @@ public:
         requires std::invocable<std::decay_t<Func>>
     void invoke(Func&& func)
     {
-        asio::post(m_ioContext->get_executor(),
-                   [callable = std::forward<Func>(func)]() mutable { std::invoke(std::move(callable)); });
+        m_loop.PostOrThrow(
+            [callable = std::forward<Func>(func)]() mutable { std::invoke(std::move(callable)); });
     }
 
     template <typename Func, typename... Args>
         requires(sizeof...(Args) > 0) && std::invocable<std::decay_t<Func>, std::decay_t<Args>...>
     void invoke(Func&& func, Args&&... args)
     {
-        asio::post(m_ioContext->get_executor(),
-                   [callable = std::forward<Func>(func), ... capturedArgs = std::forward<Args>(args)]() mutable
-                   { std::invoke(std::move(callable), std::move(capturedArgs)...); });
+        m_loop.PostOrThrow([callable = std::forward<Func>(func), ... capturedArgs = std::forward<Args>(args)]() mutable
+                           { std::invoke(std::move(callable), std::move(capturedArgs)...); });
     }
 
     // 注册默认处理器（无参数版本）
@@ -87,11 +86,12 @@ public:
     }
 
 private:
-    void scheduleNextFrame();
+    void startFrameScheduler();
+    void stopFrameScheduler() noexcept;
+    void postDefaultHandler();
 
-    std::unique_ptr<asio::io_context> m_ioContext;
-    asio::executor_work_guard<asio::io_context::executor_type> m_workGuard;
-    asio::steady_timer m_frameTimer;
+    utils::EventLoop m_loop;
+    std::jthread m_frameScheduler;
     std::atomic<bool> m_running;
     std::move_only_function<void()> m_defaultHandler;
 };

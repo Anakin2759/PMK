@@ -807,6 +807,7 @@ entt::entity FindWindowRoot(Registry& reg, entt::entity entity)
 
 void CloseDropDownPopup(ui::entity ddEntity)
 {
+    auto& runtime = UiRuntime::current();
     auto& reg = CurrentRegistry();
     auto* dropDown = reg.try_get<components::DropDown>(ddEntity);
     if (dropDown == nullptr) return;

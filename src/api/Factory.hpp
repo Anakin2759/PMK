@@ -18,6 +18,9 @@
 #include <vector>
 #include "Entity.hpp"
 #include "common/Result.hpp"
+#include "core/UiRuntime.hpp"
+#include "common/Types.hpp"
+#include "core/Application.hpp"
 #include <string>
 
 namespace ui
@@ -46,11 +49,9 @@ inline Result<WindowHandle> MakeWindowHandle(std::uintptr_t token, entity raw, s
 {
     return WindowHandle{raw, windowId, token};
 }
+
 } // namespace ui
-#include <string_view>
-#include "common/Types.hpp"
-#include "core/Application.hpp"
-#include "common/Result.hpp"
+
 #ifdef CreateWindow
 #undef CreateWindow
 #endif
@@ -63,11 +64,6 @@ inline Result<WindowHandle> MakeWindowHandle(std::uintptr_t token, entity raw, s
 #ifdef CreateDialogA
 #undef CreateDialogA
 #endif
-
-namespace ui
-{
-class UiRuntime;
-}
 
 namespace ui::factory
 {

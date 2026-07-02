@@ -27,7 +27,8 @@ namespace ui
 class UiRuntime
 {
 public:
-    UiRuntime(): m_registry(std::make_unique<Registry>()),
+    UiRuntime(): m_threadPool(std::make_unique<utils::ThreadPool>()),
+                 m_registry(std::make_unique<Registry>()),
                  m_dispatcher(std::make_unique<Dispatcher>()),
                  m_logger(std::make_unique<utils::Logger>())
     {
@@ -92,6 +93,5 @@ private:
     std::unique_ptr<Dispatcher> m_dispatcher;
     std::unique_ptr<utils::Logger> m_logger;
 };
-
 
 } // namespace ui

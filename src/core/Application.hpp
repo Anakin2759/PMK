@@ -57,7 +57,7 @@ public:
     Application& operator=(const Application&) = delete;
     Application(Application&&) = delete;
     Application& operator=(Application&&) = delete;
-    ~Application() noexcept = default;
+    ~Application() noexcept;
     void onQuitRequested([[maybe_unused]] ui::events::QuitRequested& event);
 
     /**

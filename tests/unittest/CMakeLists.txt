@@ -3,23 +3,17 @@
 function(configure_ui_test_target target_name)
     target_compile_features(${target_name} PRIVATE cxx_std_23)
     target_compile_definitions(${target_name} PRIVATE
-        ASIO_STANDALONE
         SDL_MAIN_HANDLED
     )
     target_include_directories(${target_name} PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(${target_name} PRIVATE
         EnTT::EnTT
-        asio::asio
         SDL3::SDL3
         ui
         GTest::gmock
         GTest::gmock_main
         GTest::gtest_main
     )
-
-    if(MINGW)
-        target_link_libraries(${target_name} PRIVATE ws2_32 mswsock)
-    endif()
 
     target_compile_options(${target_name} PRIVATE
         # GCC

@@ -3,18 +3,17 @@
  */
 
 #include "EventLoop.hpp"
-#include "asio/io_context.hpp"
-#include "asio/executor_work_guard.hpp"
-#include "asio/error_code.hpp"
+
 #include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <exception>
-#include <memory>
 namespace ui
 {
 namespace
 {
+constexpr auto kFrameInterval = std::chrono::milliseconds(16);
+
 void WriteStderr(const char* text) noexcept
 {
     if (text == nullptr)
@@ -31,8 +30,7 @@ void WriteStderr(const char* text) noexcept
 } // namespace
 
 EventLoop::EventLoop()
-    : m_ioContext(std::make_unique<asio::io_context>()), m_workGuard(asio::make_work_guard(*m_ioContext)),
-      m_frameTimer(*m_ioContext), m_running(false)
+    : m_running(false)
 {
 }
 
@@ -54,41 +52,75 @@ EventLoop::~EventLoop() noexcept
     }
 }
 
-void EventLoop::scheduleNextFrame()
+void EventLoop::startFrameScheduler()
 {
-    m_frameTimer.expires_after(std::chrono::milliseconds(16));
-    m_frameTimer.async_wait(
-        [this](const asio::error_code& errCode)
+    m_frameScheduler = std::jthread(
+        [this](std::stop_token stopToken)
         {
-            // errCode == operation_aborted 时表示 cancel() 被调用（quit 路径），直接返回
-            if (errCode || !m_running.load()) return;
+            while (!stopToken.stop_requested() && m_running.load())
+            {
+                std::this_thread::sleep_for(kFrameInterval);
 
-            if (m_defaultHandler)
+                if (stopToken.stop_requested() || !m_running.load())
+                {
+                    break;
+                }
+
+                postDefaultHandler();
+            }
+        });
+}
+
+void EventLoop::stopFrameScheduler() noexcept
+{
+    if (m_frameScheduler.joinable())
+    {
+        m_frameScheduler.request_stop();
+        m_frameScheduler.join();
+    }
+}
+
+void EventLoop::postDefaultHandler()
+{
+    if (!m_defaultHandler)
+    {
+        return;
+    }
+
+    (void)m_loop.Post(
+        [this]
+        {
+            if (m_running.load() && m_defaultHandler)
             {
                 m_defaultHandler();
             }
-
-            scheduleNextFrame();
         });
 }
 
 void EventLoop::exec()
 {
-    m_running.store(true);
-    scheduleNextFrame();
-    // run() 阻塞直到 io_context 被 stop()；
-    // invoke() 投递的任务与帧回调共享同一 io_context，均在此消费，无需轮询。
-    m_ioContext->run();
+    bool expected = false;
+    if (!m_running.compare_exchange_strong(expected, true))
+    {
+        return;
+    }
+
+    m_loop.Reset();
+    postDefaultHandler();
+    startFrameScheduler();
+    (void)m_loop.Exec();
+    stopFrameScheduler();
+    m_running.store(false);
 }
 
 void EventLoop::quit()
 {
-    if (!m_running.exchange(false)) return;
+    if (!m_running.exchange(false))
+    {
+        return;
+    }
 
-    m_frameTimer.cancel();
-    m_workGuard.reset();
-    // io_context 在 work guard 释放后自然 drain；
-    // 不调用 stop()，避免丢弃未消费的 GPU 帧 handler。
+    m_loop.Quit(0, true);
 }
 
 } // namespace ui

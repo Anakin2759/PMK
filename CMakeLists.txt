@@ -4,15 +4,6 @@ project(VMP-ui LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(CheckIPOSupported)
-if(MSVC)
-    add_compile_definitions(
-        ASIO_DISABLE_STD_EXECUTION
-        ASIO_STANDALONE
-    )
-    
-endif()
-
-
 
 option(ENABLE_BUILD_TESTS "Enable building of unit tests" OFF)
 option(BUILD_EXAMPLES "Enable building examples" ON)
@@ -100,7 +91,6 @@ endif()
 
 # ==================== 第三方库 ====================
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-add_subdirectory(third_party/asio)
 add_subdirectory(third_party/cmrc)
 add_subdirectory(third_party/entt)
 add_subdirectory(third_party/spdlog)

@@ -87,8 +87,6 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
     {
         m_runtime->logger().info("命令行指定 GPU 后端: {}", backend);
     }
-    auto& runtime = *m_runtime;
-
     if (config::AppConfig::instance().platformScalingEnabled())
     {
 #ifdef _WIN32
@@ -190,6 +188,8 @@ const UiRuntime& ApplicationImpl::runtime() const noexcept
 }
 
 Application::Application(std::span<char*> arg) : m_impl(std::make_unique<ApplicationImpl>(arg)) {}
+
+Application::~Application() noexcept = default;
 
 
 
