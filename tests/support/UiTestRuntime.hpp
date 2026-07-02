@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "src/core/UiRuntime.hpp"
-#include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 
 namespace ui::tests
 {
@@ -17,7 +17,7 @@ protected:
 
     void TearDown() override
     {
-        UiRuntime::current().update();
+        UiRuntime::current().dispatcher().update();
         m_scope.reset();
     }
 

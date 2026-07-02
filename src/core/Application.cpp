@@ -110,10 +110,9 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
                  config::AppConfig::instance().platformUiScale());
     m_runtime->logger().info("SDL 初始化成功");
 
-    if (m_runtime->registry().findInCtx<globalcontext::StateContext>() == nullptr)
-    {
-        return;
-    } // 确保 StateContext 在系统初始化前可用
+    // 确保 FrameContext / StateContext 在系统初始化前可用
+    (void)m_runtime->ensureContext<globalcontext::FrameContext>();
+    (void)m_runtime->ensureContext<globalcontext::StateContext>();
 
     m_systems->registerAllHandlers();
     auto taskChain = tasks::QueuedTask{.runtime = m_runtime.get()}

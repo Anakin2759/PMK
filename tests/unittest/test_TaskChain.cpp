@@ -10,7 +10,7 @@
 #include "src/common/GlobalContext.hpp"
 #include "src/core/TaskChain.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 #include "src/utils/Dispatcher.hpp"
 #include "src/utils/Registry.hpp"
 
@@ -94,7 +94,7 @@ protected:
 
     void TearDown() override
     {
-        Dispatcher::Update();
+        UiRuntime::current().dispatcher().update();
         m_scope.reset();
     }
 
@@ -141,14 +141,15 @@ TEST_F(TaskChainTest, QueuedTaskUpdatesFrameContextBeforeDispatchingQueuedEvents
 {
     std::vector<std::string> observedEvents;
     EventRecorder recorder{&observedEvents};
+    auto& dispatcher = UiRuntime::current().dispatcher();
     auto updateConnection = entt::scoped_connection{
-        Dispatcher::Sink<events::UpdateEvent>().template connect<&EventRecorder::onUpdate>(recorder)};
+        dispatcher.sink<events::UpdateEvent>().connect<&EventRecorder::onUpdate>(recorder)};
     auto timerConnection = entt::scoped_connection{
-        Dispatcher::Sink<events::UpdateTimer>().template connect<&EventRecorder::onTimer>(recorder)};
+        dispatcher.sink<events::UpdateTimer>().connect<&EventRecorder::onTimer>(recorder)};
 
-    Dispatcher::Enqueue<events::UpdateEvent>({});
+    dispatcher.enqueue<events::UpdateEvent>({});
 
-    tasks::QueuedTask queuedTask;
+    tasks::QueuedTask queuedTask{.runtime = &UiRuntime::current()};
     queuedTask(33);
 
     const auto& frameContext = UiRuntime::current().registry().ctx().get<globalcontext::FrameContext>();
@@ -163,14 +164,15 @@ TEST_F(TaskChainTest, RenderTaskTriggersFrameStagesInFixedOrderAndHonorsDelay)
 {
     std::vector<std::string> observedEvents;
     EventRecorder recorder{&observedEvents};
+    auto& dispatcher = UiRuntime::current().dispatcher();
     auto layoutConnection = entt::scoped_connection{
-        Dispatcher::Sink<events::UpdateLayout>().template connect<&EventRecorder::onLayout>(recorder)};
+        dispatcher.sink<events::UpdateLayout>().connect<&EventRecorder::onLayout>(recorder)};
     auto renderConnection = entt::scoped_connection{
-        Dispatcher::Sink<events::UpdateRendering>().template connect<&EventRecorder::onRender>(recorder)};
+        dispatcher.sink<events::UpdateRendering>().connect<&EventRecorder::onRender>(recorder)};
     auto endFrameConnection = entt::scoped_connection{
-        Dispatcher::Sink<events::EndFrame>().template connect<&EventRecorder::onEndFrame>(recorder)};
+        dispatcher.sink<events::EndFrame>().connect<&EventRecorder::onEndFrame>(recorder)};
 
-    tasks::RenderTask renderTask;
+    tasks::RenderTask renderTask{.runtime = &UiRuntime::current()};
 
     renderTask(16);
 

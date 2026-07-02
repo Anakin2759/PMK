@@ -83,7 +83,7 @@ public:
         SDL_GPUDevice* device = m_deviceManager->getDevice();
         if (device == nullptr || m_vertexShader == nullptr || m_fragmentShader == nullptr)
         {
-            return MakeError(UiErrc::DEVICE_UNAVAILABLE);
+            return Err(UiErrc::DEVICE_UNAVAILABLE);
         }
 
         if (m_pipeline != nullptr)
@@ -92,7 +92,7 @@ public:
         }
         if (m_creationFailed)
         {
-            return MakeError(UiErrc::PIPELINE_UNAVAILABLE);
+            return Err(UiErrc::PIPELINE_UNAVAILABLE, "previous creation failed");
         }
 
         SDL_GPUVertexBufferDescription vertexBufferDesc = {};
@@ -141,8 +141,8 @@ public:
         if (m_pipeline == nullptr)
         {
             ui::UiRuntime::current().logger().error("图形管线创建失败: {}", SDL_GetError());
-            m_creationFailed = true;                        // 标记失败，阻止后续重试
-            return MakeError(UiErrc::PIPELINE_UNAVAILABLE); // 管线失败则不创建采样器，避免下次 guard 失效导致重复重试
+            m_creationFailed = true;                                  // 标记失败，阻止后续重试
+            return Err(UiErrc::PIPELINE_UNAVAILABLE, SDL_GetError()); // 管线失败则不创建采样器，避免下次 guard 失效导致重复重试
         }
 
         // 创建采样器
@@ -273,7 +273,7 @@ private:
         auto resourceResult = ui::cpo::load_binary_resource(*m_resourceProvider, resourcePath);
         if (!resourceResult.has_value())
         {
-            ui::UiRuntime::current().logger().error("着色器资源加载失败: {} ({})", resourcePath, resourceResult.error().message());
+            ui::UiRuntime::current().logger().error("着色器资源加载失败: {} ({})", resourcePath, resourceResult.error().ToString());
             return nullptr;
         }
 

@@ -100,7 +100,7 @@ public:
         }
 
         ui::UiRuntime::current().logger().error("所有 GPU 后端方案均初始化失败！请检查显卡驱动或虚拟机 3D 加速设置。");
-        return MakeError(UiErrc::BACKEND_UNAVAILABLE);
+        return Err(UiErrc::BACKEND_UNAVAILABLE);
     }
 
     Result<void> claimWindow(SDL_Window* sdlWindow)
@@ -108,7 +108,7 @@ public:
         if (m_gpuDevice == nullptr || sdlWindow == nullptr)
         {
             ui::UiRuntime::current().logger().error("claimWindow: 无效的设备或窗口句柄");
-            return MakeError(UiErrc::INVALID_ARGUMENT);
+            return Err(UiErrc::INVALID_ARGUMENT);
         }
 
         SDL_WindowID windowID = SDL_GetWindowID(sdlWindow);
@@ -149,7 +149,7 @@ public:
         }
 
         ui::UiRuntime::current().logger().error("致命错误: 所有可用后端均无法声明/渲染窗口！");
-        return MakeError(UiErrc::WINDOW_CLAIM_FAILED);
+        return Err(UiErrc::WINDOW_CLAIM_FAILED, SDL_GetError());
     }
 
     void unclaimWindow(SDL_Window* sdlWindow)

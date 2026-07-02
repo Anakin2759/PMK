@@ -485,7 +485,6 @@ target_link_libraries(ui PRIVATE
     yogacore
     freetype
     harfbuzz
-    EnTT::EnTT
 )
 
 if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
@@ -493,7 +492,7 @@ if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
 endif()
 
 target_link_libraries(ui PUBLIC
-    asio::asio
+    EnTT::EnTT
     Eigen3::Eigen
     spdlog::spdlog_header_only
 )
@@ -519,10 +518,9 @@ endif()
 # Windows: DWM 透明合成 + 窗口子类化
 if(WIN32)
     target_link_libraries(ui PRIVATE dwmapi comctl32)
-    # MinGW/GCC 会忽略 #pragma comment(lib, ...)，ASIO 的 ws2_32/mswsock
-    # 以及 uxtheme 均需在此显式链接。
+    # MinGW/GCC 会忽略 #pragma comment(lib, ...)，uxtheme 需在此显式链接。
     if(MINGW)
-        target_link_libraries(ui PRIVATE ws2_32 mswsock uxtheme)
+        target_link_libraries(ui PRIVATE uxtheme)
     endif()
 endif()
 

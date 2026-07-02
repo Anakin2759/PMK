@@ -10,7 +10,7 @@
 #include "src/api/Utils.hpp"
 #include "src/common/Tags.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 
 namespace ui::tests
 {

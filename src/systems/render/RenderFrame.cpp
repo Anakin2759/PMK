@@ -271,11 +271,11 @@ void RenderSystem::update()
         {
             if (auto claimResult = m_impl->m_deviceManager->claimWindow(sdlWindow); !claimResult.has_value())
             {
-                ui::UiRuntime::current().logger().warn("[RenderSystem] claimWindow failed: {}", claimResult.error().message());
+                ui::UiRuntime::current().logger().warn("[RenderSystem] claimWindow failed: {}", claimResult.error().ToString());
             }
             if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
             {
-                ui::UiRuntime::current().logger().warn("[RenderSystem] pipeline creation failed: {}", pipeResult.error().message());
+                ui::UiRuntime::current().logger().warn("[RenderSystem] pipeline creation failed: {}", pipeResult.error().ToString());
             }
 
             if (m_impl->m_pipelineCache->getPipeline() == nullptr)

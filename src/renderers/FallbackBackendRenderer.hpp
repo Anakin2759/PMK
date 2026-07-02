@@ -52,7 +52,7 @@ public:
     {
         if (window == nullptr)
         {
-            return ui::MakeError(ui::UiErrc::INVALID_ARGUMENT);
+            return ui::Err(ui::UiErrc::INVALID_ARGUMENT, "window is null");
         }
 
         SDL_WindowID windowID = SDL_GetWindowID(window);
@@ -87,7 +87,7 @@ public:
         }
 
         ui::UiRuntime::current().logger().error("[FallbackBackendRenderer] create renderer failed: {}", SDL_GetError());
-        return ui::MakeError(ui::UiErrc::BACKEND_UNAVAILABLE);
+        return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, SDL_GetError());
     }
 
     void cleanup() override
@@ -113,7 +113,7 @@ public:
     {
         if (m_renderer == nullptr)
         {
-            return ui::MakeError(ui::UiErrc::BACKEND_UNAVAILABLE);
+            return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, "renderer not initialized");
         }
 
         SDL_SetRenderClipRect(m_renderer, nullptr);
@@ -190,13 +190,13 @@ public:
     {
         if (m_renderer == nullptr || bitmapWidth <= 0 || bitmapHeight <= 0 || rgbaPixels.empty())
         {
-            return ui::MakeError(ui::UiErrc::INVALID_ARGUMENT);
+            return ui::Err(ui::UiErrc::INVALID_ARGUMENT);
         }
 
         CachedBitmapTexture* cachedTexture = getOrCreateBitmapTexture(cacheKey, rgbaPixels, bitmapWidth, bitmapHeight);
         if (cachedTexture == nullptr || cachedTexture->texture == nullptr)
         {
-            return ui::MakeError(ui::UiErrc::ASSET_UPLOAD_FAILED);
+            return ui::Err(ui::UiErrc::ASSET_UPLOAD_FAILED, std::string(cacheKey));
         }
 
         if (scissorRect.has_value())
@@ -211,7 +211,7 @@ public:
         SDL_SetTextureAlphaMod(cachedTexture->texture, alphaMod);
         if (!SDL_RenderTexture(m_renderer, cachedTexture->texture, nullptr, &destinationRect))
         {
-            return ui::MakeError(ui::UiErrc::ASSET_UPLOAD_FAILED);
+            return ui::Err(ui::UiErrc::ASSET_UPLOAD_FAILED, SDL_GetError());
         }
         return ui::Ok();
     }

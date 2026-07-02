@@ -50,7 +50,7 @@ public:
      * 返回的纹理生命周期由本 ImageManager 持有，禁止外部调用 SDL_ReleaseGPUTexture。
      *
      * @param path  文件路径（bmp / png / jpeg）
-     * @return Result<SDL_GPUTexture*> 成功时持有非空纹理指针；失败时携带 ui_errc。
+     * @return Result<SDL_GPUTexture*> 成功时持有非空纹理指针；失败时携带 UiErrc。
      */
     [[nodiscard]] ui::Result<SDL_GPUTexture*> loadTexture(const std::string& path);
 

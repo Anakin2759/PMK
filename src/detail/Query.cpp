@@ -14,14 +14,14 @@ bool IsValid(entt::entity ent) noexcept
 
 Result<entt::entity> FindByAlias(std::string_view alias)
 {
-    if (alias.empty()) return MakeError(UiErrc::INVALID_ARGUMENT);
+    if (alias.empty()) return Err(UiErrc::INVALID_ARGUMENT, "empty alias");
 
     auto& reg = UiRuntime::current().registry();
     for (auto ent : reg.view<components::BaseInfo>())
     {
         if (reg.get<components::BaseInfo>(ent).alias == alias) return ent;
     }
-    return MakeError(UiErrc::INVALID_ENTITY);
+    return Err(UiErrc::INVALID_ENTITY, std::string(alias));
 }
 
 std::string GetAlias(entt::entity ent)

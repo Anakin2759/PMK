@@ -135,13 +135,13 @@ public:
         if (m_ftLibrary == nullptr)
         {
             ui::UiRuntime::current().logger().error("[FontManager] FreeType not initialized");
-            return MakeError(UiErrc::DEVICE_UNAVAILABLE);
+            return Err(UiErrc::DEVICE_UNAVAILABLE);
         }
 
         if (fontData == nullptr || dataSize == 0)
         {
             ui::UiRuntime::current().logger().error("[FontManager] Invalid font data");
-            return MakeError(UiErrc::INVALID_ARGUMENT);
+            return Err(UiErrc::INVALID_ARGUMENT);
         }
 
         // 复制字体数据（FreeType 需要持久内存）
@@ -154,7 +154,7 @@ public:
         if (error != 0)
         {
             ui::UiRuntime::current().logger().error("[FontManager] Failed to load font face: error {}", error);
-            return MakeError(UiErrc::ASSET_LOAD_FAILED);
+            return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_New_Memory_Face error {}", error));
         }
         m_ftFace.reset(face);
         face = nullptr;
@@ -165,7 +165,7 @@ public:
         {
             m_ftFace.reset();
             ui::UiRuntime::current().logger().error("[FontManager] Failed to set pixel size: error {}", error);
-            return MakeError(UiErrc::ASSET_LOAD_FAILED);
+            return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_Set_Pixel_Sizes error {}", error));
         }
 
         m_fontSize = fontSize;

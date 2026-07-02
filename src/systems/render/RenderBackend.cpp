@@ -98,7 +98,7 @@ ui::Result<ui::managers::BinaryResource> LoadUiResource(std::string_view resourc
     if (resourceProvider == nullptr)
     {
         ui::UiRuntime::current().logger().error("[RenderSystem] UI resource provider unavailable");
-        return ui::MakeError(ui::UiErrc::BACKEND_UNAVAILABLE);
+        return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, std::string(resourcePath));
     }
 
     return ui::cpo::load_binary_resource(*resourceProvider, resourcePath);
@@ -237,7 +237,7 @@ void RenderSystem::onWindowsGraphicsContextSet(const events::WindowGraphicsConte
 
     if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
     {
-        ui::UiRuntime::current().logger().warn("[RenderSystem] 初始化时创建管线失败: {}", pipeResult.error().message());
+        ui::UiRuntime::current().logger().warn("[RenderSystem] 初始化时创建管线失败: {}", pipeResult.error().ToString());
     }
     ui::UiRuntime::current().logger().info("[RenderSystem] 窗口图形上下文设置完成 (Entity: {})", static_cast<uint32_t>(event.entity));
 }
@@ -379,13 +379,13 @@ void RenderSystem::ensureInitialized()
             if (auto loadResult = m_impl->m_fontManager->loadFromMemory(fontData.data(), fontData.size(), 14.0F);
                 !loadResult.has_value())
             {
-                ui::UiRuntime::current().logger().error("[RenderSystem] 默认字体加载失败: {}", loadResult.error().message());
+                ui::UiRuntime::current().logger().error("[RenderSystem] 默认字体加载失败: {}", loadResult.error().ToString());
             }
         }
         else
         {
             ui::UiRuntime::current().logger().error(
-                "[RenderSystem] 默认字体资源加载失败: {} ({})", DEFAULT_FONT_RESOURCE, fontResource.error().message());
+                "[RenderSystem] 默认字体资源加载失败: {} ({})", DEFAULT_FONT_RESOURCE, fontResource.error().ToString());
         }
     }
 
@@ -442,7 +442,7 @@ void RenderSystem::ensureInitialized()
                     }
                     else
                     {
-                        ui::UiRuntime::current().logger().error("[RenderSystem] 默认图标字体加载失败: {}", loadResult.error().message());
+                        ui::UiRuntime::current().logger().error("[RenderSystem] 默认图标字体加载失败: {}", loadResult.error().ToString());
                     }
                 }
                 else
@@ -451,13 +451,13 @@ void RenderSystem::ensureInitialized()
                     {
                         ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标字体资源不存在: {} ({})",
                                      ICON_FONT_RESOURCE,
-                                     fontResource.error().message());
+                                     fontResource.error().ToString());
                     }
                     if (!codepointResource.has_value())
                     {
                         ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标码点资源不存在: {} ({})",
                                      ICON_CODEPOINT_RESOURCE,
-                                     codepointResource.error().message());
+                                     codepointResource.error().ToString());
                     }
                 }
             }

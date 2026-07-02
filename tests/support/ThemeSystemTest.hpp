@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "src/core/UiRuntime.hpp"
-#include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 
 #include <ui.hpp>
 
@@ -25,8 +25,7 @@ protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
-        m_themeSystem = std::make_unique<systems::ThemeSystem>(UiRuntime::current().registry(),
-                                                               UiRuntime::current().dispatcher());
+        m_themeSystem = std::make_unique<systems::ThemeSystem>(m_runtime);
         m_themeSystem->registerHandlers();
     }
 
@@ -37,11 +36,11 @@ protected:
         m_scope.reset();
     }
 
-    static void triggerThemeUpdate() { UiRuntime::current().trigger(events::UpdateEvent{}); }
+    static void triggerThemeUpdate() { UiRuntime::current().dispatcher().trigger(events::UpdateEvent{}); }
 
     static Registry& registry() { return UiRuntime::current().registry(); }
 
-    static std::vector<entt::entity> popupChildren(entt::entity popupEntity)
+    static std::vector<entt::entity> popupChildren(ui::entity popupEntity)
     {
         const auto* hierarchy = registry().try_get<components::Hierarchy>(popupEntity);
         if (hierarchy == nullptr)

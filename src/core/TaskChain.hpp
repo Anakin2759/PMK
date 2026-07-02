@@ -168,7 +168,7 @@ struct QueuedTask
     void operator()(uint32_t delta)
     {
         // 队列阶段先推进帧上下文，再驱动定时器与缓冲事件派发。
-        auto frameContext = runtime->registry().template getInCtx<globalcontext::FrameContext>();
+        auto& frameContext = runtime->registry().template getOrEmplaceInCtx<globalcontext::FrameContext>();
         frameContext.intervalMs = delta;
         frameContext.frameSlot = (frameContext.frameSlot + 1) % 2;
         auto& disp = runtime->dispatcher();

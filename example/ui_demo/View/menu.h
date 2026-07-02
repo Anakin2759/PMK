@@ -20,9 +20,9 @@ inline void CreateMenuDialog()
         return;
     }
 
-    if (existing.error() != ui::MakeErrorCode(ui::UiErrc::INVALID_ENTITY))
+    if (existing.error() != ui::UiErrc::INVALID_ENTITY)
     {
-        ui::log::Error("Failed to check for existing menu dialog: {}", existing.error().message());
+        ui::log::Error("Failed to check for existing menu dialog: {}", existing.error().ToString());
         return;
     }
 

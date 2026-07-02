@@ -16,7 +16,7 @@
 #include <string>
 
 #include "src/core/UiRuntime.hpp"
-#include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 
 #include <ui.hpp>
 

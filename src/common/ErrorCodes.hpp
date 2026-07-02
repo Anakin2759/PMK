@@ -5,10 +5,9 @@
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-05-19
  * @version 0.1
- * @brief 项目统一错误码 ui_errc + std::error_category 声明
+ * @brief 项目统一错误码 UiErrc 枚举 + 名称映射
  *
- * 设计依据：docs/architecture/result-type-design.md §3。
- * 单例定义见 ErrorCodes.cpp（跨 TU ODR 唯一）。
+ * 错误载体 ui::Error 与 Result<T> 别名见 Result.hpp。
  *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
@@ -19,10 +18,7 @@
 
 #include <cstdint>
 #include <format>
-#include <string>
 #include <string_view>
-#include <system_error>
-#include <type_traits>
 
 namespace ui
 {
@@ -73,38 +69,10 @@ enum class UiErrc : std::uint16_t
     UNKNOWN = 900,
 };
 
-/// @brief 统一 UI 错误分类。name() 固定返回 "ui"。
-class UiErrorCategory final : public std::error_category
-{
-public:
-    [[nodiscard]] const char* name() const noexcept override;
-    [[nodiscard]] std::string message(int condition) const override;
-};
-
-/// @brief 进程级单例；地址唯一，跨 TU 比较稳定。
-[[nodiscard]] const std::error_category& GetUiErrorCategory() noexcept;
-
-/// @brief ADL 入口：将 UiErrc 转为 std::error_code。
-[[nodiscard]] std::error_code MakeErrorCode(UiErrc errorCode) noexcept;
-
-/// @brief 标准库 `std::error_code` 枚举互操作所需的 ADL 入口。
-[[nodiscard]] inline std::error_code make_error_code(UiErrc errorCode) noexcept // NOLINT(readability-identifier-naming)
-{
-    return MakeErrorCode(errorCode);
-}
-
-/// @brief 返回枚举对应的字符串名称（用于日志/格式化，独立于 message()）。
+/// @brief 返回枚举对应的字符串名称（用于日志/格式化）。
 [[nodiscard]] std::string_view ToStringView(UiErrc errorCode) noexcept;
 
 } // namespace ui
-
-namespace std
-{
-template <>
-struct is_error_code_enum<ui::UiErrc> : true_type
-{
-};
-} // namespace std
 
 /// @brief std::formatter<UiErrc> 特化：直接输出枚举名（如 "asset_decode_failed"）。
 template <>

@@ -56,7 +56,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) noexcept
         if (!appResult.has_value())
         {
             WriteStderr("UI init failed: ");
-            WriteStderr(appResult.error().message().c_str());
+            WriteStderr(appResult.error().ToString().c_str());
             WriteStderr("\n");
             return EXIT_FAILURE;
         }

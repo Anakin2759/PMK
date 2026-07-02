@@ -168,18 +168,18 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name,
     if (m_ftLibrary == nullptr)
     {
         UiRuntime::current().logger().error("[IconManager] FreeType not initialized");
-        return MakeError(UiErrc::DEVICE_UNAVAILABLE);
+        return Err(UiErrc::DEVICE_UNAVAILABLE);
     }
 
     if (fontData == nullptr || fontLength == 0)
     {
         UiRuntime::current().logger().error("[IconManager] Invalid font data");
-        return MakeError(UiErrc::INVALID_ARGUMENT);
+        return Err(UiErrc::INVALID_ARGUMENT, "font data");
     }
     if (codepointsData == nullptr || codepointsLength == 0)
     {
         UiRuntime::current().logger().error("[IconManager] Invalid codepoints data");
-        return MakeError(UiErrc::INVALID_ARGUMENT);
+        return Err(UiErrc::INVALID_ARGUMENT, "codepoints data");
     }
 
     // 复制字体数据（FreeType 需要持久内存）
@@ -193,7 +193,7 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name,
     if (error != 0)
     {
         UiRuntime::current().logger().error("[IconManager] Failed to load font face from memory '{}' (error {})", name, error);
-        return MakeError(UiErrc::ASSET_LOAD_FAILED);
+        return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_New_Memory_Face '{}' error {}", name, error));
     }
 
     // 设置像素大小
@@ -202,7 +202,7 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name,
     {
         FT_Done_Face(face);
         UiRuntime::current().logger().error("[IconManager] Failed to set pixel size {} (error {})", fontSize, error);
-        return MakeError(UiErrc::ASSET_LOAD_FAILED);
+        return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_Set_Pixel_Sizes {} error {}", fontSize, error));
     }
 
     // 解析 codepoints
@@ -232,7 +232,7 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name,
     if (codepoints.empty())
     {
         UiRuntime::current().logger().warn("No codepoints loaded from memory for: {}", name);
-        return MakeError(UiErrc::ASSET_DECODE_FAILED);
+        return Err(UiErrc::ASSET_DECODE_FAILED, name);
     }
 
     m_fonts[name] = FontData{.buffer = std::move(buffer), .face = face, .fontSize = fontSize};

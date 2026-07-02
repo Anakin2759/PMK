@@ -83,21 +83,30 @@ parent | AddChild(btn);
 UI 层使用统一 `Result<T>` 基础设施（`src/common/Result.hpp` + `src/common/ErrorCodes.hpp/.cpp`）：
 
 ```cpp
-// 别名
-template <typename T>
-using Result = std::expected<T, std::error_code>;   // Result<void> 直接使用
+// 错误载体：错误码 + 上下文 + 自动捕获的调用点
+struct Error {
+    UiErrc code;                 // 错误枚举（20 个码，段位预留 100）
+    std::string context;         // 可选上下文（路径、别名、SDL_GetError() 等）
+    std::source_location origin; // 构造点自动捕获
+    std::string ToString() const; // "asset_not_found (ctx) @ File.cpp:88"
+};
 
-// 错误枚举（ui_errc，20 个码，段位预留 100）
-enum class ui_errc : int { success = 0, invalid_argument = 1, device_unavailable = 2, ... };
+template <typename T>
+using Result = std::expected<T, Error>;   // Result<void> 直接使用
 
 // 工厂函数
-MakeError(ui_errc::xxx)   // → std::unexpected<std::error_code>
-Ok()                      // → Result<void> 成功值
-MakeErrorCode(ui_errc)  // ADL 路由至 UiErrorCategory 单例（.cpp 中，非 inline）
+Err(UiErrc::xxx)              // → std::unexpected<Error>，自动捕获 source_location
+Err(UiErrc::xxx, "context")   // 附带上下文字符串
+Err(other.error())            // 传播已有 Error（保留原始 origin）
+Ok() / Ok(value)              // 成功值
+
+// 传播宏
+TRY(auto x, expr);            // 失败即 return，成功则声明变量 x
+TRY_VOID(expr);               // Result<void> 版本
 ```
 
-- `std::formatter<ui_errc>` 已落地，可直接 `std::format("{}", ec)`。
-- 旧 `src/common/UiErrors.hpp`（`FontErrc/IconErrc`）过渡期并存，待 WP-A3 迁移。
+- `Error` 支持与 `UiErrc` 直接比较：`if (result.error() != UiErrc::INVALID_ENTITY)`。
+- `std::formatter<Error>` / `std::formatter<UiErrc>` 已落地；但 spdlog 日志用内置 fmt，日志点须显式 `error.ToString()`。
 
 ## C++23 特性使用
 

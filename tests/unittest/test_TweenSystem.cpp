@@ -8,7 +8,7 @@
 #include "common/components/Visual.hpp"
 #include "src/common/GlobalContext.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 #include "src/detail/EntityCast.hpp"
 #include "src/systems/ActionSystem.hpp"
 #include "src/systems/TweenSystem.hpp"
@@ -25,17 +25,17 @@ Registry& ActiveRegistry()
 
 void TriggerUpdate()
 {
-    UiRuntime::current().trigger<events::UpdateEvent>({});
+    UiRuntime::current().dispatcher().trigger<events::UpdateEvent>({});
 }
 
 void TriggerHover(ui::entity entity)
 {
-    UiRuntime::current().trigger<events::HoverEvent>({detail::ToInternal(entity)});
+    UiRuntime::current().dispatcher().trigger<events::HoverEvent>({detail::ToInternal(entity)});
 }
 
 void TriggerUnhover(ui::entity entity)
 {
-    UiRuntime::current().trigger<events::UnhoverEvent>({detail::ToInternal(entity)});
+    UiRuntime::current().dispatcher().trigger<events::UnhoverEvent>({detail::ToInternal(entity)});
 }
 
 class UiTweenSystemTest : public ::testing::Test
@@ -56,7 +56,7 @@ private:
 
 TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
 {
-    systems::TweenSystem tweenSystem{UiRuntime::current().registry(), UiRuntime::current().dispatcher()};
+    systems::TweenSystem tweenSystem{UiRuntime::current()};
     tweenSystem.registerHandlers();
 
     const auto entity = factory::CreateLabel("Tween", "tween_label");
@@ -85,8 +85,8 @@ TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
 
 TEST_F(UiTweenSystemTest, InteractiveAnimationFlowsThroughTweenPipeline)
 {
-    systems::ActionSystem actionSystem{UiRuntime::current().registry(), UiRuntime::current().dispatcher()};
-    systems::TweenSystem tweenSystem{UiRuntime::current().registry(), UiRuntime::current().dispatcher()};
+    systems::ActionSystem actionSystem{UiRuntime::current()};
+    systems::TweenSystem tweenSystem{UiRuntime::current()};
     actionSystem.registerHandlers();
     tweenSystem.registerHandlers();
 
@@ -145,7 +145,7 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
         // ---- Setup entity & animation in the default runtime ----
         UiRuntime::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
 
-        systems::TweenSystem defaultTween{UiRuntime::current().registry(), UiRuntime::current().dispatcher()};
+        systems::TweenSystem defaultTween{UiRuntime::current()};
         defaultTween.registerHandlers();
 
         const auto defaultEntity = factory::CreateLabel("Tween-Default", "tween_default");

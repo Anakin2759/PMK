@@ -313,12 +313,12 @@ ui::Result<std::unique_ptr<Application>> CreateApplication(std::span<char*> argv
     catch (const std::exception& e)
     {
         UiRuntime::current().logger().error("[Factory] UI initialization failed: {}", e.what());
-        return ui::MakeError(UiErrc::DEVICE_UNAVAILABLE);
+        return ui::Err(UiErrc::DEVICE_UNAVAILABLE, e.what());
     }
     catch (...)
     {
         UiRuntime::current().logger().error("[Factory] Unknown UI initialization failure");
-        return ui::MakeError(UiErrc::UNKNOWN);
+        return ui::Err(UiErrc::UNKNOWN);
     }
 }
 
@@ -347,7 +347,7 @@ ui::Result<ui::EntityHandle> CreateBaseWidget(UiRuntime& runtime, std::string_vi
     const ui::entity entity = CreateBaseWidget(alias);
     if (entity == ui::null_entity)
     {
-        return ui::MakeError(UiErrc::INVALID_ENTITY);
+        return ui::Err(UiErrc::INVALID_ENTITY, std::string(alias));
     }
     return ui::MakeEntityHandle(runtime.token(), entity);
 }
@@ -386,7 +386,7 @@ ui::Result<ui::EntityHandle> CreateButton(UiRuntime& runtime, const std::string&
     const ui::entity entity = CreateButton(content, alias);
     if (entity == ui::null_entity)
     {
-        return ui::MakeError(UiErrc::INVALID_ENTITY);
+        return ui::Err(UiErrc::INVALID_ENTITY, std::string(alias));
     }
     return ui::MakeEntityHandle(runtime.token(), entity);
 }
@@ -589,7 +589,7 @@ ui::Result<ui::WindowHandle> CreateWindow(UiRuntime& runtime, std::string_view t
     const ui::entity entity = CreateWindow(title, alias);
     if (entity == ui::null_entity)
     {
-        return ui::MakeError(UiErrc::INVALID_ENTITY);
+        return ui::Err(UiErrc::INVALID_ENTITY, std::string(alias));
     }
 
     const auto* window = runtime.registry().try_get<components::Window>(entity);

@@ -54,7 +54,7 @@ public:
         if (!fileSystem.exists(normalizedPath))
         {
             ui::UiRuntime::current().logger().error("[ResourceProvider/cmrc] resource not found: {}", normalizedPath);
-            return ui::MakeError(ui::UiErrc::ASSET_NOT_FOUND);
+            return ui::Err(ui::UiErrc::ASSET_NOT_FOUND, normalizedPath);
         }
 
         auto file = std::make_shared<cmrc::file>(fileSystem.open(normalizedPath));
@@ -79,7 +79,7 @@ public:
         if (entry == nullptr)
         {
             ui::UiRuntime::current().logger().error("[ResourceProvider/std_embed] resource not found: {}", path);
-            return ui::MakeError(ui::ui_errc::asset_not_found);
+            return ui::Err(ui::UiErrc::ASSET_NOT_FOUND, std::string(path));
         }
 
         BinaryResource resource{};
@@ -103,7 +103,7 @@ public:
     {
         ui::UiRuntime::current().logger().error("[ResourceProvider] no UI resource backend selected at compile time for: {}", path);
         static_cast<void>(path);
-        return ui::MakeError(ui::ui_errc::backend_unavailable);
+        return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, std::string(path));
     }
 };
 #endif

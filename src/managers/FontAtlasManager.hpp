@@ -63,7 +63,7 @@ public:
     {
         if (auto loadResult = m_fontManager->loadFromMemory(fontData, dataSize, fontSize); !loadResult.has_value())
         {
-            return MakeError(loadResult.error());
+            return Err(loadResult.error());
         }
 
         // 创建纹理图集
@@ -71,7 +71,7 @@ public:
         if (device == nullptr)
         {
             ui::UiRuntime::current().logger().error("[FontAtlasManager] No GPU device available");
-            return MakeError(UiErrc::DEVICE_UNAVAILABLE);
+            return Err(UiErrc::DEVICE_UNAVAILABLE);
         }
 
         m_atlas = std::make_unique<TextureAtlas>(device, 2048, 2);

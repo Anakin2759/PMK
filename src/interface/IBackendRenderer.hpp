@@ -49,7 +49,7 @@ public:
     /**
      * @brief 初始化渲染器
      * @param window 指向 SDL_Window 的指针，用于渲染的目标窗口
-     * @return Result<void> 成功返回 Ok()，失败返回 ui_errc 错误码
+     * @return Result<void> 成功返回 Ok()，失败返回 UiErrc 错误码
      */
     virtual ui::Result<void> initialize(SDL_Window* window) = 0;
 
@@ -60,7 +60,7 @@ public:
     /**
      * @brief 开始渲染一帧
      * @param clearColor 用于清屏的颜色
-     * @return Result<void> 成功返回 Ok()，失败返回 ui_errc::swapchain_unavailable 等
+     * @return Result<void> 成功返回 Ok()，失败返回 UiErrc::SWAPCHAIN_UNAVAILABLE 等
      */
     virtual ui::Result<void> beginFrame(const SDL_FColor& clearColor) = 0;
 
@@ -86,7 +86,7 @@ public:
         static_cast<void>(destinationRect);
         static_cast<void>(scissorRect);
         static_cast<void>(alphaMod);
-        return ui::MakeError(ui::UiErrc::NOT_IMPLEMENTED);
+        return ui::Err(ui::UiErrc::NOT_IMPLEMENTED);
     }
 
     /**

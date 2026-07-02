@@ -9,7 +9,7 @@
 #include "src/api/Hierarchy.hpp"
 #include "src/common/Tags.hpp"
 #include "src/core/UiRuntime.hpp"
-#include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 #include "src/detail/EntityCast.hpp"
 
 namespace ui::tests
