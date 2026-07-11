@@ -16,7 +16,7 @@
 
 #include <string_view>
 
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include "common/Types.hpp"
 #include "Chains.hpp"
 

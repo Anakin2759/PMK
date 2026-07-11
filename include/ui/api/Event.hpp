@@ -1,10 +1,6 @@
 /**
- * ************************************************************************
- *
  * @file Event.hpp
  * @brief 公开自定义事件 API，不暴露 EnTT / Dispatcher 实现细节。
- *
- * ************************************************************************
  */
 #pragma once
 
@@ -15,7 +11,6 @@
 
 namespace ui::event
 {
-
 class EventConnection
 {
 public:
@@ -37,16 +32,11 @@ private:
 [[nodiscard]] EventId RegisterEvent(std::string_view name);
 [[nodiscard]] bool IsEventRegistered(EventId eventId);
 [[nodiscard]] bool IsEventRegistered(std::string_view name);
-
 [[nodiscard]] EventConnection On(EventId eventId, EventCallback callback);
 [[nodiscard]] EventConnection On(std::string_view name, EventCallback callback);
-
 void Trigger(EventId eventId, EventPayload payload = {});
 void Trigger(std::string_view name, EventPayload payload = {});
-
 void Enqueue(EventId eventId, EventPayload payload = {});
 void Enqueue(std::string_view name, EventPayload payload = {});
-
 void DispatchQueued();
-
 } // namespace ui::event

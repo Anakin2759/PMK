@@ -32,7 +32,7 @@
 
 #include "Chains.hpp"
 #include "common/Shortcut.hpp"
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 
 namespace ui::shortcut
 {

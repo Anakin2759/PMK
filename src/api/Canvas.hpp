@@ -14,7 +14,7 @@
  */
 #pragma once
 
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include <vector>
 #include "common/Types.hpp"
 #include "Chains.hpp"

@@ -16,7 +16,7 @@
 
 #include <cstdint>
 #include <type_traits>
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include "common/Policies.hpp"
 #include "common/Types.hpp"
 #include "Chains.hpp"

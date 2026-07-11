@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include <string>
 #include "common/Policies.hpp"
 #include "common/components/Interaction.hpp"

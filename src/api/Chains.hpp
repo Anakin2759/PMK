@@ -27,7 +27,7 @@
 
 #pragma once
 
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include <concepts>
 #include <functional>
 #include <memory>

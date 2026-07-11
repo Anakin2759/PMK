@@ -17,7 +17,7 @@
  */
 #pragma once
 
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include "common/Types.hpp"
 #include "Chains.hpp" // Changed: Include Chains.hpp for DSL
 

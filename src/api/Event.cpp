@@ -6,7 +6,7 @@
  *
  * ************************************************************************
  */
-#include "api/Event.hpp"
+#include "ui/api/Event.hpp"
 
 #include <utility>
 

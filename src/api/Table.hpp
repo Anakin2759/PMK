@@ -14,7 +14,7 @@
  */
 #pragma once
 
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include <string>
 #include <vector>
 #include "common/Types.hpp"

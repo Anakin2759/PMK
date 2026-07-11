@@ -21,7 +21,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include "Chains.hpp" // Changed: Include Chains.hpp for DSL
 
 namespace ui::hierarchy

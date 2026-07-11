@@ -22,7 +22,7 @@
 
 #include "Chains.hpp"
 #include "common/Animation.hpp"
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include "common/Types.hpp"
 
 namespace ui::animation

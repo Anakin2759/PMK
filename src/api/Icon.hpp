@@ -21,7 +21,7 @@
 #include <cstdint>
 #include <string>
 
-#include "Entity.hpp"
+#include "ui/api/Entity.hpp"
 #include "common/Policies.hpp"
 #include "Chains.hpp"
 namespace ui::icon

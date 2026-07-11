@@ -53,6 +53,7 @@ IMPLEMENTATION_EXTENSIONS = {".c", ".cc", ".cpp", ".cxx"}
 # even when a file already has one allowed include/call of the same kind.
 ALLOWED_API_INCLUDE_COUNTS = Counter(
     {
+        ("src/core/Application.cpp", '#include "api/Factory.hpp"'): 1,
     }
 )
 
@@ -145,6 +146,22 @@ def count_matches(root: Path):
             key = (rel, "detail-cpp-not-in-ui-sources")
             unlisted_detail_cpp_counts[key] += 1
             locations.setdefault(("detail-cpp-not-in-ui-sources", *key), []).append((1, cmake_entry))
+
+    for path in root.glob("src/detail/*"):
+        if path.is_file():
+            rel = path.relative_to(root).as_posix()
+            key = (rel, "detail-file-forbidden")
+            unlisted_detail_cpp_counts[key] += 1
+            locations.setdefault(("detail-cpp-not-in-ui-sources", *key), []).append((1, rel))
+
+    migrated_api_headers = {"Entity.hpp", "Event.hpp", "Scale.hpp", "State.hpp", "Theme.hpp", "Timer.hpp"}
+    for header_name in migrated_api_headers:
+        legacy_path = root / "src" / "api" / header_name
+        if legacy_path.exists():
+            rel = legacy_path.relative_to(root).as_posix()
+            key = (rel, "legacy-api-header-forbidden")
+            unlisted_detail_cpp_counts[key] += 1
+            locations.setdefault(("detail-cpp-not-in-ui-sources", *key), []).append((1, rel))
 
     for path in iter_source_files(root):
         rel = normalized_relative(path, root)

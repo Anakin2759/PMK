@@ -266,10 +266,10 @@ set(UI_HEADERS
     api/Utils.hpp
     api/Layout.hpp
     api/Controls.hpp
-    api/Event.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Event.hpp
     api/Canvas.hpp
     api/Table.hpp
-    api/Theme.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Theme.hpp
     api/Shortcut.hpp
     managers/ImageManager.hpp
     systems/ShortcutSystem.hpp

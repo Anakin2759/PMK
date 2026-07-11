@@ -31,7 +31,7 @@
 #include "common/GlobalContext.hpp"
 #include "core/EventLoop.hpp"
 #include "core/PlatformWindow.hpp"
-#include "detail/Factory.hpp"
+#include "api/Factory.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Logger.hpp"
 
