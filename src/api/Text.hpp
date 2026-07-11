@@ -23,7 +23,7 @@
 #include <string>
 #include "common/Policies.hpp"
 #include "common/components/Interaction.hpp"
-#include "Chains.hpp" // Changed: Include Chains.hpp for DSL
+#include "ui/api/Chains.hpp" // Changed: Include Chains.hpp for DSL
 
 namespace ui::text
 {

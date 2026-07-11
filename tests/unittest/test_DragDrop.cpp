@@ -7,7 +7,7 @@
 #include "common/components/Layout.hpp"
 #include <entt/entt.hpp>
 #include "src/api/Controls.hpp"
-#include "src/api/Hierarchy.hpp"
+#include "ui/api/Hierarchy.hpp"
 #include "src/common/Events.hpp"
 #include "src/common/Tags.hpp"
 #include "src/core/UiRuntime.hpp"

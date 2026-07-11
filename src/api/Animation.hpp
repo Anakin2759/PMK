@@ -20,7 +20,7 @@
 #include <optional>
 #include <type_traits>
 
-#include "Chains.hpp"
+#include "ui/api/Chains.hpp"
 #include "common/Animation.hpp"
 #include "ui/api/Entity.hpp"
 #include "common/Types.hpp"

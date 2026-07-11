@@ -6,7 +6,7 @@
 #include <entt/entt.hpp>
 #include "common/components/Data.hpp"
 #include "common/components/Layout.hpp"
-#include "src/api/Hierarchy.hpp"
+#include "ui/api/Hierarchy.hpp"
 #include "src/api/Utils.hpp"
 #include "src/common/Tags.hpp"
 #include "src/core/UiRuntime.hpp"

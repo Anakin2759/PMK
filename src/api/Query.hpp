@@ -20,7 +20,7 @@
 #include <string_view>
 
 #include "ui/api/Entity.hpp"
-#include "common/Result.hpp"
+#include "ui/Result.hpp"
 
 namespace ui::query
 {

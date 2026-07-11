@@ -12,7 +12,7 @@
  * For study and research only, no reprinting.
  * ************************************************************************
  */
-#include "Log.hpp"
+#include "ui/api/Log.hpp"
 
 #include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"

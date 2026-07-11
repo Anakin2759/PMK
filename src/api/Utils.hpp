@@ -19,7 +19,7 @@
 #include "ui/api/Entity.hpp"
 #include "common/Policies.hpp"
 #include "common/Types.hpp"
-#include "Chains.hpp"
+#include "ui/api/Chains.hpp"
 
 namespace ui::components
 {

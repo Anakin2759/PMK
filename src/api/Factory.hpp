@@ -17,7 +17,7 @@
 #include <type_traits>
 #include <vector>
 #include "ui/api/Entity.hpp"
-#include "common/Result.hpp"
+#include "ui/Result.hpp"
 #include "core/UiRuntime.hpp"
 #include "common/Types.hpp"
 #include "core/Application.hpp"

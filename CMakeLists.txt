@@ -10,6 +10,31 @@ option(BUILD_EXAMPLES "Enable building examples" ON)
 option(ENABLE_LTO "Enable IPO/LTO for Release and RelWithDebInfo builds" ON)
 option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis" OFF)
 
+# clang-cl 编译 EnTT/Eigen 等模板密集型翻译单元时单进程内存占用较高。
+# Ninja 默认按 CPU 核心数并行，完整构建可能同时启动大量编译进程并耗尽内存。
+# 使用全局任务池约束所有后续目标（包括第三方库、示例和测试）的并发度。
+set(UI_COMPILE_JOB_LIMIT 2 CACHE STRING
+    "Maximum concurrent compiler processes for memory-intensive Ninja builds")
+set(UI_LINK_JOB_LIMIT 1 CACHE STRING
+    "Maximum concurrent linker processes for memory-intensive Ninja builds")
+
+if(CMAKE_GENERATOR MATCHES "Ninja")
+    if(NOT UI_COMPILE_JOB_LIMIT MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "UI_COMPILE_JOB_LIMIT must be a positive integer")
+    endif()
+    if(NOT UI_LINK_JOB_LIMIT MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "UI_LINK_JOB_LIMIT must be a positive integer")
+    endif()
+
+    set_property(GLOBAL PROPERTY JOB_POOLS
+        ui_compile_pool=${UI_COMPILE_JOB_LIMIT}
+        ui_link_pool=${UI_LINK_JOB_LIMIT})
+    set(CMAKE_JOB_POOL_COMPILE ui_compile_pool)
+    set(CMAKE_JOB_POOL_LINK ui_link_pool)
+    message(STATUS
+        "Ninja job pools: compile=${UI_COMPILE_JOB_LIMIT}, link=${UI_LINK_JOB_LIMIT}")
+endif()
+
 #==================== IPO / LTO 设置 ====================
 check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
 

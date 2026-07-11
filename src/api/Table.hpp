@@ -19,7 +19,7 @@
 #include <vector>
 #include "common/Types.hpp"
 #include "common/Policies.hpp"
-#include "Chains.hpp"
+#include "ui/api/Chains.hpp"
 
 namespace ui::components
 {

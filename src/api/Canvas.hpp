@@ -17,7 +17,7 @@
 #include "ui/api/Entity.hpp"
 #include <vector>
 #include "common/Types.hpp"
-#include "Chains.hpp"
+#include "ui/api/Chains.hpp"
 
 namespace ui::canvas
 {

@@ -18,7 +18,7 @@
 
 #include "ui/api/Entity.hpp"
 #include "common/Types.hpp"
-#include "Chains.hpp"
+#include "ui/api/Chains.hpp"
 
 namespace ui::image
 {

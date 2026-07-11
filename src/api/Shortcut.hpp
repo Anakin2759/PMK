@@ -30,7 +30,7 @@
 
 #include <memory>
 
-#include "Chains.hpp"
+#include "ui/api/Chains.hpp"
 #include "common/Shortcut.hpp"
 #include "ui/api/Entity.hpp"
 

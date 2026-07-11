@@ -12,7 +12,7 @@
  * For study and research only, no reprinting.
  * ************************************************************************
  */
-#include "ErrorCodes.hpp"
+#include "ui/ErrorCodes.hpp"
 #include <string_view>
 
 namespace ui

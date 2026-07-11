@@ -19,7 +19,7 @@
 
 #include "ui/api/Entity.hpp"
 #include "common/Types.hpp"
-#include "Chains.hpp" // Changed: Include Chains.hpp for DSL
+#include "ui/api/Chains.hpp" // Changed: Include Chains.hpp for DSL
 
 namespace ui::visibility
 {

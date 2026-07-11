@@ -430,4 +430,15 @@ flowchart LR
 
 尚未执行 CMake PUBLIC include 与 EnTT linkage 的最终收紧：剩余 API 头仍在 `src/api`，且新公共头仍引用位于 `src/common` 的类型。下一批应优先迁移无 component 依赖的 API 头和其 common 类型，再处理 `Controls.hpp`/`Text.hpp` 的 callback 解耦以及 `Utils.hpp` 的 scrollbar geometry 公共值类型。
 
-验证结果：Debug 全量构建、示例链接、架构边界检查和 CTest 均通过。
+第二批公共 DSL 骨架迁移已完成：`Chains.hpp`、`Hierarchy.hpp`、`Log.hpp` 已迁入
+`include/ui/api/`，旧 `src/api` 副本已删除。其余 API 头统一通过
+`ui/api/Chains.hpp` 依赖公开 DSL 基础，源码、测试与 `ui.hpp` 对 Hierarchy/Log 的引用也已切换到
+稳定公开路径。CMake 头列表和架构门禁已同步，禁止这三个旧路径回归。
+
+本轮还针对 clang-cl 解析巨型 header-only Helper 时的高内存占用，为 Ninja 增加全局可配置任务池：
+默认编译并发为 2、链接并发为 1。该措施避免默认按 CPU 核数启动大量重型翻译单元导致
+`LLVM ERROR: out of memory`；它是构建稳定性止血，不能替代后续按领域降低 `Helper.hpp` include fanout。
+
+验证结果：Debug 全量构建、示例与全部测试目标链接、架构边界检查均通过；测试 126 项通过、0 项失败。
+剩余公共头仍受 `src/common` 值类型、component callback、scrollbar geometry 以及 Factory/Runtime 边界阻塞，
+下一批应先公共化基础值类型或解耦 callback，不应直接强制收紧 PUBLIC include/link。

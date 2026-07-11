@@ -154,7 +154,17 @@ def count_matches(root: Path):
             unlisted_detail_cpp_counts[key] += 1
             locations.setdefault(("detail-cpp-not-in-ui-sources", *key), []).append((1, rel))
 
-    migrated_api_headers = {"Entity.hpp", "Event.hpp", "Scale.hpp", "State.hpp", "Theme.hpp", "Timer.hpp"}
+    migrated_api_headers = {
+        "Chains.hpp",
+        "Entity.hpp",
+        "Event.hpp",
+        "Hierarchy.hpp",
+        "Log.hpp",
+        "Scale.hpp",
+        "State.hpp",
+        "Theme.hpp",
+        "Timer.hpp",
+    }
     for header_name in migrated_api_headers:
         legacy_path = root / "src" / "api" / header_name
         if legacy_path.exists():

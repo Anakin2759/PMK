@@ -1,5 +1,5 @@
 // Tests for ui::Result<T> + ui::Error + ui::UiErrc.
-// 错误载体为 ui::Error（错误码 + 上下文 + source_location），见 src/common/Result.hpp。
+// 错误载体为 ui::Error（错误码 + 上下文 + source_location），见 ui/Result.hpp。
 
 #include <format>
 #include <string>
@@ -7,8 +7,8 @@
 
 #include <gtest/gtest.h>
 
-#include "src/common/ErrorCodes.hpp"
-#include "src/common/Result.hpp"
+#include "ui/ErrorCodes.hpp"
+#include "ui/Result.hpp"
 
 namespace
 {
