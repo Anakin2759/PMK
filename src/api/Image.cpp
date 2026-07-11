@@ -4,7 +4,7 @@
 
 #include "common/components/Data.hpp"
 #include "core/UiRuntime.hpp"
-#include "detail/EntityCast.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::image
 {

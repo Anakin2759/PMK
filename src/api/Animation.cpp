@@ -1,7 +1,6 @@
 #include "Animation.hpp"
 
-#include "detail/Animation.hpp"
-#include "detail/EntityCast.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::animation
 {

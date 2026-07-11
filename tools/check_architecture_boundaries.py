@@ -23,7 +23,7 @@ STATIC_RUNTIME_RE = re.compile(
 )
 COMMON_RUNTIME_INCLUDE_RE = re.compile(r'#\s*include\s+"(?:core/RuntimeFacade\.hpp|singleton/Registry\.hpp)"')
 PUBLIC_API_FORBIDDEN_INCLUDE_RE = re.compile(
-    r'#\s*include\s+[<"](?:entt(?:/[^">]+)?|core/RuntimeFacade\.hpp|singleton/Registry\.hpp|singleton/Dispatcher\.hpp)'
+    r'#\s*include\s+[<"](?:(?:src/)?helper/[^">]+|(?:src/)?detail/[^">]+|(?:src/)?entt(?:/[^">]+)?|core/RuntimeFacade\.hpp|singleton/Registry\.hpp|singleton/Dispatcher\.hpp)'
 )
 ENTT_ENTITY_RE = re.compile(r"\bentt::entity\b")
 ENTT_NAMESPACE_RE = re.compile(r"\bentt::")
@@ -41,7 +41,7 @@ INTERNAL_API_INCLUDE_DIRS = (
 )
 STATIC_RUNTIME_DIRS = (Path("src/systems"),)
 COMMON_DIRS = (Path("src/common"),)
-PUBLIC_API_HEADER_DIRS = (Path("src/api"),)
+PUBLIC_API_HEADER_DIRS = (Path("src/api"), Path("include"))
 API_CPP_DIRS = (Path("src/api"),)
 RUNTIME_ACCESS_DIRS = (Path("src/systems"), Path("src/renderers"), Path("src/services"))
 RAW_ACCESS_DIRS = (Path("src"),)
@@ -70,7 +70,7 @@ ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter(
 ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
     {
         ("src/api/Factory.cpp", "entt::entity"): 6,
-        ("src/api/Utils.cpp", "entt::entity"): 18,
+        ("src/api/Utils.cpp", "entt::entity"): 6,
     }
 )
 

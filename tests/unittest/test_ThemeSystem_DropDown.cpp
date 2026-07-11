@@ -1,6 +1,6 @@
 #include "tests/support/ThemeSystemTest.hpp"
 
-#include "src/detail/EntityCast.hpp"
+#include "src/helper/Helper.hpp"
 
 namespace ui::tests
 {

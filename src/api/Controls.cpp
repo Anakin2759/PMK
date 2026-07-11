@@ -1,7 +1,6 @@
 #include "Controls.hpp"
 
-#include "detail/ControlsBridge.hpp"
-#include "detail/EntityCast.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::controls
 {

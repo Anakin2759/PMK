@@ -29,7 +29,7 @@
 #include "common/Result.hpp"
 #include "core/Application.hpp"
 #include "core/UiRuntime.hpp"
-#include "detail/EntityCast.hpp"
+#include "helper/Helper.hpp"
 #include "entt/entity/entity.hpp"
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_video.h>

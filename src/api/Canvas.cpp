@@ -1,7 +1,6 @@
 #include "Canvas.hpp"
 
-#include "detail/Canvas.hpp"
-#include "detail/EntityCast.hpp"
+#include "helper/Helper.hpp"
 
 #include <vector>
 #include <utility>

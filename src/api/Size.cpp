@@ -1,7 +1,6 @@
 #include "Size.hpp"
 
-#include "detail/EntityCast.hpp"
-#include "detail/Size.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::size
 {

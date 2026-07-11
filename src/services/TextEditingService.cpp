@@ -15,7 +15,7 @@
 #include "common/Tags.hpp"
 #include "common/components/Data.hpp"
 #include "core/TextUtils.hpp"
-#include "detail/Utils.hpp"
+#include "helper/Helper.hpp"
 #include "utils/Registry.hpp"
 
 namespace ui::services

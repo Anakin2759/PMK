@@ -15,9 +15,10 @@
 #pragma once
 #include <memory>
 #include <vector>
-#include "Entity.hpp"
+#include <entt/entity/entity.hpp>
 #include <string>
 #include <string_view>
+#include "common/Types.hpp"
 #include "core/Application.hpp"
 #include "common/Result.hpp"
 #ifdef CreateWindow

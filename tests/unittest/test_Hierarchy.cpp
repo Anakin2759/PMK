@@ -10,7 +10,7 @@
 #include "src/common/Tags.hpp"
 #include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntimeScope.hpp"
-#include "src/detail/EntityCast.hpp"
+#include "src/helper/Helper.hpp"
 
 namespace ui::tests
 {

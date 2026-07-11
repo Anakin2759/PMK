@@ -4,8 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "detail/EntityCast.hpp"
-#include "detail/Table.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::table
 {

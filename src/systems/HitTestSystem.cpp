@@ -1,6 +1,6 @@
 #include "HitTestSystem.hpp"
 #include <algorithm>
-#include "detail/Utils.hpp"
+#include "helper/Helper.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"

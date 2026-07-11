@@ -6,8 +6,7 @@
 #include <utility>
 #include <string>
 #include "core/UiRuntime.hpp"
-#include "core/UiRuntime.hpp"
-#include "detail/EntityCast.hpp"
+#include "helper/Helper.hpp"
 #include "systems/TimerSystem.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entity/entity.hpp"
@@ -88,31 +87,6 @@ void MarkRenderDirty(ui::entity entity)
     MarkVisualChanged(entity);
 }
 
-void MarkLayoutChanged(entt::entity entity)
-{
-    MarkLayoutChanged(detail::ToPublic(entity));
-}
-
-void MarkVisualChanged(entt::entity entity)
-{
-    MarkVisualChanged(detail::ToPublic(entity));
-}
-
-void MarkLayoutAndVisualChanged(entt::entity entity)
-{
-    MarkLayoutAndVisualChanged(detail::ToPublic(entity));
-}
-
-void MarkLayoutDirty(entt::entity entity)
-{
-    MarkLayoutDirty(detail::ToPublic(entity));
-}
-
-void MarkRenderDirty(entt::entity entity)
-{
-    MarkRenderDirty(detail::ToPublic(entity));
-}
-
 bool HasAlignment(policies::Alignment value, policies::Alignment flag)
 {
     return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0;
@@ -181,11 +155,6 @@ Vec2 GetAbsolutePosition(ui::entity entity)
     return position;
 }
 
-Vec2 GetAbsolutePosition(entt::entity entity)
-{
-    return GetAbsolutePosition(detail::ToPublic(entity));
-}
-
 Rect GetEntityRect(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
@@ -201,11 +170,6 @@ Rect GetEntityRect(ui::entity entity)
     }
 
     return {GetAbsolutePosition(entity), sizeComp->size};
-}
-
-Rect GetEntityRect(entt::entity entity)
-{
-    return GetEntityRect(detail::ToPublic(entity));
 }
 
 Rect GetScrollViewportRect(ui::entity entity)
@@ -228,20 +192,10 @@ Rect GetScrollViewportRect(ui::entity entity)
             std::max(0.0F, entityRect.height() - top - bottom)};
 }
 
-Rect GetScrollViewportRect(entt::entity entity)
-{
-    return GetScrollViewportRect(detail::ToPublic(entity));
-}
-
 float GetScrollViewportLength(ui::entity entity, bool isVertical)
 {
     const Rect viewportRect = GetScrollViewportRect(entity);
     return isVertical ? viewportRect.height() : viewportRect.width();
-}
-
-float GetScrollViewportLength(entt::entity entity, bool isVertical)
-{
-    return GetScrollViewportLength(detail::ToPublic(entity), isVertical);
 }
 
 float GetScrollContentLength(ui::entity entity, bool isVertical)
@@ -255,21 +209,11 @@ float GetScrollContentLength(ui::entity entity, bool isVertical)
     return isVertical ? scrollArea->contentSize.y() : scrollArea->contentSize.x();
 }
 
-float GetScrollContentLength(entt::entity entity, bool isVertical)
-{
-    return GetScrollContentLength(detail::ToPublic(entity), isVertical);
-}
-
 float GetScrollMaxOffset(ui::entity entity, bool isVertical)
 {
     const float contentLength = GetScrollContentLength(entity, isVertical);
     const float viewportLength = GetScrollViewportLength(entity, isVertical);
     return std::max(0.0F, contentLength - viewportLength);
-}
-
-float GetScrollMaxOffset(entt::entity entity, bool isVertical)
-{
-    return GetScrollMaxOffset(detail::ToPublic(entity), isVertical);
 }
 
 components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
@@ -326,11 +270,6 @@ components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity en
         std::max(0.0F, geometry.thumbHeight - (components::ScrollArea::SCROLLBAR_THUMB_INSET * 2.0F))};
     geometry.visible = true;
     return geometry;
-}
-
-components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(entt::entity entity)
-{
-    return GetVerticalScrollbarGeometry(detail::ToPublic(entity));
 }
 
 void InvokeTask(UiRuntime& runtime, VoidCallback func)

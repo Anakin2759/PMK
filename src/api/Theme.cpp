@@ -1,6 +1,6 @@
 #include "Theme.hpp"
 
-#include "detail/ThemeBridge.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::theme
 {

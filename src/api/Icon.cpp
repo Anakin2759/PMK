@@ -3,8 +3,7 @@
 #include <string>
 #include <cstdint>
 
-#include "detail/EntityCast.hpp"
-#include "detail/Icon.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::icon
 {

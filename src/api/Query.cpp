@@ -1,7 +1,6 @@
 #include "Query.hpp"
 
-#include "detail/QueryBridge.hpp"
-#include "detail/EntityCast.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::query
 {

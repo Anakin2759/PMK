@@ -3,8 +3,7 @@
 #include <string>
 #include <utility>
 
-#include "detail/EntityCast.hpp"
-#include "detail/Text.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::text
 {

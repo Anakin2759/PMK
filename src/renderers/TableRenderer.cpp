@@ -26,13 +26,13 @@
 #include "SDL3/SDL_rect.h"
 #include "common/RenderTypes.hpp"
 #include "common/Scale.hpp"
-#include "common/Table.hpp"
 #include "common/Types.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Interaction.hpp"
 #include "core/RenderContext.hpp"
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
+#include "helper/Helper.hpp"
 #include "managers/BatchManager.hpp"
 #include "managers/FontManager.hpp"
 #include "managers/TextTextureCache.hpp"
@@ -94,7 +94,7 @@ TableRenderer::TableRenderState TableRenderer::makeRenderState(const components:
     state.bodyHeight = std::max(0.0F, state.totalHeight - info.headerHeight);
     state.rowCount = static_cast<int>(info.cells.size());
     state.effectiveRowHeight = std::max(0.0F, std::max(info.rowHeight, info.minRowHeight));
-    state.colWidths = ui::table::ComputeColumnWidths(info, state.totalWidth);
+    state.colWidths = ui::detail::table::ComputeColumnWidths(info, state.totalWidth);
 
     // 计算 contentWidth（所有列宽之和）
     state.contentWidth = 0.0F;
@@ -112,7 +112,7 @@ TableRenderer::TableRenderState TableRenderer::makeRenderState(const components:
 
 std::vector<float> TableRenderer::computeColWidths(const components::TableInfo& info, float totalWidth)
 {
-    return ui::table::ComputeColumnWidths(info, totalWidth);
+    return ui::detail::table::ComputeColumnWidths(info, totalWidth);
 }
 
 void TableRenderer::updateScrollArea(entt::entity entity, TableRenderState& state) const

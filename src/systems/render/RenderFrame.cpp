@@ -35,7 +35,7 @@
 #include "SDL3/SDL_rect.h"
 #include "utils/Registry.hpp"
 #include "common/Tags.hpp"
-#include "detail/Utils.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::systems
 {

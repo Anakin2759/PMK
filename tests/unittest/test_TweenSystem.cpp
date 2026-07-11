@@ -9,7 +9,7 @@
 #include "src/common/GlobalContext.hpp"
 #include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntimeScope.hpp"
-#include "src/detail/EntityCast.hpp"
+#include "src/helper/Helper.hpp"
 #include "src/systems/ActionSystem.hpp"
 #include "src/systems/TweenSystem.hpp"
 

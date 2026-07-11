@@ -1,7 +1,6 @@
 #include "Layout.hpp"
 
-#include "detail/EntityCast.hpp"
-#include "detail/Layout.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::layout
 {

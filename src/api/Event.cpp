@@ -10,7 +10,7 @@
 
 #include <utility>
 
-#include "detail/EventBridge.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::event
 {

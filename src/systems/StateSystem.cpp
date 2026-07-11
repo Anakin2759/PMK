@@ -1,7 +1,6 @@
 #include "StateSystem.hpp"
-#include "detail/Utils.hpp"
+#include "helper/Helper.hpp"
 #include "common/AppConfig.hpp"
-#include "common/Table.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
@@ -876,7 +875,7 @@ void StateSystem::PointerStateHelpers::tryEmitTableCellClicked(StateSystem& syst
     }
 
     // 使用 ComputeColumnWidths 计算实际列宽（与渲染层共享逻辑）
-    const std::vector<float> colWidths = ui::table::ComputeColumnWidths(*info, tableWidth);
+    const std::vector<float> colWidths = ui::detail::table::ComputeColumnWidths(*info, tableWidth);
 
     int col = -1;
     float xCursor = 0.0F;

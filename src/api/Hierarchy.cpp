@@ -1,7 +1,6 @@
 #include "Hierarchy.hpp"
 
-#include "detail/EntityCast.hpp"
-#include "detail/Hierarchy.hpp"
+#include "helper/Helper.hpp"
 
 namespace ui::hierarchy
 {
@@ -18,9 +17,9 @@ void AddChild(ui::entity parent, ui::entity child)
 std::vector<ui::entity> ChildrenPostOrder(ui::entity parent)
 {
     std::vector<ui::entity> children;
-    for (const auto child : ui::detail::hierarchy::ChildrenPostOrder(detail::ToInternal(parent)))
+    for (const auto CHILD : ui::detail::hierarchy::ChildrenPostOrder(detail::ToInternal(parent)))
     {
-        children.push_back(detail::ToPublic(child));
+        children.push_back(detail::ToPublic(CHILD));
     }
     return children;
 }

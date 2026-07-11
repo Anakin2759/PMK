@@ -163,19 +163,6 @@ set(UI_SOURCES
     api/Layout.cpp
     api/Text.cpp
     api/Animation.cpp
-    detail/Size.cpp
-    detail/Visibility.cpp
-    detail/Layout.cpp
-    detail/Animation.cpp
-    detail/Hierarchy.cpp
-    detail/Table.cpp
-    detail/Text.cpp
-    detail/Canvas.cpp
-    detail/Controls.cpp
-    detail/Icon.cpp
-    detail/Query.cpp
-    detail/Theme.cpp
-    detail/EventBridge.cpp
     api/Hierarchy.cpp
     api/Icon.cpp
     api/Utils.cpp
@@ -212,6 +199,9 @@ set(UI_HEADERS
     common/Result.hpp
     common/ErrorCodes.hpp
     utils/ThreadPool.hpp
+
+    # Internal helpers
+    helper/Helper.hpp
     
     # Systems
     systems/InteractionSystem.hpp
@@ -268,9 +258,6 @@ set(UI_HEADERS
 
     traits/ComponentsTraits.hpp
     traits/PoliciesTraits.hpp
-
-    # Detail
-    detail/EventBridge.hpp
 
     # Interface
     interface/ISystem.hpp
