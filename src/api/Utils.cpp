@@ -12,7 +12,7 @@
 #include "entt/entity/entity.hpp"
 #include "common/Tags.hpp"
 #include "common/components/Layout.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "common/components/Window.hpp"
 #include "common/Events.hpp"
 #include "common/Types.hpp"
@@ -31,7 +31,7 @@ namespace
 void MarkLayoutChanged(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
+    if (!reg.valid(entity)){ return;}
 
     entt::entity current = detail::ToInternal(entity);
     while (current != ::entt::null && reg.valid(current))

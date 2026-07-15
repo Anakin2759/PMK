@@ -31,21 +31,20 @@ public:
                  m_registry(std::make_unique<Registry>()),
                  m_dispatcher(std::make_unique<Dispatcher>()),
                  m_logger(std::make_unique<utils::Logger>())
-    {
-        s_current = this;
-    }
+    {}
 
-    ~UiRuntime()
-    {
-        if (s_current == this) s_current = nullptr;
-    }
+    ~UiRuntime() = default;
 
     UiRuntime(const UiRuntime&) = delete;
     UiRuntime& operator=(const UiRuntime&) = delete;
     UiRuntime(UiRuntime&&) = delete;
     UiRuntime& operator=(UiRuntime&&) = delete;
 
-    /// 获取当前线程活跃的 UiRuntime 实例（由构造 / 析构设定）
+    /// 尝试获取当前线程活跃的 UiRuntime 实例；无活动 scope 时返回 nullptr。
+    [[nodiscard]] static UiRuntime* tryCurrent() noexcept { return s_current; }
+
+    /// 获取当前线程活跃的 UiRuntime 实例（由 UiRuntimeScope 设定）。
+    /// 调用方必须保证当前线程存在活动 scope；兼容旧 API 使用。
     [[nodiscard]] static UiRuntime& current() { return *s_current; }
 
     [[nodiscard]] Registry& registry() noexcept { return *m_registry; }

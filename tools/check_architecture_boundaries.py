@@ -2,7 +2,9 @@
 """Architecture boundary guard for VMP-ui.
 
 This is a soft P0 guard: existing boundary debt is explicitly baselined, while
-new occurrences fail the check. The baseline should only shrink over time.
+new occurrences fail the check. It also prints the Phase 0 architecture metrics
+that are meaningful before the corresponding debt reaches zero. The baseline
+should only shrink over time.
 """
 
 from __future__ import annotations
@@ -23,14 +25,17 @@ STATIC_RUNTIME_RE = re.compile(
 )
 COMMON_RUNTIME_INCLUDE_RE = re.compile(r'#\s*include\s+"(?:core/RuntimeFacade\.hpp|singleton/Registry\.hpp)"')
 PUBLIC_API_FORBIDDEN_INCLUDE_RE = re.compile(
-    r'#\s*include\s+[<"](?:(?:src/)?helper/[^">]+|(?:src/)?detail/[^">]+|(?:src/)?entt(?:/[^">]+)?|core/RuntimeFacade\.hpp|singleton/Registry\.hpp|singleton/Dispatcher\.hpp)'
+    r'#\s*include\s+[<"](?:(?:src/)?helper/[^">]+|(?:src/)?detail/[^">]+|(?:src/)?entt(?:/[^">]+)?|(?:src/)?common/(?:ErrorCodes|Result|Policies)\.hpp|(?:src/)?traits/[^">]+|core/RuntimeFacade\.hpp|singleton/Registry\.hpp|singleton/Dispatcher\.hpp)'
 )
 ENTT_ENTITY_RE = re.compile(r"\bentt::entity\b")
 ENTT_NAMESPACE_RE = re.compile(r"\bentt::")
-RUNTIME_FACADE_CURRENT_RE = re.compile(r"RuntimeFacade::current\(\)")
+UI_RUNTIME_CURRENT_RE = re.compile(r"UiRuntime::current\(\)")
 RAW_ACCESS_RE = re.compile(r"\b(?:Registry|Dispatcher)::raw\(\)|\.raw\(\)")
 UI_SOURCES_BLOCK_RE = re.compile(r"set\(UI_SOURCES\s+(.*?)\)", re.DOTALL)
 DETAIL_CPP_ENTRY_RE = re.compile(r"\b(detail/[A-Za-z0-9_]+\.cpp)\b")
+PUBLIC_INCLUDE_BLOCK_RE = re.compile(r"target_include_directories\(ui\s+(.*?)\)", re.DOTALL)
+PUBLIC_LINK_BLOCK_RE = re.compile(r"target_link_libraries\(ui\s+PUBLIC\s+(.*?)\)", re.DOTALL)
+QUEUED_EVENT_DISPATCH_RE = re.compile(r"\bDispatchQueued\s*\(")
 
 INTERNAL_API_INCLUDE_DIRS = (
     Path("src/core"),
@@ -43,7 +48,7 @@ STATIC_RUNTIME_DIRS = (Path("src/systems"),)
 COMMON_DIRS = (Path("src/common"),)
 PUBLIC_API_HEADER_DIRS = (Path("src/api"), Path("include"))
 API_CPP_DIRS = (Path("src/api"),)
-RUNTIME_ACCESS_DIRS = (Path("src/systems"), Path("src/renderers"), Path("src/services"))
+RUNTIME_ACCESS_DIRS = (Path("src"),)
 RAW_ACCESS_DIRS = (Path("src"),)
 SOURCE_EXTENSIONS = {".h", ".hh", ".hpp", ".hxx", ".c", ".cc", ".cpp", ".cxx"}
 HEADER_EXTENSIONS = {".h", ".hh", ".hpp", ".hxx"}
@@ -63,10 +68,7 @@ ALLOWED_COMMON_RUNTIME_INCLUDE_COUNTS = Counter(
     {}
 )
 
-ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter(
-    {
-    }
-)
+ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter({})
 
 ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
     {
@@ -75,7 +77,44 @@ ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
     }
 )
 
-ALLOWED_RUNTIME_CURRENT_COUNTS = Counter({})
+ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
+    {
+        ("src/api/Factory.cpp", "UiRuntime::current()"): 9,
+        ("src/api/Image.cpp", "UiRuntime::current()"): 1,
+        ("src/api/Log.cpp", "UiRuntime::current()"): 6,
+        ("src/api/Utils.cpp", "UiRuntime::current()"): 3,
+        ("src/core/WindowEntityLookup.hpp", "UiRuntime::current()"): 6,
+        ("src/core/WindowSync.hpp", "UiRuntime::current()"): 8,
+        ("src/helper/Helper.hpp", "UiRuntime::current()"): 103,
+        ("src/managers/CommandBuffer.hpp", "UiRuntime::current()"): 4,
+        ("src/managers/DeviceManager.hpp", "UiRuntime::current()"): 12,
+        ("src/managers/FontAtlasManager.hpp", "UiRuntime::current()"): 5,
+        ("src/managers/FontManager.hpp", "UiRuntime::current()"): 16,
+        ("src/managers/IconManager.cpp", "UiRuntime::current()"): 34,
+        ("src/managers/IconManager.hpp", "UiRuntime::current()"): 2,
+        ("src/managers/ImageManager.cpp", "UiRuntime::current()"): 12,
+        ("src/managers/PipelineCache.hpp", "UiRuntime::current()"): 6,
+        ("src/managers/ResourceProvider.cpp", "UiRuntime::current()"): 3,
+        ("src/managers/TextTextureCache.cpp", "UiRuntime::current()"): 8,
+        ("src/managers/TextureAtlas.hpp", "UiRuntime::current()"): 12,
+        ("src/renderers/FallbackBackendRenderer.hpp", "UiRuntime::current()"): 4,
+        ("src/systems/render/RenderBackend.cpp", "UiRuntime::current()"): 35,
+        ("src/systems/render/RenderFrame.cpp", "UiRuntime::current()"): 10,
+        ("src/systems/render/RenderResources.cpp", "UiRuntime::current()"): 1,
+        ("src/systems/StateSystem.cpp", "UiRuntime::current()"): 3,
+        ("src/systems/TimerSystem.cpp", "UiRuntime::current()"): 2,
+    }
+)
+
+ALLOWED_PUBLIC_CMAKE_DEBT_COUNTS = Counter(
+    {
+        ("src/CMakeLists.txt", "PUBLIC include: ${CMAKE_SOURCE_DIR}"): 1,
+        ("src/CMakeLists.txt", "PUBLIC include: ${CMAKE_CURRENT_SOURCE_DIR}"): 1,
+        ("src/CMakeLists.txt", "PUBLIC link: EnTT::EnTT"): 1,
+        ("src/CMakeLists.txt", "PUBLIC link: Eigen3::Eigen"): 1,
+        ("src/CMakeLists.txt", "PUBLIC link: spdlog::spdlog_header_only"): 1,
+    }
+)
 
 ALLOWED_RAW_ACCESS_COUNTS = Counter(
     {
@@ -116,6 +155,21 @@ def iter_source_files(root: Path):
         yield path
 
 
+def public_section_tokens(block: str) -> list[str]:
+    """Return tokens after PUBLIC and before the next visibility section."""
+
+    tokens = re.findall(r"[^\s()]+", block)
+    if "PUBLIC" not in tokens:
+        return []
+    start = tokens.index("PUBLIC") + 1
+    result: list[str] = []
+    for token in tokens[start:]:
+        if token in {"PRIVATE", "INTERFACE"}:
+            break
+        result.append(token)
+    return result
+
+
 def count_matches(root: Path):
     api_counts: Counter[tuple[str, str]] = Counter()
     runtime_counts: Counter[tuple[str, str]] = Counter()
@@ -127,6 +181,8 @@ def count_matches(root: Path):
     runtime_current_counts: Counter[tuple[str, str]] = Counter()
     raw_access_counts: Counter[tuple[str, str]] = Counter()
     unlisted_detail_cpp_counts: Counter[tuple[str, str]] = Counter()
+    public_cmake_debt_counts: Counter[tuple[str, str]] = Counter()
+    queued_event_dispatch_sites: list[tuple[str, int, str]] = []
     locations: dict[tuple[str, str, str], list[tuple[int, str]]] = {}
 
     cmake_file = root / "src" / "CMakeLists.txt"
@@ -138,6 +194,24 @@ def count_matches(root: Path):
             cmake_text = cmake_file.read_text(encoding="utf-8-sig")
         if match := UI_SOURCES_BLOCK_RE.search(cmake_text):
             ui_sources_entries = set(DETAIL_CPP_ENTRY_RE.findall(match.group(1)))
+
+        if match := PUBLIC_INCLUDE_BLOCK_RE.search(cmake_text):
+            for token in public_section_tokens(match.group(1)):
+                if token not in {"${CMAKE_SOURCE_DIR}", "${CMAKE_CURRENT_SOURCE_DIR}"}:
+                    continue
+                debt = f"PUBLIC include: {token}"
+                key = ("src/CMakeLists.txt", debt)
+                public_cmake_debt_counts[key] += 1
+                locations.setdefault(("public-cmake-debt", *key), []).append((1, debt))
+
+        if match := PUBLIC_LINK_BLOCK_RE.search(cmake_text):
+            for token in re.findall(r"[^\s()]+", match.group(1)):
+                if token not in {"EnTT::EnTT", "Eigen3::Eigen", "spdlog::spdlog_header_only"}:
+                    continue
+                debt = f"PUBLIC link: {token}"
+                key = ("src/CMakeLists.txt", debt)
+                public_cmake_debt_counts[key] += 1
+                locations.setdefault(("public-cmake-debt", *key), []).append((1, debt))
 
     for path in root.glob("src/detail/*.cpp"):
         rel = normalized_relative(path, root)
@@ -210,20 +284,24 @@ def count_matches(root: Path):
                     locations.setdefault(("public-api-entt", *key), []).append((line_no, line))
 
             if path.suffix in IMPLEMENTATION_EXTENSIONS and is_under(path, root, API_CPP_DIRS):
-                for match in RUNTIME_FACADE_CURRENT_RE.finditer(line):
-                    key = (rel, match.group(0))
-                    api_cpp_runtime_counts[key] += 1
-                    locations.setdefault(("api-cpp-runtime-current", *key), []).append((line_no, line))
                 for match in ENTT_ENTITY_RE.finditer(line):
                     key = (rel, match.group(0))
                     api_cpp_entt_entity_counts[key] += 1
                     locations.setdefault(("api-cpp-entt-entity", *key), []).append((line_no, line))
 
             if is_under(path, root, RUNTIME_ACCESS_DIRS):
-                for match in RUNTIME_FACADE_CURRENT_RE.finditer(line):
+                for match in UI_RUNTIME_CURRENT_RE.finditer(line):
                     key = (rel, match.group(0))
                     runtime_current_counts[key] += 1
                     locations.setdefault(("runtime-current", *key), []).append((line_no, line))
+
+            if (
+                rel.startswith("src/")
+                and path.suffix in IMPLEMENTATION_EXTENSIONS
+                and rel not in {"src/api/Event.cpp"}
+                and QUEUED_EVENT_DISPATCH_RE.search(line)
+            ):
+                queued_event_dispatch_sites.append((rel, line_no, line.strip()))
 
             if is_under(path, root, RAW_ACCESS_DIRS):
                 for match in RAW_ACCESS_RE.finditer(line):
@@ -242,6 +320,8 @@ def count_matches(root: Path):
         runtime_current_counts,
         raw_access_counts,
         unlisted_detail_cpp_counts,
+        public_cmake_debt_counts,
+        queued_event_dispatch_sites,
         locations,
     )
 
@@ -308,6 +388,8 @@ def main(argv: list[str]) -> int:
         runtime_current_counts,
         raw_access_counts,
         unlisted_detail_cpp_counts,
+        public_cmake_debt_counts,
+        queued_event_dispatch_sites,
         locations,
     ) = count_matches(root)
 
@@ -342,6 +424,16 @@ def main(argv: list[str]) -> int:
     )
     violations.extend(collect_extra("runtime-current", runtime_current_counts, ALLOWED_RUNTIME_CURRENT_COUNTS, locations))
     violations.extend(collect_stale_baseline("runtime-current", runtime_current_counts, ALLOWED_RUNTIME_CURRENT_COUNTS))
+    violations.extend(
+        collect_extra(
+            "public-cmake-debt", public_cmake_debt_counts, ALLOWED_PUBLIC_CMAKE_DEBT_COUNTS, locations
+        )
+    )
+    violations.extend(
+        collect_stale_baseline(
+            "public-cmake-debt", public_cmake_debt_counts, ALLOWED_PUBLIC_CMAKE_DEBT_COUNTS
+        )
+    )
     violations.extend(collect_extra("raw-access", raw_access_counts, ALLOWED_RAW_ACCESS_COUNTS, locations))
     violations.extend(collect_stale_baseline("raw-access", raw_access_counts, ALLOWED_RAW_ACCESS_COUNTS))
     violations.extend(
@@ -358,9 +450,17 @@ def main(argv: list[str]) -> int:
         )
     )
 
+    print("Architecture metrics:")
+    print(f"  UiRuntime::current() calls: {sum(runtime_current_counts.values())}")
+    print(f"  PUBLIC internal include paths: {sum(1 for _, token in public_cmake_debt_counts if token.startswith('PUBLIC include:'))}")
+    print(f"  PUBLIC internal dependency links: {sum(1 for _, token in public_cmake_debt_counts if token.startswith('PUBLIC link:'))}")
+    print(f"  queued event frame dispatch sites: {len(queued_event_dispatch_sites)}")
+    for path, line_no, text in queued_event_dispatch_sites:
+        print(f"    {path}:{line_no}: {text}")
+
     if violations:
         print("Architecture boundary check failed: new boundary debt detected.", file=sys.stderr)
-        print("Existing 2026-06-04 debt is baselined; remove entries from the baseline when debt is fixed.", file=sys.stderr)
+        print("Existing debt is baselined; remove entries from the baseline when debt is fixed.", file=sys.stderr)
         for violation in violations:
             print(str(violation), file=sys.stderr)
         return 1

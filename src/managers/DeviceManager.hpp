@@ -30,8 +30,8 @@
 #include <functional>
 #include <SDL3/SDL.h>
 #include "common/AppConfig.hpp"
-#include "common/Result.hpp"
-#include "common/ErrorCodes.hpp"
+#include "ui/Result.hpp"
+#include "ui/ErrorCodes.hpp"
 
 // CMRC_DECLARE(ui_swiftshader);
 

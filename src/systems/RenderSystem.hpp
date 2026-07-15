@@ -24,7 +24,7 @@
 #include <memory>
 
 #include "common/Events.hpp"
-#include "common/Result.hpp"
+#include "ui/Result.hpp"
 #include "interface/ISystem.hpp"
 #include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"

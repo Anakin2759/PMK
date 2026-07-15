@@ -20,8 +20,8 @@
 #include <string_view>
 #include <SDL3/SDL.h>
 #include "common/RenderTypes.hpp"
-#include "common/Result.hpp"
-#include "common/ErrorCodes.hpp"
+#include "ui/Result.hpp"
+#include "ui/ErrorCodes.hpp"
 
 namespace ui::interface
 {

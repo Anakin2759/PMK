@@ -10,7 +10,7 @@
 #pragma once
 
 #include "common/Types.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "Interaction.hpp" // on_event<>
 #include <string>
 #include <string_view>

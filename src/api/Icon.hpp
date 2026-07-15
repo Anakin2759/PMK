@@ -22,7 +22,7 @@
 #include <string>
 
 #include "ui/api/Entity.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "ui/api/Chains.hpp"
 namespace ui::icon
 {

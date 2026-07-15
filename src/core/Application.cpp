@@ -20,6 +20,7 @@
 
 #include "SystemManager.hpp"
 #include "UiRuntime.hpp"
+#include "UiRuntimeScope.hpp"
 #include "SDL3/SDL_error.h"
 #include "SDL3/SDL_hints.h"
 #include "SDL3/SDL_init.h"
@@ -63,6 +64,7 @@ public:
 
 private:
     std::unique_ptr<UiRuntime> m_runtime;           // 管理全局状态和资源
+    std::unique_ptr<UiRuntimeScope> m_runtimeScope; // 保持 legacy API 在应用生命周期内绑定当前 Runtime
     EventLoop m_eventLoop;
 
     // 核心 ECS 系统封装
@@ -73,6 +75,7 @@ private:
 
 ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
     : m_runtime(std::make_unique<UiRuntime>()),
+    m_runtimeScope(std::make_unique<UiRuntimeScope>(*m_runtime)),
       m_systems(std::make_unique<SystemManager>(m_runtime.get()))
 {
     config::AppConfig::instance().parseCommandLine(arg);

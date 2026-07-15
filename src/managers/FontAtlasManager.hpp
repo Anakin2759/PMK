@@ -24,8 +24,8 @@
 #include "FontManager.hpp"
 #include "TextureAtlas.hpp"
 #include "DeviceManager.hpp"
-#include "common/ErrorCodes.hpp"
-#include "common/Result.hpp"
+#include "ui/ErrorCodes.hpp"
+#include "ui/Result.hpp"
 #include <memory>
 #include <optional>
 

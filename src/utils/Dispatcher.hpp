@@ -49,31 +49,31 @@ public:
     template <traits::Events Event>
     void trigger(Event&& event = {})
     {
-        m_dispatcher.trigger(std::forward<Event>(event));
+        dispatcher_.trigger(std::forward<Event>(event));
     }
 
     template <traits::Events Event>
     void enqueue(Event&& event = {})
     {
-        m_dispatcher.enqueue(std::forward<Event>(event));
+        dispatcher_.enqueue(std::forward<Event>(event));
     }
 
-    void update() { m_dispatcher.update(); }
+    void update() { dispatcher_.update(); }
 
     template <traits::Events Event>
     void update()
     {
-        m_dispatcher.update<Event>();
+        dispatcher_.update<Event>();
     }
 
     template <traits::Events Event>
     [[nodiscard]] auto sink()
     {
-        return m_dispatcher.sink<Event>();
+        return dispatcher_.sink<Event>();
     }
 
 private:
 
-    entt::dispatcher m_dispatcher;
+    entt::dispatcher dispatcher_;
 };
 } // namespace ui

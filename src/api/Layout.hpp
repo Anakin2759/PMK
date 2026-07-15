@@ -19,7 +19,7 @@
 #pragma once
 
 #include "ui/api/Entity.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "ui/api/Chains.hpp" // Changed: Include Chains.hpp for DSL
 
 namespace ui::layout

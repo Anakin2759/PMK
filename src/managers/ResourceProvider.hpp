@@ -23,7 +23,7 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include "common/Result.hpp"
+#include "ui/Result.hpp"
 
 namespace ui::managers
 {

@@ -24,7 +24,7 @@
 #include "PlatformWindow.hpp"
 #include "UiRuntime.hpp"
 #include "common/AppConfig.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "common/Tags.hpp"
 #include "common/Types.hpp"
 #include "common/components/Layout.hpp"

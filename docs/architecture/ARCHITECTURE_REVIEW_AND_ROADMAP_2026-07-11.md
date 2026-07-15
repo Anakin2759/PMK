@@ -1,8 +1,42 @@
+
+
 # VMP-ui 架构锐评与演进路线（2026-07-11）
 
-> 状态：建议稿  
-> 范围：公开 API、Runtime、事件与帧循环、System、布局、渲染、资源生命周期、CMake、测试与文档治理  
+> 状态：active（Phase 0 静态边界基线已完成、运行时帧指标待补；Phase 1 分项推进；WP3 最终 SDK 边界收紧仍受公共头依赖阻塞）
+> 范围：公开 API、Runtime、事件与帧循环、System、布局、渲染、资源生命周期、CMake、测试与文档治理
 > 原则：先消除确定性风险，再收敛执行模型，最后建设扩展能力。
+
+## 0. 进度总览（更新于 2026-07-15）
+
+状态定义：`completed` 表示该工作包验收闭环；`active` 表示已有实现但验收未完成；
+`blocked` 表示存在明确前置依赖；`not-started` 表示尚未进入实质实施。
+
+| 阶段 / 工作包             | 状态                  | 已完成证据                                                                                  | 未完成或下一步                                                                                                   |
+| ------------------------- | --------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Phase 0：架构基线         | active                | 门禁已统计真实 `UiRuntime::current()`、PUBLIC include/link 和 queued event 生产派发点，并阻止债务增长 | 补齐每帧 Layout/Render 次数运行时埋点；已有静态基线只能下降                                                    |
+| WP1 Runtime 与失败路径    | active                | 已增加 `tryCurrent()`；Runtime 构造/析构不再隐式切换 current；Application 显式持有长期 scope；Factory catch 改用 stderr | 继续清理非 Application 调用点；补充初始化失败注入测试和无 Runtime 的 legacy API 契约                         |
+| WP2 System 连接生命周期   | active                | manager 析构可批量 unregister；内建 System 普遍已有 unregister 实现                         | `removeSystem()` 删除前注销；增加状态机、幂等和移除后事件测试                                                  |
+| WP3 构建与 SDK 边界       | blocked / active      | `src/detail/` 清零；部分 API 头、Error/Result、Policies 已迁入 `include/`；门禁持续收紧 | 剩余 API/common/component/Eigen 依赖未解；PUBLIC 源码路径与 EnTT/Eigen/spdlog 传播尚未收紧；缺独立 consumer 验证 |
+| WP4 GPU shutdown          | active                | 渲染代码已按 Backend/Resources/Frame 初步拆分，存在 cleanup 路径                            | 建立统一幂等`RenderResourceContext::Shutdown()`；移除 device 失效后的主动泄漏分支；补生命周期测试              |
+| WP5 单一帧管线            | not-started / partial | `TaskChain` 和 System phase 已有局部顺序                                                  | 建立唯一`FrameTick`；移除分散节流；把 public queued events 接入固定阶段                                        |
+| WP6 Intrinsic Measurement | not-started           | 无闭环实现                                                                                  | 引入窄测量服务，删除文字长度估宽与固定 scrollbar gutter                                                          |
+| WP7 RenderSystem 拆分     | active / partial      | 已拆出`RenderBackend.cpp`、`RenderResources.cpp`、`RenderFrame.cpp`                   | RenderSystem 仍协调过多 owner/cache/backend；继续拆资源上下文和渲染管线                                          |
+| WP8 API 版本化            | not-started           | 已有`ui::entity`、`EntityHandle` 和公开头迁移基础                                       | 定义 runtime-bound handle 契约与裸 entity 废弃周期                                                               |
+| WP9 构建与发布矩阵        | blocked               | 当前 Debug/clang-cl 工作树构建已验证                                                        | 等 WP3 consumer 边界闭环后建立 install/export、多平台和多编译器矩阵                                              |
+
+### 已完成的边界迁移批次
+
+| 批次                  | 状态      | 结果                                                                                  |
+| --------------------- | --------- | ------------------------------------------------------------------------------------- |
+| detail/helper 收敛    | completed | `src/detail/` 清零；内部适配集中到 helper；门禁禁止 detail 文件回归                 |
+| 首批公共 API 头       | completed | Entity、Event、Scale、State、Theme、Timer 迁入`include/ui/api/`                     |
+| DSL 公共 API 头       | completed | Chains、Hierarchy、Log 迁入`include/ui/api/`                                        |
+| Error / Result 公共化 | completed | 权威头位于`include/ui/`；`src/common` 仅兼容转发；公共头禁止旧路径                |
+| Policies 公共化       | completed | 权威头位于`include/ui/Policies.hpp`；位运算单点提供；内部 traits 不再重复注入运算符 |
+| Ninja 构建限流        | completed | 默认 compile pool=2、link pool=1；默认高并发 clang-cl OOM 已止血                      |
+
+**当前主线：** 补齐 Phase 0 的 Layout/Render 运行时埋点，同时继续 WP3 的公共类型解耦；在 `Types.hpp`/Eigen
+公开类型决策完成前，不机械迁移 Animation 等头，也不强行收紧 CMake PUBLIC 传播。
 
 ## 1. 执行摘要
 
@@ -10,7 +44,7 @@ VMP-ui 已越过“Demo 工程”阶段：C++23、ECS、`Result<T>`、GPU RAII�
 
 最尖锐的评价是：
 
-1. **Runtime 显式化只完成了一半。** System 构造侧开始注入依赖，API、manager、detail、render 等层仍在隐式取全局上下文。
+1. **Runtime 显式化只完成了一半。** System 构造侧开始注入依赖，API、helper、manager、renderer 及部分 System 实现仍在隐式取全局上下文。
 2. **RAII 解决了“谁释放”，没有彻底解决“何时释放”。** GPU deleter 捕获裸 device，资源销毁顺序仍靠人工纪律；代码甚至保留 device 先销毁后主动泄漏缓存的分支。
 3. **帧循环不是一条管线，而是多个计时器、队列和即时补救路径的叠加。** System phase 只排序注册，不等于显式执行图。
 4. **公开头的隔离方向正确，CMake 却仍把 EnTT 和内部 include 路径向消费者传播。** 源码边界在收，构建边界仍开着。
@@ -36,15 +70,16 @@ flowchart TD
     Layout --> Components[ECS Components]
     Render --> Components
     Render --> Managers[GPU/Font/Image/Icon/Pipeline Managers]
-    API[Public API] --> Detail[detail bridge]
+    API[Public API] --> Helper[helper/internal bridge]
     API -. legacy implicit context .-> Runtime
+    Helper -. legacy implicit context .-> Runtime
     Managers -. UiRuntime::current .-> Runtime
 ```
 
 ### 已经做对的部分
 
 - `include/ui.hpp` 已形成统一公开入口，公开事件与实体句柄开始隔离 EnTT。
-- `src/common/Result.hpp` 基于 `std::expected`，错误码、上下文和 `source_location` 设计成熟。
+- `include/ui/Result.hpp` 基于 `std::expected`，错误码、上下文和 `source_location` 设计成熟；`src/common/Result.hpp` 仅保留兼容转发。
 - System 具备 phase 排序，注册模式统一。
 - GPU 资源已有 RAII wrapper，不再完全依赖散落的手工 release。
 - 测试已拆分 unit/ecs/api，存在公开头和公开事件测试。
@@ -52,7 +87,7 @@ flowchart TD
 
 ### 尚未闭环的部分
 
-- Runtime 既是服务容器、所有者，又是 thread-local locator 和 registry context 宿主。
+- Runtime 既是服务容器、所有者，又是 thread-local locator 和 registry context 宿主；API、helper、manager、renderer、system 仍存在隐式访问。
 - 新旧 Factory API 并存，错误模型和 runtime 绑定不同。
 - 主 Dispatcher 与公开自定义事件队列是两套系统。
 - Layout 与 Render 虽没有直接类依赖，却通过文字估宽、滚动条魔法常量等语义耦合。
@@ -170,7 +205,9 @@ flowchart LR
 
 ## 3.7 P1：公开事件的 `Enqueue` 未必意味着“下一帧”
 
-**证据：** `src/detail/EventBridge.cpp` 维护独立 callback/queue；主 `QueuedTask` 只更新 EnTT Dispatcher，未必调用公开事件的 `DispatchQueued()`。
+**证据：** `src/detail/` 已清零；公开事件 callback/queue 当前位于 `src/helper/Helper.hpp` 的
+`ui::detail::event_bridge`，由 `src/api/Event.cpp` 转发。主帧路径仍未调用公开事件的
+`DispatchQueued()`，因此 `Enqueue()` 不会自动形成明确的“下一帧派发”契约。
 
 **评价：** 两套 buffered event 语义对使用者不可见，API 名称却暗示相同行为。这是契约歧义。
 
@@ -213,7 +250,9 @@ flowchart LR
 
 ## 3.11 P2：架构门禁与文档已发生状态漂移
 
-**证据：** 边界脚本仍包含旧 singleton 路径、`RuntimeFacade::current()` 等旧规则；README 与部分 todo 对当前实现描述过时。
+**证据：** 门禁已覆盖 `src/detail/*` 回归、已迁移 API 旧路径和公共错误头旧路径；2026-07-15 已将过时的
+`RuntimeFacade::current()` 规则替换为真实 `UiRuntime::current()` 基线，并增加 PUBLIC include/link 与 queued event
+生产派发点指标。每帧 Layout/Render 次数仍缺运行时埋点；README 与部分 todo 对当前实现描述也已过时。
 
 **评价：** 失真的门禁比没有门禁更危险，因为它制造“检查已通过”的虚假安全感。
 
@@ -223,28 +262,30 @@ flowchart LR
 
 ## 4. 优先级与风险矩阵
 
-| 优先级 | 工作项 | 不处理风险 | 变更风险 |
-|---|---|---|---|
-| P0 | 修复 Application 初始化失败二次崩溃 | 初始化失败直接崩溃 | 低 |
-| P0 | 固化 Runtime/current 生命周期契约 | 多 Runtime、测试隔离、析构不确定 | 中 |
-| P0 | System 移除前注销 | 悬挂回调、UAF | 低 |
-| P0 | GPU shutdown 顺序与故障测试 | 泄漏、悬空 device、重建失败 | 中 |
-| P0 | 收紧 EnTT 与内部 include 传播 | 私有实现成为事实公共 API | 中 |
-| P1 | 统一帧时钟与事件阶段 | 输入延迟、乱序、难复现卡顿 | 中高 |
-| P1 | 公开事件接入帧循环 | `Enqueue` 契约不符合预期 | 低中 |
-| P1 | 固有尺寸测量服务 | CJK/emoji/字体布局错误 | 中 |
-| P1 | 拆 RenderResourceContext/Pipeline | God Object 持续膨胀 | 中高 |
-| P1 | 收敛新旧公开 API | Service Locator 永久化 | 中 |
-| P1 | 更新架构门禁 | 新债无法被 CI 发现 | 低 |
-| P2 | consumer/install/package 验证 | 外部集成阶段才暴雷 | 中 |
-| P2 | 调度、布局、生命周期集成测试 | 高风险回归依赖手测 | 中 |
-| P2 | 文档状态治理 | 重复规划、错误决策依据 | 低 |
+| 优先级 | 工作项                              | 不处理风险                       | 变更风险 |
+| ------ | ----------------------------------- | -------------------------------- | -------- |
+| P0     | 修复 Application 初始化失败二次崩溃 | 初始化失败直接崩溃               | 低       |
+| P0     | 固化 Runtime/current 生命周期契约   | 多 Runtime、测试隔离、析构不确定 | 中       |
+| P0     | System 移除前注销                   | 悬挂回调、UAF                    | 低       |
+| P0     | GPU shutdown 顺序与故障测试         | 泄漏、悬空 device、重建失败      | 中       |
+| P0     | 收紧 EnTT 与内部 include 传播       | 私有实现成为事实公共 API         | 中       |
+| P1     | 统一帧时钟与事件阶段                | 输入延迟、乱序、难复现卡顿       | 中高     |
+| P1     | 公开事件接入帧循环                  | `Enqueue` 契约不符合预期       | 低中     |
+| P1     | 固有尺寸测量服务                    | CJK/emoji/字体布局错误           | 中       |
+| P1     | 拆 RenderResourceContext/Pipeline   | God Object 持续膨胀              | 中高     |
+| P1     | 收敛新旧公开 API                    | Service Locator 永久化           | 中       |
+| P1     | 更新架构门禁                        | 新债无法被 CI 发现               | 低       |
+| P2     | consumer/install/package 验证       | 外部集成阶段才暴雷               | 中       |
+| P2     | 调度、布局、生命周期集成测试        | 高风险回归依赖手测               | 中       |
+| P2     | 文档状态治理                        | 重复规划、错误决策依据           | 低       |
 
 ---
 
 ## 5. 路线图
 
 ## Phase 0：建立基线（2～3 天）
+
+**当前状态：active。** 静态边界基线已固化并由门禁执行：`UiRuntime::current()` 307 处、PUBLIC 内部 include 路径 2 项、PUBLIC 内部依赖 3 项、queued event 生产帧派发点 0 处。每帧 Layout/Render 次数仍缺运行时埋点，因此 Phase 0 尚未全部验收。
 
 **目标：** 在改架构前先让债务可计数。
 
@@ -259,8 +300,10 @@ flowchart LR
 
 ### WP1 Runtime 与失败路径
 
-- 增加 `tryCurrent()`；修复 `CreateApplication()` catch。
-- current 仅由 `UiRuntimeScope` 切换。
+**当前状态：active。** 第一轮止血已完成：`tryCurrent()` 已提供；Runtime 构造/析构不再隐式修改 current；`ApplicationImpl` 通过长期 `UiRuntimeScope` 绑定 legacy API；`CreateApplication()` catch 已改用不依赖 Runtime 的 stderr 后备日志。当前仍需清理非 Application 内部的隐式访问，并补初始化失败注入测试。
+
+- ~~增加 `tryCurrent()`；修复 `CreateApplication()` catch。~~ 已完成。
+- ~~current 仅由 `UiRuntimeScope` 切换。~~ Application 生命周期已接入；其余旧调用点继续按基线下降。
 - 定义无 active Runtime 时兼容 API 的失败行为。
 
 **验收：**
@@ -271,6 +314,8 @@ flowchart LR
 
 ### WP2 System 连接生命周期
 
+**当前状态：active。** manager 析构和全局注销已有实现，但 `removeSystem()` 尚未保证删除前注销目标 System。
+
 - 增加 manager 状态机。
 - remove 前 unregister；禁止注册后静默追加。
 - 覆盖重复注销和移除后触发事件。
@@ -278,6 +323,8 @@ flowchart LR
 **验收：** 无悬挂回调；全部内建 system 的 phase 顺序有测试。
 
 ### WP3 构建与 SDK 边界
+
+**当前状态：blocked / active。** 多批公共头迁移已经完成；最终 CMake 收紧仍被剩余 `src/api`/`src/common`、component callback 和 Eigen 公共类型依赖阻塞。
 
 - EnTT PRIVATE；PUBLIC include 仅公开目录。
 - 区分内部 API 测试和独立 consumer 测试。
@@ -287,6 +334,8 @@ flowchart LR
 
 ### WP4 GPU shutdown
 
+**当前状态：active。** 渲染源码已初步拆分并存在 cleanup 路径，但统一幂等 shutdown 和主动泄漏分支尚未解决。
+
 - 绘制资源 DAG，将清理集中到幂等入口。
 - 覆盖中途初始化失败、重复清理、窗口循环创建销毁。
 
@@ -295,6 +344,8 @@ flowchart LR
 ## Phase 2：统一执行模型（1 个版本）
 
 ### WP5 单一帧管线
+
+**当前状态：not-started / partial。** 局部阶段顺序已经存在，但尚未形成唯一 FrameTick。
 
 - 建立唯一 `FrameTick` 和固定阶段。
 - 移除 Task 内散落的 16/32 ms countdown。
@@ -309,6 +360,8 @@ flowchart LR
 
 ### WP6 Intrinsic Measurement
 
+**当前状态：not-started。** 尚无独立测量服务，估宽与固定 gutter 仍待替换。
+
 - Text/Image/Icon/自定义控件通过窄接口提供固有尺寸。
 - 删除字符串长度估宽。
 - 滚动条尺寸改由 theme metric 提供。
@@ -318,6 +371,8 @@ flowchart LR
 ## Phase 3：收敛渲染职责（1 个版本）
 
 ### WP7 RenderSystem 拆分
+
+**当前状态：active / partial。** Backend、Resources、Frame 已有物理拆分，职责和所有权仍集中在 RenderSystem。
 
 - 建立 `RenderResourceContext`。
 - 建立 `RenderPipeline`。
@@ -334,11 +389,15 @@ flowchart LR
 
 ### WP8 API 版本化
 
+**当前状态：not-started。** 已有句柄与公共头基础，尚未形成版本化和废弃契约。
+
 - 稳定入口收敛到 runtime-bound `EntityHandle`。
 - 裸 entity API 进入明确废弃周期。
 - 公开事件、错误、句柄生命周期形成契约文档。
 
 ### WP9 构建与发布矩阵
+
+**当前状态：blocked。** 依赖 WP3 完成独立 consumer 和 install/export 边界闭环。
 
 - CMake Presets 覆盖 MSVC、clang-cl、Linux clang/gcc。
 - 完成 install/export/package consumer 验证。
@@ -350,18 +409,19 @@ flowchart LR
 
 ## 6. 量化指标
 
-| 指标 | 基线 | 目标 |
-|---|---:|---:|
-| `UiRuntime::current()` 调用数 | Phase 0 统计 | 每版本单调下降；新增为 0 |
-| PUBLIC 内部 include 路径 | Phase 0 统计 | 0 |
-| EnTT 对 consumer 传播 | 当前存在 | 0 |
-| 正常可达主动泄漏分支 | 当前存在 | 0 |
-| 默认单帧 Layout 次数 | 待埋点 | ≤ 1 |
-| 默认单帧 Render 次数 | 待埋点 | ≤ 1 |
-| queued event 阶段未定义项 | 当前存在 | 0 |
-| 窗口循环创建/销毁稳定次数 | 未固定 | ≥ 100 |
-| 独立 consumer 构建 | 未闭环 | CI 必过 |
-| 架构文档状态缺失 | 多处 | 0 |
+| 指标                            |         基线 |                     目标 |
+| ------------------------------- | -----------: | -----------------------: |
+| `UiRuntime::current()` 调用数 |          307 | 每版本单调下降；新增为 0 |
+| PUBLIC 内部 include 路径        |            2 |                        0 |
+| PUBLIC 内部依赖传播             |            3 |                        0 |
+| EnTT 对 consumer 传播           |            1 |                        0 |
+| 正常可达主动泄漏分支            |     当前存在 |                        0 |
+| 默认单帧 Layout 次数            |       待埋点 |                     ≤ 1 |
+| 默认单帧 Render 次数            |       待埋点 |                     ≤ 1 |
+| queued event 生产帧派发点       |            0 |                        1 |
+| 窗口循环创建/销毁稳定次数       |       未固定 |                   ≥ 100 |
+| 独立 consumer 构建              |       未闭环 |                  CI 必过 |
+| 架构文档状态缺失                |         多处 |                        0 |
 
 ---
 
@@ -380,11 +440,11 @@ flowchart LR
 
 实施前需明确以下产品级选择：
 
-1. 是否支持同线程多 Application/多 Runtime，还是仅要求测试隔离？
-2. `ui::event::Enqueue()` 是否承诺自动在下一帧派发？
-3. 发布目标是源码内嵌静态库，还是可安装 SDK？
-4. CPU fallback 是正式后端，还是仅调试/故障降级路径？
-5. 下一主版本是否允许公开 API 收敛到 `EntityHandle` 并弃用裸 entity？
+1. 是否支持同线程多 Application/多 Runtime，还是仅要求测试隔离？支持
+2. `ui::event::Enqueue()` 是否承诺自动在下一帧派发？承诺
+3. 发布目标是源码内嵌静态库，还是可安装 SDK？  都要，可选
+4. CPU fallback 是正式后端，还是仅调试/故障降级路径？正式后端
+5. 下一主版本是否允许公开 API 收敛到 `EntityHandle` 并弃用裸 entity？是
 
 在这些问题未决前，可安全推进 Phase 0 和 Phase 1；Phase 2 之后的接口形态应受决策门约束。
 
@@ -420,15 +480,18 @@ flowchart LR
 - 公开 `ui::chains` DSL 保持兼容；内部 helper 不再复制链式 action 或 `operator|` 包装。
 - API 的 `.cpp` 负责将公开 `ui::entity` 适配为内部 `entt::entity`，EnTT 原生依赖不进入公开头。
 - 已迁移 EntityCast、Utils 内部重载、Size、Visibility、Layout、Hierarchy、Icon、Query、Theme、Event、Canvas、Animation、Controls、Table、Text。
+  这里的“Animation”等表示内部实现/适配迁移完成，不表示同名公共头均已物理迁入 `include/ui/`。
 - 已删除对应的 detail 实现与重复镜像头；架构检查已增加公共头禁止 EnTT/helper/detail 的规则。
 
 `src/detail/` 已清零。最后五个文件均确认是过期公共镜像或未使用重复声明：`Factory.hpp` 的唯一调用改用权威 `api/Factory.hpp`，`Image.hpp`、`Log.hpp`、`Shortcut.hpp`、`Timer.hpp` 直接删除。架构门禁已增加 `src/detail/*` 禁止回归规则。
+
+公开事件 callback/queue 目前仍通过 `src/helper/Helper.hpp` 内部的 `ui::detail::event_bridge` 适配。这里的 `detail` 是实现命名空间，不表示 `src/detail/` 物理目录仍然存在。
 
 下一阶段的主要边界阻塞已不再是 detail，而是公共头仍物理位于 `src/api`/`src/common`：`include/ui.hpp` 依赖 PUBLIC 暴露整个源码目录，部分公共 API 还可达内部 component 头。因此，收紧 PUBLIC include path 和将 EnTT linkage 改为 PRIVATE，应在“公共头迁入 `include/ui/` + 公共 callback/type 与内部 component 解耦 + 独立 consumer 验证”工作包中完成，不能仅靠修改 CMake 可见性强推。
 
 公共头物理迁移已启动，首批 `Entity.hpp`、`Event.hpp`、`Scale.hpp`、`State.hpp`、`Theme.hpp`、`Timer.hpp` 已迁入 `include/ui/api/`，旧 `src/api` 副本已删除，`ui.hpp` 与内部调用点已切换到新路径。架构门禁同时禁止这批头重新出现在 `src/api`。该批次保持构建和公开调用兼容。
 
-尚未执行 CMake PUBLIC include 与 EnTT linkage 的最终收紧：剩余 API 头仍在 `src/api`，且新公共头仍引用位于 `src/common` 的类型。下一批应优先迁移无 component 依赖的 API 头和其 common 类型，再处理 `Controls.hpp`/`Text.hpp` 的 callback 解耦以及 `Utils.hpp` 的 scrollbar geometry 公共值类型。
+尚未执行 CMake PUBLIC include 与 EnTT linkage 的最终收紧：剩余 API 头仍在 `src/api`，且新公共头仍引用位于 `src/common` 的类型。当前活动工作包是先公共化无 component 依赖的基础类型，再处理 `Controls.hpp`/`Text.hpp` 的 callback 解耦以及 `Utils.hpp` 的 scrollbar geometry 公共值类型。
 
 第二批公共 DSL 骨架迁移已完成：`Chains.hpp`、`Hierarchy.hpp`、`Log.hpp` 已迁入
 `include/ui/api/`，旧 `src/api` 副本已删除。其余 API 头统一通过
@@ -439,6 +502,26 @@ flowchart LR
 默认编译并发为 2、链接并发为 1。该措施避免默认按 CPU 核数启动大量重型翻译单元导致
 `LLVM ERROR: out of memory`；它是构建稳定性止血，不能替代后续按领域降低 `Helper.hpp` include fanout。
 
-验证结果：Debug 全量构建、示例与全部测试目标链接、架构边界检查均通过；测试 126 项通过、0 项失败。
+Phase 0 静态架构基线已于 2026-07-15 落地到 `tools/check_architecture_boundaries.py`。门禁现在直接统计并
+baseline 真实 `UiRuntime::current()`（307 处）、PUBLIC 内部 include 路径（2 项）以及 EnTT/Eigen/spdlog
+PUBLIC 依赖（3 项）；任何新增或基线过期都会失败。公开 queued event 在生产帧路径中的自动派发点当前为 0，
+该指标会持续输出，但在 WP5 接入固定 FrameTick 前不把“缺少派发点”作为构建失败。Phase 0 剩余项仅为
+Layout/Render 每帧次数的运行时埋点与 CI 留存。
+
+执行快照（2026-07-15，Debug）：构建成功；架构门禁、CMake diagnostics 和公开头检查通过；VS Code test runner 实际执行结果为 130 passed / 0 failed。期间发现并修复一个依赖 Runtime 构造隐式激活语义的资源测试。
 剩余公共头仍受 `src/common` 值类型、component callback、scrollbar geometry 以及 Factory/Runtime 边界阻塞，
 下一批应先公共化基础值类型或解耦 callback，不应直接强制收紧 PUBLIC include/link。
+
+错误基础设施公共化批次已完成：权威 `ErrorCodes.hpp`、`Result.hpp` 已迁入 `include/ui/`，
+`src/common` 下保留兼容转发头，内部实现和测试已切换到稳定公共路径。架构门禁现已禁止公共头重新包含
+`common/ErrorCodes.hpp` 或 `common/Result.hpp`。本批未改变 `UiErrc`、`Error`、`Result<T>`、`TRY` 宏或错误码数值，
+因此保持源码兼容；这里的 completed 仅指头文件位置和依赖方向，异常、裸 `bool`/`nullptr` 等错误政策统一仍属后续工作。
+
+Policies 公共化批次已完成：权威定义迁入 `include/ui/Policies.hpp`，不再依赖内部
+`traits/PoliciesTraits.hpp`；`src/common/Policies.hpp` 仅保留兼容转发，全仓调用点已切换到 `ui/Policies.hpp`。
+位运算和 `HasFlag` 现在由公共头单点提供，并仅允许实际 flags 类型；旧 traits 仍保留内部类型检测兼容，
+但不再重复注入运算符。架构门禁已禁止公共头重新依赖 `common/Policies.hpp` 或 `src/traits`。
+
+以上结果复用同一份 2026-07-15 Debug 执行快照，不代表 WP3、Runtime 或发布矩阵已经验收完成。
+下一批候选是动画公共类型，但 `src/api/Animation.hpp` 的公开签名仍依赖 `Types.hpp` 中的 Eigen 别名，
+因此应先决定“原样公共化 Eigen 类型”还是引入自有数学值类型，不能仅移动 Animation 头来伪造 SDK 隔离。

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 
 namespace ui::animation
 {

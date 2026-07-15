@@ -18,6 +18,7 @@
 #include <utility> // for std::to_underlying (C++23)
 
 #include "Contains.hpp"
+#include "ui/Policies.hpp"
 #include <cstdint>
 
 namespace ui::policies
@@ -69,89 +70,4 @@ concept Policies = is_policies_v<T>;
 
 } // namespace ui::traits
 
-// ===================== 自动位运算注入 =====================
-// 注入到 ui::policies 命名空间以支持 ADL 查找
-namespace ui::policies
-{
-
-/**
- * @brief 位或运算符重载
- */
-template <typename T>
-    requires ui::traits::Policies<T>
-[[nodiscard]] constexpr T operator|(T lhs, T rhs) noexcept
-{
-    return static_cast<T>(std::to_underlying(lhs) | std::to_underlying(rhs));
-}
-
-/**
- * @brief 位与运算符重载
- */
-template <typename T>
-    requires ui::traits::Policies<T>
-[[nodiscard]] constexpr T operator&(T lhs, T rhs) noexcept
-{
-    return static_cast<T>(std::to_underlying(lhs) & std::to_underlying(rhs));
-}
-
-/**
- * @brief 位异或运算符重载
- */
-template <typename T>
-    requires ui::traits::Policies<T>
-[[nodiscard]] constexpr T operator^(T lhs, T rhs) noexcept
-{
-    return static_cast<T>(std::to_underlying(lhs) ^ std::to_underlying(rhs));
-}
-
-/**
- * @brief 位取反运算符重载
- */
-template <typename T>
-    requires ui::traits::Policies<T>
-[[nodiscard]] constexpr T operator~(T val) noexcept
-{
-    return static_cast<T>(~std::to_underlying(val));
-}
-
-/**
- * @brief 位或赋值运算符重载
- */
-template <typename T>
-    requires ui::traits::Policies<T>
-constexpr T& operator|=(T& lhs, T rhs) noexcept
-{
-    return lhs = (lhs | rhs);
-}
-
-/**
- * @brief 位与赋值运算符重载
- */
-template <typename T>
-    requires ui::traits::Policies<T>
-constexpr T& operator&=(T& lhs, T rhs) noexcept
-{
-    return lhs = (lhs & rhs);
-}
-
-/**
- * @brief 位异或赋值运算符重载
- */
-template <typename T>
-    requires ui::traits::Policies<T>
-constexpr T& operator^=(T& lhs, T rhs) noexcept
-{
-    return lhs = (lhs ^ rhs);
-}
-
-/**
- * @brief 检查标志位辅助函数
- */
-template <typename T>
-    requires ui::traits::Policies<T>
-[[nodiscard]] constexpr bool HasFlag(T value, T flag) noexcept
-{
-    return (value & flag) == flag;
-}
-
-} // namespace ui::policies
+// 位运算与 HasFlag 的权威实现位于公开头 ui/Policies.hpp。

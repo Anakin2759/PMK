@@ -3,12 +3,11 @@
 #include "Factory.hpp"
 #include "ui/api/Scale.hpp"
 #include "common/Tags.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "common/Types.hpp"
 #include "common/Events.hpp"
 #include "ui/ErrorCodes.hpp"
 #include "common/AppConfig.hpp"
-#include "core/UiRuntime.hpp"
 #include "core/UiRuntimeScope.hpp"
 #include "core/WindowEntityLookup.hpp"
 #include "utils/Logger.hpp"
@@ -37,6 +36,7 @@
 #include <stb_image.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <cmath>
 #include <cstdint>
 #include <exception>
@@ -50,6 +50,18 @@ namespace ui::factory
 
 namespace
 {
+void WriteStderr(std::string_view text) noexcept
+{
+    if (text.empty())
+    {
+        return;
+    }
+    if (std::fwrite(text.data(), 1U, text.size(), stderr) != text.size())
+    {
+        std::clearerr(stderr);
+    }
+}
+
 struct RuntimeServices
 {
     Registry& registry;
@@ -312,12 +324,14 @@ ui::Result<std::unique_ptr<Application>> CreateApplication(std::span<char*> argv
     }
     catch (const std::exception& e)
     {
-        UiRuntime::current().logger().error("[Factory] UI initialization failed: {}", e.what());
+        WriteStderr("[Factory] UI initialization failed: ");
+        WriteStderr(e.what());
+        WriteStderr("\n");
         return ui::Err(UiErrc::DEVICE_UNAVAILABLE, e.what());
     }
     catch (...)
     {
-        UiRuntime::current().logger().error("[Factory] Unknown UI initialization failure");
+        WriteStderr("[Factory] Unknown UI initialization failure\n");
         return ui::Err(UiErrc::UNKNOWN);
     }
 }

@@ -15,7 +15,7 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "src/core/TextUtils.hpp"
 
 namespace ui::tests

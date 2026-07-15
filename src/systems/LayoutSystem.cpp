@@ -14,7 +14,7 @@
 #include "helper/Helper.hpp"
 
 #include "common/Events.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "common/Tags.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Layout.hpp"

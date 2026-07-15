@@ -24,8 +24,8 @@
 #include "common/GPUWrappers.hpp"
 #include "DeviceManager.hpp"
 #include "ResourceProvider.hpp"
-#include "common/Result.hpp"
-#include "common/ErrorCodes.hpp"
+#include "ui/Result.hpp"
+#include "ui/ErrorCodes.hpp"
 
 namespace ui::managers
 {

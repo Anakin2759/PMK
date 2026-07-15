@@ -18,7 +18,7 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 
 namespace ui::utils
 {

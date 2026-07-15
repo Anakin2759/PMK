@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 #include "src/managers/ResourceProvider.hpp"
 
 namespace ui::tests
@@ -46,6 +47,7 @@ TEST(UiCoverageTest, DefaultResourceProviderReportsMissingResource)
 {
     // 失败路径会通过 UiRuntime::current().logger() 记录日志，需要活动的 UiRuntime。
     UiRuntime runtime;
+    UiRuntimeScope const scope(runtime);
 
     const auto provider = managers::GetDefaultUiResourceProvider();
 

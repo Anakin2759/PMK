@@ -25,7 +25,7 @@
 #pragma once
 #include <entt/entt.hpp>
 #include <cmath>
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "common/components/Animation.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Layout.hpp"

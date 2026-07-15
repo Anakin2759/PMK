@@ -5,7 +5,7 @@
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
 #include "common/components/Window.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 #include "common/Tags.hpp"
 #include "core/WindowSync.hpp"
 #include "utils/Dispatcher.hpp"

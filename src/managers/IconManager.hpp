@@ -37,7 +37,7 @@
 #include "utils/Logger.hpp"
 #include "core/UiRuntime.hpp"
 #include "common/GPUWrappers.hpp"
-#include "common/Result.hpp"
+#include "ui/Result.hpp"
 
 namespace ui::managers
 {

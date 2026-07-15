@@ -15,12 +15,12 @@
 #include <cstring>
 #include <string>
 #include <memory>
-#include "common/Result.hpp"
+#include "ui/Result.hpp"
 #include "common/AppConfig.hpp"
 #include <string_view>
 #include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
-#include "common/ErrorCodes.hpp"
+#include "ui/ErrorCodes.hpp"
 #include "managers/FontManager.hpp"
 #include "managers/ImageManager.hpp"
 #include "managers/BatchManager.hpp"

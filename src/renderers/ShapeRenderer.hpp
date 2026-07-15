@@ -19,7 +19,7 @@
 #include "utils/Registry.hpp"
 
 #include "common/components/Visual.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 
 #include "common/Tags.hpp"
 #include "managers/BatchManager.hpp"

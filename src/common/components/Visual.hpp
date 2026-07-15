@@ -9,7 +9,7 @@
 #include <optional>
 
 #include "common/Types.hpp"
-#include "common/Policies.hpp"
+#include "ui/Policies.hpp"
 
 namespace ui::components
 {

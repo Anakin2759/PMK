@@ -39,6 +39,7 @@ add_executable(ui_unit_tests
     test_TextUtils.cpp
     test_ResourceProvider.cpp
     test_result.cpp
+    test_UiRuntime.cpp
 )
 configure_ui_test_target(ui_unit_tests)
 

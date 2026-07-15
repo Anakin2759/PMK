@@ -1,7 +1,7 @@
-#include "common/Result.hpp"
+#include "ui/Result.hpp"
 #include <string>
 #include "utils/Logger.hpp"
-#include "common/ErrorCodes.hpp"
+#include "ui/ErrorCodes.hpp"
 #include <cctype>
 #include <cstdio>
 #include <cstdint>

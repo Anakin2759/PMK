@@ -44,8 +44,8 @@
 #include <cmath>
 #include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
-#include "common/ErrorCodes.hpp"
-#include "common/Result.hpp"
+#include "ui/ErrorCodes.hpp"
+#include "ui/Result.hpp"
 
 namespace ui::managers
 {

@@ -187,6 +187,7 @@ set(UI_HEADERS
     # Public foundations
     ${CMAKE_SOURCE_DIR}/include/ui/ErrorCodes.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Result.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/Policies.hpp
 
     # Components
     common/CustomizationPoints.hpp

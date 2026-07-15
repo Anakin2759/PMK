@@ -15,11 +15,11 @@
 
 #include "ResourceProvider.hpp"
 #include "core/UiRuntime.hpp"
-#include "common/ErrorCodes.hpp"
+#include "ui/ErrorCodes.hpp"
 #include "utils/Logger.hpp"
 #include <string_view>
 #include <string>
-#include "common/Result.hpp"
+#include "ui/Result.hpp"
 #include <memory>
 #include <span>
 
