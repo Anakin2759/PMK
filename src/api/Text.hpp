@@ -19,10 +19,11 @@
  */
 #pragma once
 
+#include "ui/Callback.hpp"
 #include "ui/api/Entity.hpp"
 #include <string>
 #include "ui/Policies.hpp"
-#include "common/components/Interaction.hpp"
+#include "common/Types.hpp"
 #include "ui/api/Chains.hpp" // Changed: Include Chains.hpp for DSL
 
 namespace ui::text
@@ -86,19 +87,19 @@ void SetPasswordMode(ui::entity entity, policies::TextFlag enabled);
  * @param entity 实体ID
  * @param callback 回调函数
  */
-void SetClickCallback(ui::entity entity, components::on_event<> callback);
+void SetClickCallback(ui::entity entity, Callback<> callback);
 /**
  * @brief 设置文本提交回调（单行模式按 Enter 触发）
  * @param entity 实体ID
  * @param callback 回调函数
  */
-void SetOnSubmit(ui::entity entity, components::on_event<> callback);
+void SetOnSubmit(ui::entity entity, Callback<> callback);
 /**
  * @brief 设置文本改变回调
  * @param entity 实体ID
  * @param callback 回调函数（参数为新文本内容）
  */
-void SetOnTextChanged(ui::entity entity, components::on_event<const std::string&> callback);
+void SetOnTextChanged(ui::entity entity, Callback<const std::string&> callback);
 /**
  * @brief 设置行高倍数
  * @param entity 实体ID
@@ -182,15 +183,15 @@ inline auto PasswordMode(policies::TextFlag enabled)
 {
     return ui::actions::text::SET_PASSWORD_MODE_ACTION.bind(enabled);
 }
-inline auto OnClick(ui::components::on_event<> callback)
+inline auto OnClick(ui::Callback<> callback)
 {
     return ui::actions::text::SET_CLICK_CALLBACK_ACTION.bind(std::move(callback));
 }
-inline auto OnSubmit(ui::components::on_event<> callback)
+inline auto OnSubmit(ui::Callback<> callback)
 {
     return ui::actions::text::SET_ON_SUBMIT_ACTION.bind(std::move(callback));
 }
-inline auto OnTextChanged(ui::components::on_event<const std::string&> callback)
+inline auto OnTextChanged(ui::Callback<const std::string&> callback)
 {
     return ui::actions::text::SET_ON_TEXT_CHANGED_ACTION.bind(std::move(callback));
 }

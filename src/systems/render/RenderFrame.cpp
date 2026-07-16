@@ -10,6 +10,7 @@
 #include <ranges>
 #include <stack>
 #include <unordered_map>
+#include "common/GlobalContext.hpp"
 #include "common/components/Window.hpp"
 #include "common/AppConfig.hpp"
 #include "core/WindowSync.hpp"
@@ -189,6 +190,8 @@ void LogScalingSnapshotIfNeeded(Registry& registry,
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 void RenderSystem::update()
 {
+    // 统计事件处理入口次数而非实际 present 数；无脏窗口的调用同样属于帧调度指标。
+    ++m_reg->getOrEmplaceInCtx<globalcontext::FrameContext>().renderUpdateCount;
     auto windowView = m_reg->view<components::Window, components::RenderDirtyTag>();
 
     if (windowView.begin() == windowView.end())

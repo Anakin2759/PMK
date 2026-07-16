@@ -186,6 +186,7 @@ set(UI_SOURCES
 set(UI_HEADERS
     # Public foundations
     ${CMAKE_SOURCE_DIR}/include/ui/ErrorCodes.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/Callback.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Result.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Policies.hpp
 
@@ -270,9 +271,12 @@ set(UI_HEADERS
     # API
     ${CMAKE_SOURCE_DIR}/include/ui/api/Chains.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Hierarchy.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Icon.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Layout.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Log.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Query.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Size.hpp
     api/Utils.hpp
-    api/Layout.hpp
     api/Controls.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Event.hpp
     api/Canvas.hpp

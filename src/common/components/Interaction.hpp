@@ -8,14 +8,14 @@
 #pragma once
 
 #include "common/Types.hpp"
+#include "ui/Callback.hpp"
 #include "ui/Policies.hpp"
-#include <functional>
 
 namespace ui::components
 {
 
 template <typename... Args>
-using on_event = std::move_only_function<void(Args...)>;
+using on_event = ui::Callback<Args...>;
 
 /**
  * @brief 滚动区域组件

@@ -40,6 +40,7 @@ add_executable(ui_unit_tests
     test_ResourceProvider.cpp
     test_result.cpp
     test_UiRuntime.cpp
+    test_SystemManager.cpp
 )
 configure_ui_test_target(ui_unit_tests)
 
@@ -60,6 +61,7 @@ configure_ui_test_target(ui_ecs_tests)
 
 add_executable(ui_api_tests
     test_UmbrellaHeader.cpp
+    test_PublicLeafHeaders.cpp
     test_PublicEventApi.cpp
 )
 configure_ui_test_target(ui_api_tests)

@@ -81,6 +81,14 @@ struct EventRecorder
     }
 };
 
+struct FrameMetricsRecorder
+{
+    globalcontext::FrameContext* frame;
+
+    void onLayout(const events::UpdateLayout&) const { ++frame->layoutUpdateCount; }
+    void onRender(const events::UpdateRendering&) const { ++frame->renderUpdateCount; }
+};
+
 class TaskChainTest : public ::testing::Test
 {
 protected:
@@ -88,7 +96,10 @@ protected:
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
         auto& frame = UiRuntime::current().ensureContext<globalcontext::FrameContext>();
+        frame.frameNumber = 0;
         frame.intervalMs = 0;
+        frame.layoutUpdateCount = 0;
+        frame.renderUpdateCount = 0;
         frame.frameSlot = 0;
     }
 
@@ -153,7 +164,10 @@ TEST_F(TaskChainTest, QueuedTaskUpdatesFrameContextBeforeDispatchingQueuedEvents
     queuedTask(33);
 
     const auto& frameContext = UiRuntime::current().registry().ctx().get<globalcontext::FrameContext>();
+    EXPECT_EQ(frameContext.frameNumber, 1U);
     EXPECT_EQ(frameContext.intervalMs, 33U);
+    EXPECT_EQ(frameContext.layoutUpdateCount, 0U);
+    EXPECT_EQ(frameContext.renderUpdateCount, 0U);
     EXPECT_EQ(frameContext.frameSlot, 1U);
     ASSERT_EQ(observedEvents.size(), 2U);
     EXPECT_EQ(observedEvents.at(0), "timer");
@@ -193,6 +207,36 @@ TEST_F(TaskChainTest, RenderTaskTriggersFrameStagesInFixedOrderAndHonorsDelay)
     EXPECT_EQ(observedEvents.at(1), "render");
     EXPECT_EQ(observedEvents.at(2), "end_frame");
     EXPECT_EQ(renderTask.remainingTime, 16U);
+}
+
+TEST_F(TaskChainTest, RuntimeFrameMetricsRecordRegularAndImmediateSystemUpdates)
+{
+    auto& runtime = UiRuntime::current();
+    auto& frame = runtime.registry().ctx().get<globalcontext::FrameContext>();
+    FrameMetricsRecorder recorder{&frame};
+    auto layoutConnection = entt::scoped_connection{
+        runtime.dispatcher().sink<events::UpdateLayout>().connect<&FrameMetricsRecorder::onLayout>(recorder)};
+    auto renderConnection = entt::scoped_connection{
+        runtime.dispatcher().sink<events::UpdateRendering>().connect<&FrameMetricsRecorder::onRender>(recorder)};
+
+    tasks::QueuedTask queuedTask{.runtime = &runtime};
+    tasks::RenderTask renderTask{.runtime = &runtime};
+
+    queuedTask(16);
+    renderTask(16);
+
+    EXPECT_EQ(frame.frameNumber, 1U);
+    EXPECT_EQ(frame.layoutUpdateCount, 1U);
+    EXPECT_EQ(frame.renderUpdateCount, 1U);
+
+    runtime.dispatcher().trigger<events::UpdateRendering>();
+    EXPECT_EQ(frame.layoutUpdateCount, 1U);
+    EXPECT_EQ(frame.renderUpdateCount, 2U);
+
+    queuedTask(1);
+    EXPECT_EQ(frame.frameNumber, 2U);
+    EXPECT_EQ(frame.layoutUpdateCount, 0U);
+    EXPECT_EQ(frame.renderUpdateCount, 0U);
 }
 
 } // namespace

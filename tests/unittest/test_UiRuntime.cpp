@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntimeScope.hpp"
 
@@ -61,6 +63,19 @@ TEST(UiRuntimeTest, DestroyingInactiveRuntimeDoesNotChangeCurrent)
     }
 
     EXPECT_EQ(UiRuntime::tryCurrent(), &activeRuntime);
+}
+
+TEST(UiRuntimeTest, DestroyingActiveRuntimeClearsStaleCurrent)
+{
+    auto runtime = std::make_unique<UiRuntime>();
+    auto scope = std::make_unique<UiRuntimeScope>(*runtime);
+    ASSERT_EQ(UiRuntime::tryCurrent(), runtime.get());
+
+    runtime.reset();
+
+    EXPECT_EQ(UiRuntime::tryCurrent(), nullptr);
+    scope.reset();
+    EXPECT_EQ(UiRuntime::tryCurrent(), nullptr);
 }
 
 } // namespace

@@ -25,7 +25,7 @@ STATIC_RUNTIME_RE = re.compile(
 )
 COMMON_RUNTIME_INCLUDE_RE = re.compile(r'#\s*include\s+"(?:core/RuntimeFacade\.hpp|singleton/Registry\.hpp)"')
 PUBLIC_API_FORBIDDEN_INCLUDE_RE = re.compile(
-    r'#\s*include\s+[<"](?:(?:src/)?helper/[^">]+|(?:src/)?detail/[^">]+|(?:src/)?entt(?:/[^">]+)?|(?:src/)?common/(?:ErrorCodes|Result|Policies)\.hpp|(?:src/)?traits/[^">]+|core/RuntimeFacade\.hpp|singleton/Registry\.hpp|singleton/Dispatcher\.hpp)'
+    r'#\s*include\s+[<"](?:(?:src/)?helper/[^">]+|(?:src/)?detail/[^">]+|(?:src/)?entt(?:/[^">]+)?|(?:src/)?common/components/[^">]+|(?:src/)?common/(?:ErrorCodes|Result|Policies)\.hpp|(?:src/)?traits/[^">]+|core/RuntimeFacade\.hpp|singleton/Registry\.hpp|singleton/Dispatcher\.hpp)'
 )
 ENTT_ENTITY_RE = re.compile(r"\bentt::entity\b")
 ENTT_NAMESPACE_RE = re.compile(r"\bentt::")
@@ -233,8 +233,12 @@ def count_matches(root: Path):
         "Entity.hpp",
         "Event.hpp",
         "Hierarchy.hpp",
+        "Icon.hpp",
+        "Layout.hpp",
         "Log.hpp",
+        "Query.hpp",
         "Scale.hpp",
+        "Size.hpp",
         "State.hpp",
         "Theme.hpp",
         "Timer.hpp",

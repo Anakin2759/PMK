@@ -25,7 +25,7 @@ void SetSliderOrientation(ui::entity entity, policies::Orientation orientation)
     bridge::SetSliderOrientation(detail::ToInternal(entity), orientation);
 }
 
-void SetSliderOnValueChanged(ui::entity entity, components::on_event<float> callback)
+void SetSliderOnValueChanged(ui::entity entity, Callback<float> callback)
 {
     bridge::SetSliderOnValueChanged(detail::ToInternal(entity), std::move(callback));
 }
@@ -105,7 +105,7 @@ void SetCheckBoxChecked(ui::entity entity, bool checked)
     bridge::SetCheckBoxChecked(detail::ToInternal(entity), checked);
 }
 
-void SetCheckBoxOnChanged(ui::entity entity, components::on_event<bool> callback)
+void SetCheckBoxOnChanged(ui::entity entity, Callback<bool> callback)
 {
     bridge::SetCheckBoxOnChanged(detail::ToInternal(entity), std::move(callback));
 }
@@ -120,7 +120,7 @@ void SetDropDownSelected(ui::entity entity, int index)
     bridge::SetDropDownSelected(detail::ToInternal(entity), index);
 }
 
-void SetDropDownOnChanged(ui::entity entity, components::on_event<int> callback)
+void SetDropDownOnChanged(ui::entity entity, Callback<int> callback)
 {
     bridge::SetDropDownOnChanged(detail::ToInternal(entity), std::move(callback));
 }
@@ -135,17 +135,17 @@ void SetDragLockAxis(ui::entity entity, bool lockX, bool lockY)
     bridge::SetDragLockAxis(detail::ToInternal(entity), lockX, lockY);
 }
 
-void SetOnDragStart(ui::entity entity, components::on_event<> callback)
+void SetOnDragStart(ui::entity entity, Callback<> callback)
 {
     bridge::SetOnDragStart(detail::ToInternal(entity), std::move(callback));
 }
 
-void SetOnDragEnd(ui::entity entity, components::on_event<> callback)
+void SetOnDragEnd(ui::entity entity, Callback<> callback)
 {
     bridge::SetOnDragEnd(detail::ToInternal(entity), std::move(callback));
 }
 
-void SetOnDragMove(ui::entity entity, components::on_event<Vec2> callback)
+void SetOnDragMove(ui::entity entity, Callback<Vec2> callback)
 {
     bridge::SetOnDragMove(detail::ToInternal(entity), std::move(callback));
 }

@@ -14,10 +14,10 @@
  */
 #pragma once
 
+#include "ui/Callback.hpp"
 #include "ui/api/Entity.hpp"
 #include "ui/Policies.hpp"
 #include "common/Types.hpp"
-#include "common/components/Interaction.hpp"
 #include "ui/api/Chains.hpp"
 
 namespace ui::controls
@@ -26,7 +26,7 @@ void SetSliderRange(ui::entity entity, float minValue, float maxValue);
 void SetSliderValue(ui::entity entity, float value);
 void SetSliderStep(ui::entity entity, float step);
 void SetSliderOrientation(ui::entity entity, policies::Orientation orientation);
-void SetSliderOnValueChanged(ui::entity entity, components::on_event<float> callback);
+void SetSliderOnValueChanged(ui::entity entity, Callback<float> callback);
 void SetSliderTrackColor(ui::entity entity, const Color& color);
 void SetSliderFillColor(ui::entity entity, const Color& color);
 void SetSliderThumbColor(ui::entity entity, const Color& color);
@@ -46,19 +46,19 @@ void SetScrollSpeed(ui::entity entity, float speed);
 
 // CheckBox
 void SetCheckBoxChecked(ui::entity entity, bool checked);
-void SetCheckBoxOnChanged(ui::entity entity, components::on_event<bool> callback);
+void SetCheckBoxOnChanged(ui::entity entity, Callback<bool> callback);
 
 // DropDown
 void SetDropDownOptions(ui::entity entity, std::vector<std::string> options);
 void SetDropDownSelected(ui::entity entity, int index);
-void SetDropDownOnChanged(ui::entity entity, components::on_event<int> callback);
+void SetDropDownOnChanged(ui::entity entity, Callback<int> callback);
 
 // Drag / Drop
 void SetDraggable(ui::entity entity, bool enabled);
 void SetDragLockAxis(ui::entity entity, bool lockX, bool lockY);
-void SetOnDragStart(ui::entity entity, components::on_event<> callback);
-void SetOnDragEnd(ui::entity entity, components::on_event<> callback);
-void SetOnDragMove(ui::entity entity, components::on_event<Vec2> callback);
+void SetOnDragStart(ui::entity entity, Callback<> callback);
+void SetOnDragEnd(ui::entity entity, Callback<> callback);
+void SetOnDragMove(ui::entity entity, Callback<Vec2> callback);
 void SetDroppable(ui::entity entity, bool enabled);
 } // namespace ui::controls
 
@@ -122,7 +122,7 @@ inline auto SliderOrientation(ui::policies::Orientation orientation)
     return ui::actions::controls::SET_SLIDER_ORIENTATION_ACTION.bind(orientation);
 }
 
-inline auto OnSliderValueChanged(ui::components::on_event<float> callback)
+inline auto OnSliderValueChanged(ui::Callback<float> callback)
 {
     return ui::actions::controls::SET_SLIDER_ON_VALUE_CHANGED_ACTION.bind(std::move(callback));
 }
@@ -203,7 +203,7 @@ inline auto CheckBoxChecked(bool checked)
     return ui::actions::controls::SET_CHECKBOX_CHECKED_ACTION.bind(checked);
 }
 
-inline auto OnCheckBoxChanged(ui::components::on_event<bool> callback)
+inline auto OnCheckBoxChanged(ui::Callback<bool> callback)
 {
     return ui::actions::controls::SET_CHECKBOX_ON_CHANGED_ACTION.bind(std::move(callback));
 }
@@ -219,7 +219,7 @@ inline auto DropDownSelected(int index)
     return ui::actions::controls::SET_DROPDOWN_SELECTED_ACTION.bind(index);
 }
 
-inline auto OnDropDownChanged(ui::components::on_event<int> callback)
+inline auto OnDropDownChanged(ui::Callback<int> callback)
 {
     return ui::actions::controls::SET_DROPDOWN_ON_CHANGED_ACTION.bind(std::move(callback));
 }
@@ -235,17 +235,17 @@ inline auto DragLockAxis(bool lockX, bool lockY)
     return ui::actions::controls::SET_DRAG_LOCK_AXIS_ACTION.bind(lockX, lockY);
 }
 
-inline auto OnDragStart(ui::components::on_event<> callback)
+inline auto OnDragStart(ui::Callback<> callback)
 {
     return ui::actions::controls::SET_ON_DRAG_START_ACTION.bind(std::move(callback));
 }
 
-inline auto OnDragEnd(ui::components::on_event<> callback)
+inline auto OnDragEnd(ui::Callback<> callback)
 {
     return ui::actions::controls::SET_ON_DRAG_END_ACTION.bind(std::move(callback));
 }
 
-inline auto OnDragMove(ui::components::on_event<Vec2> callback)
+inline auto OnDragMove(ui::Callback<Vec2> callback)
 {
     return ui::actions::controls::SET_ON_DRAG_MOVE_ACTION.bind(std::move(callback));
 }

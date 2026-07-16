@@ -1,4 +1,4 @@
-#include "Query.hpp"
+#include "ui/api/Query.hpp"
 
 #include "helper/Helper.hpp"
 

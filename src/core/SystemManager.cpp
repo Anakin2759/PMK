@@ -28,9 +28,12 @@
 #include "systems/ThemeSystem.hpp"
 namespace ui
 {
-SystemManager::SystemManager(UiRuntime* runtime) : m_runtime(runtime)
+SystemManager::SystemManager(UiRuntime* runtime, bool registerBuiltIns) : m_runtime(runtime)
 {
-    registerBuiltInSystems();
+    if (registerBuiltIns)
+    {
+        registerBuiltInSystems();
+    }
     m_runtime->logger().info("[SystemManager] 系统管理器初始化完成，已注册 {} 个系统", m_systems.size());
 }
 
@@ -81,6 +84,11 @@ SystemManager::~SystemManager()
 
 void SystemManager::registerAllHandlers()
 {
+    if (m_state != State::ASSEMBLING)
+    {
+        return;
+    }
+
     // OP-22: 按阶段排序，确保事件处理器按 Input→Logic→Animation→Layout→Render→Frame 顺序订阅
     // entt::poly 是 move-only 类型，无法直接用于 stable_sort 比较器；改用索引排序后重组
     std::vector<std::size_t> indices(m_systems.size());
@@ -99,14 +107,21 @@ void SystemManager::registerAllHandlers()
     {
         system->registerHandlers();
     }
+    m_state = State::REGISTERED;
 }
 
 void SystemManager::unregisterAllHandlers()
 {
+    if (m_state != State::REGISTERED)
+    {
+        return;
+    }
+
     for (auto& system : m_systems)
     {
         system->unregisterHandlers();
     }
+    m_state = State::STOPPED;
 }
 
 void SystemManager::pollInput()
@@ -117,12 +132,31 @@ void SystemManager::pollInput()
     }
 }
 
-void SystemManager::removeSystem(uint8_t index)
+std::vector<interface::SystemPhase> SystemManager::getSystemPhases()
 {
-    if (index < m_systems.size())
+    std::vector<interface::SystemPhase> phases;
+    phases.reserve(m_systems.size());
+    for (auto& system : m_systems)
     {
-        m_systems.erase(m_systems.begin() + index);
+        phases.push_back(system->getPhase());
     }
+    return phases;
+}
+
+bool SystemManager::removeSystem(uint8_t index)
+{
+    if (index >= m_systems.size())
+    {
+        return false;
+    }
+
+    auto system = m_systems.begin() + index;
+    if (m_state == State::REGISTERED)
+    {
+        (*system)->unregisterHandlers();
+    }
+    m_systems.erase(system);
+    return true;
 }
 
 void SystemManager::clear()

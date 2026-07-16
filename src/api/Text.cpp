@@ -53,17 +53,17 @@ void SetPasswordMode(ui::entity entity, policies::TextFlag enabled)
     detail::text::SetPasswordMode(detail::ToInternal(entity), enabled);
 }
 
-void SetClickCallback(ui::entity entity, components::on_event<> callback)
+void SetClickCallback(ui::entity entity, Callback<> callback)
 {
     detail::text::SetClickCallback(detail::ToInternal(entity), std::move(callback));
 }
 
-void SetOnSubmit(ui::entity entity, components::on_event<> callback)
+void SetOnSubmit(ui::entity entity, Callback<> callback)
 {
     detail::text::SetOnSubmit(detail::ToInternal(entity), std::move(callback));
 }
 
-void SetOnTextChanged(ui::entity entity, components::on_event<const std::string&> callback)
+void SetOnTextChanged(ui::entity entity, Callback<const std::string&> callback)
 {
     detail::text::SetOnTextChanged(detail::ToInternal(entity), std::move(callback));
 }

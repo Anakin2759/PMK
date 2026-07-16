@@ -169,7 +169,10 @@ struct QueuedTask
     {
         // 队列阶段先推进帧上下文，再驱动定时器与缓冲事件派发。
         auto& frameContext = runtime->registry().template getOrEmplaceInCtx<globalcontext::FrameContext>();
+        ++frameContext.frameNumber;
         frameContext.intervalMs = delta;
+        frameContext.layoutUpdateCount = 0;
+        frameContext.renderUpdateCount = 0;
         frameContext.frameSlot = (frameContext.frameSlot + 1) % 2;
         auto& disp = runtime->dispatcher();
         disp.trigger<ui::events::UpdateTimer>();

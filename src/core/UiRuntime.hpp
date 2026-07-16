@@ -33,7 +33,15 @@ public:
                  m_logger(std::make_unique<utils::Logger>())
     {}
 
-    ~UiRuntime() = default;
+    ~UiRuntime() noexcept
+    {
+        // 正常路径由 UiRuntimeScope 在 Runtime 之前析构并恢复 current；
+        // 这里仅处理异常的提前销毁，避免遗留指向已释放对象的 TLS 指针。
+        if (s_current == this)
+        {
+            s_current = nullptr;
+        }
+    }
 
     UiRuntime(const UiRuntime&) = delete;
     UiRuntime& operator=(const UiRuntime&) = delete;

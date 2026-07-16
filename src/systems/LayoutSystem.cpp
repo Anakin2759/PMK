@@ -14,6 +14,7 @@
 #include "helper/Helper.hpp"
 
 #include "common/Events.hpp"
+#include "common/GlobalContext.hpp"
 #include "ui/Policies.hpp"
 #include "common/Tags.hpp"
 #include "entt/entity/fwd.hpp"
@@ -875,6 +876,8 @@ void LayoutSystem::unregisterHandlersImpl()
 
 void LayoutSystem::update()
 {
+    // 统计事件处理入口次数而非 Yoga root 数；用于识别同一调度帧内的重复布局请求。
+    ++m_reg->getOrEmplaceInCtx<globalcontext::FrameContext>().layoutUpdateCount;
     cleanupInvalidNodes();
 
     std::unordered_set<entt::entity> dirtyRoots;

@@ -27,8 +27,11 @@ namespace ui::globalcontext
 struct FrameContext
 {
     using is_component_tag = void;
-    uint32_t intervalMs = 0; // 时间间隔（毫秒）
-    uint8_t frameSlot = 0;   // 当前帧变更槽位 0-1和1-0 是切换到下一帧
+    uint64_t frameNumber = 0;       ///< Runtime 调度帧序号，在 QueuedTask 开始时递增
+    uint32_t intervalMs = 0;        ///< 时间间隔（毫秒）
+    uint32_t layoutUpdateCount = 0; ///< 当前调度帧进入 LayoutSystem::update() 的次数
+    uint32_t renderUpdateCount = 0; ///< 当前调度帧进入 RenderSystem::update() 的次数
+    uint8_t frameSlot = 0;          ///< 当前帧变更槽位，0/1 交替表示切换到下一帧
 };
 
 /**

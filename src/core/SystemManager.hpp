@@ -19,6 +19,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <entt/entt.hpp>
+#include <utility>
+#include <vector>
 
 // 引入系统接口
 #include "interface/ISystem.hpp"
@@ -35,8 +37,18 @@ class UiRuntime;
 class SystemManager
 {
 public:
+    /**
+     * @brief SystemManager 生命周期状态。
+     */
+    enum class State : uint8_t
+    {
+        ASSEMBLING, ///< 允许装配 System，尚未连接事件处理器。
+        REGISTERED, ///< 所有 System 已连接事件处理器。
+        STOPPED,    ///< 已完成注销，不允许再次装配或注册。
+    };
+
     // 构造函数：初始化所有子系统（注入 Registry 和 Dispatcher 以替代全局单例访问）
-    explicit SystemManager(UiRuntime* runtime);
+    explicit SystemManager(UiRuntime* runtime, bool registerBuiltIns = true);
 
     ~SystemManager();
 
@@ -68,9 +80,14 @@ public:
      * @param system 系统实例
      */
     template <typename T>
-    void addSystem(T&& system)
+    [[nodiscard]] bool addSystem(T&& system)
     {
+        if (m_state != State::ASSEMBLING)
+        {
+            return false;
+        }
         m_systems.emplace_back(std::forward<T>(system));
+        return true;
     }
 
     /**
@@ -80,20 +97,30 @@ public:
      * @note 必须在 registerAllHandlers() 之前调用；注册后追加系统不会自动订阅事件。
      */
     template <typename T>
-    void addSystemBeforeRegister(T&& system)
+    [[nodiscard]] bool addSystemBeforeRegister(T&& system)
     {
-        addSystem(std::forward<T>(system));
+        return addSystem(std::forward<T>(system));
     }
 
     /**
      * @brief 移除指定索引的系统
      * @param index 系统索引
      */
-    void removeSystem(uint8_t index);
+    [[nodiscard]] bool removeSystem(uint8_t index);
     /**
      * @brief 获取系统数量
      */
     [[nodiscard]] size_t getSystemCount() const { return m_systems.size(); }
+
+    /**
+     * @brief 获取当前生命周期状态。
+     */
+    [[nodiscard]] State getState() const noexcept { return m_state; }
+
+    /**
+     * @brief 返回当前 System 的阶段快照，供诊断和契约测试使用。
+     */
+    [[nodiscard]] std::vector<interface::SystemPhase> getSystemPhases();
 
     /**
      * @brief 清空所有UI元素 携带uitag的组件
@@ -108,5 +135,6 @@ private:
     // 使用 entt::poly 动态管理所有系统
     std::vector<entt::poly<interface::ISystem>> m_systems;
     UiRuntime* m_runtime = nullptr;
+    State m_state = State::ASSEMBLING;
 };
 } // namespace ui
