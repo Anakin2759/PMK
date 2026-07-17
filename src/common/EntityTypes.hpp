@@ -26,7 +26,7 @@ namespace ui
 using entity = uint32_t;
 
 /// @brief 空实体常量，等价于 entt::null。
-inline constexpr entity null_entity = 0xFFFFFFFFU;
+inline constexpr entity null_entity = std::numeric_limits<entity>::max();
 
 
 

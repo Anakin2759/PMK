@@ -18,7 +18,6 @@
 #include "ui/Result.hpp"
 #include "common/AppConfig.hpp"
 #include <string_view>
-#include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 #include "ui/ErrorCodes.hpp"
 #include "managers/FontManager.hpp"
@@ -235,6 +234,14 @@ void RenderSystem::onWindowsGraphicsContextSet(const events::WindowGraphicsConte
         return;
     }
 
+    m_impl->m_deviceClaimState.MarkDeviceLocked();
+    ensureGpuResourcesInitialized();
+    if (!m_impl->m_deviceClaimState.AreResourcesReady())
+    {
+        ui::UiRuntime::current().logger().error("[RenderSystem] GPU 资源初始化失败 (ID: {})", windowID);
+        return;
+    }
+
     if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
     {
         ui::UiRuntime::current().logger().warn("[RenderSystem] 初始化时创建管线失败: {}", pipeResult.error().ToString());
@@ -262,7 +269,10 @@ void RenderSystem::onWindowsGraphicsContextUnset(const events::WindowGraphicsCon
 
 void RenderSystem::cleanup()
 {
-    if (!m_impl) return;
+    if (!m_impl)
+    {
+        return;
+    }
     ui::UiRuntime::current().logger().info("[RenderSystem] cleanup() 开始");
 
     if (m_impl->m_backendRenderer)
@@ -271,29 +281,12 @@ void RenderSystem::cleanup()
         m_impl->m_backendRenderer.reset();
     }
 
-    if (!m_impl->m_deviceManager)
+    SDL_GPUDevice* device = m_impl->m_deviceManager != nullptr ? m_impl->m_deviceManager->getDevice() : nullptr;
+    if (device != nullptr)
     {
-        ui::UiRuntime::current().logger().info("[RenderSystem] m_deviceManager 为空，跳过 cleanup");
-        return;
+        ui::UiRuntime::current().logger().info("[RenderSystem] 等待 GPU 空闲...");
+        SDL_WaitForGPUIdle(device);
     }
-
-    SDL_GPUDevice* device = m_impl->m_deviceManager->getDevice();
-    if (device == nullptr)
-    {
-        ui::UiRuntime::current().logger().info("[RenderSystem] GPU 设备为空，执行轻量清理");
-        m_impl->m_renderers.clear();
-        m_impl->m_commandBuffer.reset();
-        m_impl->m_batchManager.reset();
-        m_impl->m_pipelineCache.reset();
-        m_impl->m_textTextureCache.reset();
-        m_impl->m_fontManager.reset();
-        m_impl->m_iconManager.reset();
-        m_impl->m_imageManager.reset();
-        return;
-    }
-
-    ui::UiRuntime::current().logger().info("[RenderSystem] 等待 GPU 空闲...");
-    SDL_WaitForGPUIdle(device);
 
     if (m_impl->m_textTextureCache)
     {
@@ -309,16 +302,34 @@ void RenderSystem::cleanup()
 
     ui::UiRuntime::current().logger().info("[RenderSystem] 清理渲染器");
     m_impl->m_renderers.clear();
-    m_impl->m_commandBuffer.reset();
     m_impl->m_batchManager.reset();
-    m_impl->m_pipelineCache.reset();
-    m_impl->m_textTextureCache.reset();
-    m_impl->m_fontManager.reset();
     m_impl->m_iconManager.reset();
     m_impl->m_imageManager.reset();
+    m_impl->m_whiteTexture.reset();
+    m_impl->m_gpuInitialization.Shutdown(
+        [this](render::GpuInitializationTransaction::Node node)
+        {
+            switch (node)
+            {
+            case render::GpuInitializationTransaction::Node::COMMAND_BUFFER:
+                m_impl->m_commandBuffer.reset();
+                break;
+            case render::GpuInitializationTransaction::Node::TEXT_TEXTURE_CACHE:
+                m_impl->m_textTextureCache.reset();
+                break;
+            case render::GpuInitializationTransaction::Node::PIPELINE_CACHE:
+                m_impl->m_pipelineCache.reset();
+                break;
+            }
+        });
+    m_impl->m_fontManager.reset();
 
-    ui::UiRuntime::current().logger().info("[RenderSystem] 清理设备管理器");
-    m_impl->m_deviceManager->cleanup();
+    if (m_impl->m_deviceManager != nullptr)
+    {
+        ui::UiRuntime::current().logger().info("[RenderSystem] 清理设备管理器");
+        m_impl->m_deviceManager->cleanup();
+    }
+    m_impl->m_deviceClaimState.Reset();
     ui::UiRuntime::current().logger().info("[RenderSystem] cleanup() 完成");
 }
 
@@ -361,12 +372,6 @@ void RenderSystem::ensureInitialized()
         }
     }
 
-    if (!m_impl->m_useFallback && !m_impl->m_backendSelectionLogged)
-    {
-        ui::UiRuntime::current().logger().info("[RenderSystem] 当前渲染后端: gpu ({})", m_impl->m_deviceManager->getDriverName());
-        m_impl->m_backendSelectionLogged = true;
-    }
-
     if (!m_impl->m_fontManager->isLoaded())
     {
         constexpr std::string_view DEFAULT_FONT_RESOURCE = "assets/fonts/NotoSansSC-VariableFont_wght.ttf";
@@ -404,80 +409,140 @@ void RenderSystem::ensureInitialized()
         return;
     }
 
-    if (m_impl->m_pipelineCache == nullptr)
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
+void RenderSystem::ensureGpuResourcesInitialized()
+{
+    if (m_impl->m_useFallback || m_impl->m_deviceClaimState.AreResourcesReady()
+        || !m_impl->m_deviceClaimState.IsDeviceLocked())
     {
-        m_impl->m_pipelineCache = std::make_unique<managers::PipelineCache>(*m_impl->m_deviceManager);
-        m_impl->m_pipelineCache->loadShaders();
+        return;
     }
 
-    if (m_impl->m_textTextureCache == nullptr)
+    if (!m_impl->m_backendSelectionLogged)
     {
-        m_impl->m_textTextureCache =
+        ui::UiRuntime::current().logger().info(
+            "[RenderSystem] 当前渲染后端: gpu ({})", m_impl->m_deviceManager->getDriverName());
+        m_impl->m_backendSelectionLogged = true;
+    }
+
+    if (!m_impl->m_gpuInitialization.Begin())
+    {
+        return;
+    }
+
+    const auto rollback = [this](render::GpuInitializationTransaction::Node node)
+    {
+        switch (node)
+        {
+        case render::GpuInitializationTransaction::Node::COMMAND_BUFFER:
+            m_impl->m_commandBuffer.reset();
+            break;
+        case render::GpuInitializationTransaction::Node::TEXT_TEXTURE_CACHE:
+            m_impl->m_textTextureCache.reset();
+            break;
+        case render::GpuInitializationTransaction::Node::PIPELINE_CACHE:
+            m_impl->m_pipelineCache.reset();
+            break;
+        }
+    };
+
+    try
+    {
+        auto pipelineCache = std::make_unique<managers::PipelineCache>(*m_impl->m_deviceManager);
+        if (auto shaderResult = pipelineCache->loadShaders(); !shaderResult.has_value())
+        {
+            ui::UiRuntime::current().logger().error(
+                "[RenderSystem] GPU 初始化事务失败: {}", shaderResult.error().ToString());
+            m_impl->m_gpuInitialization.FailAndRollback(rollback);
+            return;
+        }
+        m_impl->m_pipelineCache = std::move(pipelineCache);
+        static_cast<void>(m_impl->m_gpuInitialization.Commit(
+            render::GpuInitializationTransaction::Node::PIPELINE_CACHE));
+
+        auto textTextureCache =
             std::make_unique<managers::TextTextureCache>(*m_impl->m_deviceManager, *m_impl->m_fontManager);
-    }
+        m_impl->m_textTextureCache = std::move(textTextureCache);
+        static_cast<void>(m_impl->m_gpuInitialization.Commit(
+            render::GpuInitializationTransaction::Node::TEXT_TEXTURE_CACHE));
 
-    if (m_impl->m_iconManager)
-    {
-        static bool iconsLoaded = false;
-        if (!iconsLoaded)
+        if (m_impl->m_iconManager && !m_impl->m_iconsLoaded)
         {
             ui::UiRuntime::current().logger().info("[RenderSystem] 初始化 IconManager 并加载默认图标字体");
-            try
+            constexpr std::string_view ICON_FONT_RESOURCE =
+                "assets/icons/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf";
+            constexpr std::string_view ICON_CODEPOINT_RESOURCE =
+                "assets/icons/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].codepoints";
+
+            auto fontResource = LoadUiResource(ICON_FONT_RESOURCE);
+            auto codepointResource = LoadUiResource(ICON_CODEPOINT_RESOURCE);
+
+            if (fontResource.has_value() && codepointResource.has_value())
             {
-                constexpr std::string_view ICON_FONT_RESOURCE =
-                    "assets/icons/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf";
-                constexpr std::string_view ICON_CODEPOINT_RESOURCE =
-                    "assets/icons/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].codepoints";
-
-                auto fontResource = LoadUiResource(ICON_FONT_RESOURCE);
-                auto codepointResource = LoadUiResource(ICON_CODEPOINT_RESOURCE);
-
-                if (fontResource.has_value() && codepointResource.has_value())
+                auto loadResult = ui::cpo::load_icon_font_from_memory(
+                    *m_impl->m_iconManager, "MaterialSymbols", fontResource->bytes, codepointResource->bytes, 24);
+                if (loadResult.has_value())
                 {
-                    auto loadResult = ui::cpo::load_icon_font_from_memory(
-                        *m_impl->m_iconManager, "MaterialSymbols", fontResource->bytes, codepointResource->bytes, 24);
-                    if (loadResult.has_value())
-                    {
-                        ui::UiRuntime::current().logger().info("[RenderSystem]默认图标字体加载完成");
-                    }
-                    else
-                    {
-                        ui::UiRuntime::current().logger().error("[RenderSystem] 默认图标字体加载失败: {}", loadResult.error().ToString());
-                    }
+                    ui::UiRuntime::current().logger().info("[RenderSystem]默认图标字体加载完成");
                 }
                 else
                 {
-                    if (!fontResource.has_value())
-                    {
-                        ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标字体资源不存在: {} ({})",
-                                     ICON_FONT_RESOURCE,
-                                     fontResource.error().ToString());
-                    }
-                    if (!codepointResource.has_value())
-                    {
-                        ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标码点资源不存在: {} ({})",
-                                     ICON_CODEPOINT_RESOURCE,
-                                     codepointResource.error().ToString());
-                    }
+                    ui::UiRuntime::current().logger().error(
+                        "[RenderSystem] 默认图标字体加载失败: {}", loadResult.error().ToString());
                 }
             }
-            catch (const std::exception& e)
+            else
             {
-                ui::UiRuntime::current().logger().error("[RenderSystem] 加载默认图标字体失败: {}", e.what());
+                if (!fontResource.has_value())
+                {
+                    ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标字体资源不存在: {} ({})",
+                                                           ICON_FONT_RESOURCE,
+                                                           fontResource.error().ToString());
+                }
+                if (!codepointResource.has_value())
+                {
+                    ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标码点资源不存在: {} ({})",
+                                                           ICON_CODEPOINT_RESOURCE,
+                                                           codepointResource.error().ToString());
+                }
             }
-            iconsLoaded = true;
+            m_impl->m_iconsLoaded = true;
         }
-    }
 
-    if (m_impl->m_commandBuffer == nullptr)
-    {
-        m_impl->m_commandBuffer =
+        auto commandBuffer =
             std::make_unique<managers::CommandBuffer>(*m_impl->m_deviceManager, *m_impl->m_pipelineCache);
-    }
+        m_impl->m_commandBuffer = std::move(commandBuffer);
+        static_cast<void>(m_impl->m_gpuInitialization.Commit(
+            render::GpuInitializationTransaction::Node::COMMAND_BUFFER));
 
-    if (m_impl->m_renderers.empty())
+        if (m_impl->m_renderers.empty())
+        {
+            initializeRenderers();
+        }
+
+        if (m_impl->m_renderers.empty())
+        {
+            m_impl->m_renderers.clear();
+            m_impl->m_gpuInitialization.FailAndRollback(rollback);
+            return;
+        }
+        static_cast<void>(m_impl->m_gpuInitialization.Complete());
+        static_cast<void>(m_impl->m_deviceClaimState.MarkResourcesReady());
+    }
+    catch (const std::exception& exception)
     {
-        initializeRenderers();
+        WriteStderr("[RenderSystem] GPU initialization transaction failed with exception\n");
+        static_cast<void>(exception);
+        m_impl->m_renderers.clear();
+        m_impl->m_gpuInitialization.FailAndRollback(rollback);
+    }
+    catch (...)
+    {
+        WriteStderr("[RenderSystem] GPU initialization transaction failed with unknown exception\n");
+        m_impl->m_renderers.clear();
+        m_impl->m_gpuInitialization.FailAndRollback(rollback);
     }
 }
 

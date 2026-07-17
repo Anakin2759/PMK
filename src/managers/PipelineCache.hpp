@@ -44,10 +44,13 @@ public:
     PipelineCache(PipelineCache&&) = default;
     PipelineCache& operator=(PipelineCache&&) = default;
 
-    void loadShaders()
+    Result<void> loadShaders()
     {
         SDL_GPUDevice* device = m_deviceManager->getDevice();
-        if (device == nullptr) return;
+        if (device == nullptr)
+        {
+            return Err(UiErrc::DEVICE_UNAVAILABLE);
+        }
 
         // 根据驱动类型选择着色器格式
         const std::string& driver = m_deviceManager->getDriverName();
@@ -71,11 +74,12 @@ public:
         if (m_vertexShader == nullptr || m_fragmentShader == nullptr)
         {
             ui::UiRuntime::current().logger().error("着色器加载失败 (驱动: {})", driver);
+            m_vertexShader.reset();
+            m_fragmentShader.reset();
+            return Err(UiErrc::SHADER_COMPILE_FAILED, driver);
         }
-        else
-        {
-            ui::UiRuntime::current().logger().info("着色器加载成功 (驱动: {})", driver);
-        }
+        ui::UiRuntime::current().logger().info("着色器加载成功 (驱动: {})", driver);
+        return Ok();
     }
 
     Result<void> createPipeline(SDL_Window* sdlWindow)

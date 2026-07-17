@@ -31,8 +31,8 @@
 | Phase 0：架构基线 | **completed** | **100%** | 静态门禁已统计 `UiRuntime::current()`、PUBLIC include/link 和 queued-event 派发点；`FrameContext` 已记录每调度帧 Layout/Render update 次数；`test_TaskChain.cpp` 覆盖常规帧、即时追加和下一帧复位 | 无剩余交付项；指标继续作为后续工作基线保留 |
 | WP1 Runtime 与失败路径 | **active** | **65%** | 已有 `UiRuntime::tryCurrent()`；Runtime 构造不再切换 current；`UiRuntimeScope` 支持嵌套恢复；活动 Runtime 异常提前销毁会清除 stale current；`ApplicationImpl` 持有长期 scope；`CreateApplication()` catch 使用 stderr 后备路径；已有 5 个 Runtime 定向测试 | **没有** SDL 初始化失败注入测试；**没有**统一定义无 active Runtime 时所有 legacy API 的失败行为；非 Application 代码仍大量调用 `UiRuntime::current()` |
 | WP2 System 连接生命周期 | **completed** | **100%** | 已建立 `ASSEMBLING / REGISTERED / STOPPED` 状态机；register/unregister 在 manager 层幂等；`removeSystem()` 在 REGISTERED 状态下先 unregister 再 erase；注册后追加明确返回 `false`；manager 级测试覆盖 phase 排序、重复注册/注销、移除后事件不再触发、追加拒绝及全部 12 个内建 System 的 phase 契约 | 无剩余交付项；后续新增内建 System 必须同步更新 phase 契约测试 |
-| WP3 构建与 SDK 边界 | **blocked / active** | **55%** | `src/detail/` 已清零；多批 API 头及 Error/Result、Policies 已迁入 `include/`；新增 Icon/Layout/Query/Size 四个无内部类型叶子头迁移；架构门禁禁止已迁移路径回退；逐头及统一入口编译通过 | **没有**收紧 PUBLIC include：`${CMAKE_SOURCE_DIR}` 和 `src/` 仍公开；**没有**收紧 PUBLIC link：EnTT/Eigen/spdlog 仍传播；**没有**独立 install/export consumer；Animation 等仍受 Eigen 公共类型决策阻塞 |
-| WP4 GPU shutdown | **active** | **25%** | 渲染实现已物理拆成 Backend、Resources、Frame；各 manager 存在局部 cleanup/shutdown 路径 | **没有**统一的幂等 `RenderResourceContext::Shutdown()`；`ImageManager::releaseAll()` 在 device 已失效时仍记录并执行主动泄漏分支；**没有**中途初始化失败、重复 cleanup、100 次窗口创建/销毁生命周期验收 |
+| WP3 构建与 SDK 边界 | **blocked / active** | **68%** | `src/detail/` 已清零；多批 API 头及 Error/Result、Policies 已迁入 `include/`；Icon/Layout/Query/Size 已完成叶子头迁移；新增无内部依赖的 `ui::Callback`，Controls/Text 公开签名不再暴露 component callback；纵向滚动条几何已改为无 EnTT/Eigen 依赖的公共标量 DTO；架构门禁和公开头编译测试已覆盖 | **没有**收紧 PUBLIC include：`${CMAKE_SOURCE_DIR}` 和 `src/` 仍公开；**没有**收紧 PUBLIC link：EnTT/Eigen/spdlog 仍传播；**没有**独立 install/export consumer；Utils 其余 Rect/Vec2 以及 Controls/Text/Animation 等仍受 Eigen 公共类型决策阻塞 |
+| WP4 GPU shutdown | **active** | **65%** | 渲染实现已物理拆成 Backend、Resources、Frame；Application 已保证 RenderSystem 先于 `SDL_Quit()` 销毁；首窗 claim 后锁定 device/backend；`ImageManager` 已使用创建 device 绑定的 RAII owner；固定三节点 GPU 初始化事务已让 shader 失败可观察，并统一中途失败逆序回滚与重复 cleanup；cleanup 保证资源先于 device 并复位 claim 状态 | **没有**完整的 `RenderResourceContext` 所有权边界；**没有**真实 GPU 初始化失败注入、资源代际 token 和 100 次窗口创建/销毁生命周期验收；外部原因导致 device 先于 owner 失效时仍缺少类型级保护 |
 | WP5 单一帧管线 | **not-started / partial** | **15%** | `TaskChain`、System phase 和帧次数埋点提供了局部顺序及观测基础 | **没有**唯一 `FrameTick`；Task 内节流尚未统一为 scheduler policy；生产帧路径中 **没有**调用公开 `event::DispatchQueued()`，当前 `Enqueue()` 仍需手动派发；固定阶段契约未建立 |
 | WP6 Intrinsic Measurement | **not-started** | **0%** | 无本工作包目标实现 | **没有** `IntrinsicMeasureService`；`LayoutSystem.cpp` 仍使用 `content.length() * 8 + 10` 估宽和固定 `SCROLLBAR_GUTTER = 14`；CJK/emoji/shaped metrics 验收未做 |
 | WP7 RenderSystem 拆分 | **active / partial** | **25%** | 已拆出 `RenderBackend.cpp`、`RenderResources.cpp`、`RenderFrame.cpp`；已有 `RendererRegistry` 基础 | **没有**真正的 `RenderResourceContext` 和 `RenderPipeline` 类型；`RenderSystemImpl` 仍直接持有 9 类 manager/backend、渲染队列和资源；renderer 分派尚未收敛为唯一机制 |
@@ -47,11 +47,13 @@
 | 首批公共 API 头       | completed | Entity、Event、Scale、State、Theme、Timer 迁入`include/ui/api/`                     |
 | DSL 公共 API 头       | completed | Chains、Hierarchy、Log 迁入`include/ui/api/`                                        |
 | 叶子公共 API 头       | completed | Icon、Layout、Query、Size 迁入 `include/ui/api/`；旧路径删除并纳入回归门禁           |
+| 公共 Callback 解耦    | completed | 新增 `ui::Callback`；Controls/Text 公开签名移除内部 component callback 依赖          |
+| 滚动条几何 DTO        | completed | 新增无 EnTT/Eigen 依赖的公共标量几何类型；移除伪 component DTO，保持原计算与命中语义 |
 | Error / Result 公共化 | completed | 权威头位于`include/ui/`；`src/common` 仅兼容转发；公共头禁止旧路径                |
 | Policies 公共化       | completed | 权威头位于`include/ui/Policies.hpp`；位运算单点提供；内部 traits 不再重复注入运算符 |
 | Ninja 构建限流        | completed | 默认 compile pool=2、link pool=1；默认高并发 clang-cl OOM 已止血                      |
 
-**当前主线：** WP2 已完成。下一优先级是继续 WP3 的公共类型解耦，并并行评估 WP4 的统一 GPU shutdown。
+**当前主线：** WP2 已完成。下一优先级是继续 WP3 的公共类型解耦，并继续收敛 WP4 的统一 GPU shutdown。
 `Types.hpp`/Eigen 的公开类型决策完成前，不机械迁移 Animation 等头，也不强行收紧 CMake
 PUBLIC 传播。WP5～WP9 目前都不能标记为已完成。
 
@@ -165,10 +167,10 @@ flowchart TD
 **证据：**
 
 - `src/common/GPUWrappers.hpp` 的 deleter 捕获裸 `SDL_GPUDevice*`。
-- `src/managers/ImageManager.cpp::releaseAll()` 在 device 已销毁时记录“leaking cached textures”并清缓存。
+- `ImageManager` 已用保存创建 device 的 `UniqueGPUTexture` 持有缓存纹理，但 wrapper 的 deleter 仍捕获裸 `SDL_GPUDevice*`。
 - `RenderSystemImpl` 同时拥有多类 manager/cache/backend，清理顺序依赖手工约定。
 
-**评价：** 这是“有 RAII 外形、无生命周期闭包”。类型系统没有保证资源先于 device 销毁，成员重排、异常中断或窗口重建均可能把隐藏契约打破。
+**评价：** ImageManager 的裸所有权和主动泄漏已止血，但仍未形成完整生命周期闭包。类型系统没有保证 device 一定晚于所有资源 owner 销毁，外部失效或后续成员重排仍可能打破隐藏契约。
 
 **建议：**
 
@@ -347,7 +349,7 @@ phase 契约。
 
 ### WP3 构建与 SDK 边界
 
-**当前状态：blocked / active。** 多批公共头迁移已经完成；最终 CMake 收紧仍被剩余 `src/api`/`src/common`、component callback 和 Eigen 公共类型依赖阻塞。
+**当前状态：blocked / active。** 多批公共头迁移和公共 callback 解耦已经完成；最终 CMake 收紧仍被剩余 `src/api`/`src/common`、Eigen 公共类型和独立 consumer 缺失阻塞。
 
 - EnTT PRIVATE；PUBLIC include 仅公开目录。
 - 区分内部 API 测试和独立 consumer 测试。
@@ -357,7 +359,34 @@ phase 契约。
 
 ### WP4 GPU shutdown
 
-**当前状态：active。** 渲染源码已初步拆分并存在 cleanup 路径，但统一幂等 shutdown 和主动泄漏分支尚未解决。
+**当前状态：active。** 渲染源码已初步拆分；ImageManager 主动泄漏已消除，cleanup 已统一资源先于 device 的顺序，但独立资源上下文和真实 GPU 生命周期验收尚未完成。
+
+Application 生命周期 P0 止血已完成：新增私有 `ApplicationLifecycle` 协调器，仅在 `SDL_Init()` 成功后接管
+`SDL_Quit()`。正常析构显式断开 Application 回调并注销 System handler，随后通过幂等 `Shutdown()` 执行
+`m_systems.reset()`，确保其中的 RenderSystem/GPU 资源先于 SDL 会话退出；若 SDL 初始化后的任一步构造抛出，
+成员逆序展开同样先销毁 SystemManager，再由协调器恰好回滚一次 SDL。测试覆盖未 armed 不退出、构造失败回滚一次、
+systems-before-quit、重复 shutdown 以及系统销毁步骤抛出后仍执行 quit。本批没有解决 device 已失效时的资源 deleter、
+backend 切换或 manager 主动泄漏问题。
+
+最小设备锁定批次已完成：新增纯状态 `DeviceClaimState`，将“首个窗口成功 claim”设为 device/backend 锁定点。
+`ensureInitialized()` 现在只建立候选 device、字体和 fallback 基础；PipelineCache/shader、TextTextureCache、CommandBuffer
+和 renderer 延后到成功 claim 后创建，因此首窗 backend fallback 销毁候选 device 时尚无旧 device 资源。`DeviceManager`
+在已有成功 claim 后遇到新窗口失败会直接返回错误，不再 cleanup 或切换全局 device；frame 补救路径在 claim 失败后立即
+跳过窗口，不再继续创建 pipeline，white texture 也只在设备锁定且资源 ready 后创建。该批消除了“资源创建后静默切换
+device”的根因，但没有为 GPU wrapper 增加资源代际 token，也没有解决外部原因导致 device 先行失效时的防御性释放。
+
+ImageManager 纹理 RAII 批次已完成：缓存 value 和私有解码/上传链改用现有 `UniqueGPUTexture`，公开 API 继续只返回
+借用裸指针；纹理和上传缓冲的失败路径由 owner 自动回收，`releaseAll()` 仅清空 owner 容器，不再查询当前 device、
+手工释放或主动泄漏。RenderSystem cleanup 已合并 device-null 分叉，统一在 `DeviceManager::cleanup()` 前销毁 manager、
+cache、renderer、command buffer、white texture 和 pipeline，并在末尾复位 `DeviceClaimState`。纯 fake-deleter 测试验证
+创建 device 绑定、move 唯一所有权、容器 clear 恰好一次释放及空 owner 行为；本批未启动真实 SDL/GPU。
+
+初始化回滚批次已完成：新增不依赖 SDL/EnTT/Runtime 的固定三节点事务，严格按
+`PipelineCache -> TextTextureCache -> CommandBuffer` 提交，并在失败或 shutdown 时按逆序各清理一次。
+`PipelineCache::loadShaders()` 已返回内部 `Result<void>`，shader 缺失不再只记录日志后继续进入 resources-ready；
+初始化失败进入 failed 状态，避免每帧无界重试。正常 cleanup 与失败回滚复用事务入口，清理 visitor 抛出时仍继续
+处理剩余节点。8 项纯逻辑测试覆盖成功、三处失败、乱序提交、失败后禁止重试、未开始 shutdown、重复 shutdown 和
+清理异常隔离；测试未启动真实 SDL/GPU。
 
 - 绘制资源 DAG，将清理集中到幂等入口。
 - 覆盖中途初始化失败、重复清理、窗口循环创建销毁。
@@ -514,7 +543,7 @@ flowchart LR
 
 公共头物理迁移已启动，首批 `Entity.hpp`、`Event.hpp`、`Scale.hpp`、`State.hpp`、`Theme.hpp`、`Timer.hpp` 已迁入 `include/ui/api/`，旧 `src/api` 副本已删除，`ui.hpp` 与内部调用点已切换到新路径。架构门禁同时禁止这批头重新出现在 `src/api`。该批次保持构建和公开调用兼容。
 
-尚未执行 CMake PUBLIC include 与 EnTT linkage 的最终收紧：剩余 API 头仍在 `src/api`，且新公共头仍引用位于 `src/common` 的类型。当前活动工作包是先公共化无 component 依赖的基础类型，再处理 `Controls.hpp`/`Text.hpp` 的 callback 解耦以及 `Utils.hpp` 的 scrollbar geometry 公共值类型。
+尚未执行 CMake PUBLIC include 与 EnTT linkage 的最终收紧：剩余 API 头仍在 `src/api`，且部分公开签名仍引用位于 `src/common` 的 Eigen 值类型。`Controls.hpp`/`Text.hpp` 的 callback 解耦和 `Utils.hpp` 的 scrollbar geometry 公共值类型已经完成；后续必须形成 Eigen 公开类型决策。
 
 第二批公共 DSL 骨架迁移已完成：`Chains.hpp`、`Hierarchy.hpp`、`Log.hpp` 已迁入
 `include/ui/api/`，旧 `src/api` 副本已删除。其余 API 头统一通过
@@ -526,19 +555,33 @@ flowchart LR
 Policies、Result 与标准库，不引入 EnTT、component、Runtime 或 Eigen；架构门禁已禁止旧路径回归，并新增稳定路径
 编译测试。本批未触碰 `Types.hpp`/Eigen 的产品级公开类型决策，也未提前收紧 CMake PUBLIC 传播。
 
+公共 callback 解耦批次已完成：新增独立公共头 `include/ui/Callback.hpp`，以
+`std::move_only_function<void(Args...)>` 提供 `ui::Callback<Args...>`；`Controls.hpp`、`Text.hpp` 及其 DSL 的公开签名
+不再包含或暴露 `common/components/Interaction.hpp` 和 `ui::components::on_event`。内部 `on_event` 暂时保留为
+`ui::Callback` 的兼容别名，因此 move-only 语义、参数形式、转发方式和同步调用时机均未改变。架构门禁已禁止公开
+API 头重新包含 `common/components/*`，测试同时验证公共类型与内部兼容别名保持同一具体类型。本批仍未迁移
+Controls/Text 头，因为其 `Color`/`Vec2` 公开签名继续受 `Types.hpp`/Eigen 决策阻塞。
+
+纵向滚动条几何公共化批次已完成：新增 `include/ui/Geometry.hpp`，其中 `GeometryRect` 和
+`VerticalScrollbarGeometry` 仅由 `bool`/`float` 组成，保持 standard-layout 与 trivially-copyable，不依赖 EnTT、Eigen、
+component 或 Runtime。原 `common/components/Layout.hpp` 中带 `is_component_tag` 的伪组件定义已删除，Utils 生产者和
+StateSystem 消费者统一使用公共 DTO；内部只在 Utils 实现边界把 Eigen `Rect` 拷贝为标量矩形。滚动条公式、最小 thumb、
+inset、offset clamp、`visible` 置位时机以及矩形闭区间命中语义均保持不变。该批次没有迁移 `Utils.hpp`，因为其余
+`GetAbsolutePosition()`、`GetEntityRect()` 等公开签名仍使用 Eigen `Vec2`/`Rect`。
+
 本轮还针对 clang-cl 解析巨型 header-only Helper 时的高内存占用，为 Ninja 增加全局可配置任务池：
 默认编译并发为 2、链接并发为 1。该措施避免默认按 CPU 核数启动大量重型翻译单元导致
 `LLVM ERROR: out of memory`；它是构建稳定性止血，不能替代后续按领域降低 `Helper.hpp` include fanout。
 
 Phase 0 静态架构基线已于 2026-07-15 落地到 `tools/check_architecture_boundaries.py`。门禁现在直接统计并
-baseline 真实 `UiRuntime::current()`（当前 305 处）、PUBLIC 内部 include 路径（2 项）以及 EnTT/Eigen/spdlog
+baseline 真实 `UiRuntime::current()`（当前 302 处）、PUBLIC 内部 include 路径（2 项）以及 EnTT/Eigen/spdlog
 PUBLIC 依赖（3 项）；任何新增或基线过期都会失败。公开 queued event 在生产帧路径中的自动派发点当前为 0，
 该指标会持续输出，但在 WP5 接入固定 FrameTick 前不把“缺少派发点”作为构建失败。Phase 0 剩余项仅为
 Layout/Render 每帧次数的运行时埋点与 CI 留存。
 
-执行快照（2026-07-16，Debug）：构建成功；架构门禁、CMake diagnostics 和公开头检查通过；Runtime 定向测试 5 passed / 0 failed，TaskChain 定向测试 4 passed / 0 failed，SystemManager 定向测试 4 passed / 0 failed，叶子公共头定向测试 2 passed / 0 failed，全量测试 137 passed / 0 failed。新增测试覆盖活动 Runtime 被异常提前销毁时不会遗留 stale current，常规帧、同帧即时 Render 追加和下一帧指标复位，SystemManager 生命周期与全部内建 phase 契约，以及 Icon/Layout/Query/Size 稳定公开路径编译。
-剩余公共头仍受 `src/common` 值类型、component callback、scrollbar geometry 以及 Factory/Runtime 边界阻塞，
-下一批应先公共化基础值类型或解耦 callback，不应直接强制收紧 PUBLIC include/link。
+执行快照（2026-07-17，Debug）：构建成功；架构门禁和公开头检查通过；GpuInitializationTransaction 定向测试 8 passed / 0 failed，全量测试 165 passed / 0 failed。新增纯逻辑测试覆盖固定顺序提交、三处初始化失败逆序回滚、失败后禁止重试、未开始/重复 shutdown 和清理异常隔离；未启动真实 SDL/GPU。架构指标为 `UiRuntime::current()` 302 处、PUBLIC 内部 include 2 项、PUBLIC 内部依赖 3 项、生产帧 queued-event 派发点 0。
+剩余公共头仍受 `src/common` Eigen 值类型以及 Factory/Runtime 边界阻塞；下一批应完成基础数学值类型决策，
+不应直接强制收紧 PUBLIC include/link。
 
 错误基础设施公共化批次已完成：权威 `ErrorCodes.hpp`、`Result.hpp` 已迁入 `include/ui/`，
 `src/common` 下保留兼容转发头，内部实现和测试已切换到稳定公共路径。架构门禁现已禁止公共头重新包含

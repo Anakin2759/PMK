@@ -3,6 +3,7 @@
 // IWYU pragma: begin_exports
 #include "ui/ErrorCodes.hpp"
 #include "ui/Callback.hpp"
+#include "ui/Geometry.hpp"
 #include "ui/Result.hpp"
 #include "ui/Policies.hpp"
 #include "api/Animation.hpp"

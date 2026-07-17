@@ -5,25 +5,8 @@
  * 将所有重量级私有成员（9 个 manager unique_ptr、渲染队列、GPU 资源等）
  * 隔离在此内部头文件中，使 RenderSystem.hpp 保持轻量。
  *
- * @warning ⚠️ ARCHITECTURE DEBT — God Object (docs/ARCHITECTURE_REVIEW_2026-06-16.md §3.3)
- *
- * 当前 RenderSystemImpl 持有 9 个 manager，违反单一职责原则。
- * 建议拆分路线（v0.5 目标）：
- *
- *   1. 将 9 个 manager 聚合为 RenderResourceContext（纯数据持有，无行为）
- *      - DeviceManager / FontManager / IconManager / ImageManager
- *      - PipelineCache / TextTextureCache / BatchManager / CommandBuffer / IBackendRenderer
- *
- *   2. 提取 RenderPipeline 编排器
- *      - collectRenderData() → sortByZOrder() → batchAndSubmit()
- *
- *   3. 引入 RendererRegistry（src/renderers/RendererRegistry.hpp，已就绪）
- *      - 替代硬编码的 12 个 if/else 分发分支
- *
- * 拆分后 RenderSystem 只负责事件订阅和管线编排，不再直接管理资源生命周期。
  */
 #pragma once
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -45,6 +28,8 @@
 #include "managers/PipelineCache.hpp"
 #include "managers/TextTextureCache.hpp"
 #include "systems/RenderSystem.hpp"
+#include "systems/render/DeviceClaimState.hpp"
+#include "systems/render/GpuInitializationTransaction.hpp"
 
 namespace ui::systems
 {
@@ -97,6 +82,9 @@ struct RenderSystemImpl
     bool m_forceFallback = false;
     bool m_backendSelectionLogged = false;
     bool m_firstUpdate = true;
+    bool m_iconsLoaded = false;
+    render::DeviceClaimState m_deviceClaimState;
+    render::GpuInitializationTransaction m_gpuInitialization;
 
     float m_screenWidth = 0.0F;
     float m_screenHeight = 0.0F;

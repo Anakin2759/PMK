@@ -5,6 +5,7 @@
 
 #include <entt/entt.hpp>
 #include "common/components/Data.hpp"
+#include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
 #include "ui/api/Hierarchy.hpp"
 #include "src/api/Utils.hpp"
@@ -179,6 +180,117 @@ TEST_F(UtilsTest, HasAlignmentReturnsFalseWhenFlagAbsent)
 {
     EXPECT_FALSE(utils::HasAlignment(policies::Alignment::LEFT, policies::Alignment::RIGHT));
     EXPECT_FALSE(utils::HasAlignment(policies::Alignment::TOP, policies::Alignment::BOTTOM));
+}
+
+// ===================== VerticalScrollbarGeometry =====================
+
+TEST_F(UtilsTest, VerticalScrollbarGeometryDefaultsToInvisibleWithoutScrollArea)
+{
+    auto& registry = ActiveRegistry();
+    const auto entity = static_cast<ui::entity>(registry.create());
+    registry.emplace<components::Position>(entity).value = {10.0F, 20.0F};
+    registry.emplace<components::Size>(entity).size = {100.0F, 80.0F};
+
+    const auto geometry = utils::GetVerticalScrollbarGeometry(entity);
+
+    EXPECT_FALSE(geometry.visible);
+    EXPECT_FLOAT_EQ(geometry.maxScroll, 0.0F);
+}
+
+TEST_F(UtilsTest, VerticalScrollbarGeometryDefaultsToInvisibleForHorizontalScroll)
+{
+    auto& registry = ActiveRegistry();
+    const auto entity = static_cast<ui::entity>(registry.create());
+    registry.emplace<components::Position>(entity).value = {10.0F, 20.0F};
+    registry.emplace<components::Size>(entity).size = {100.0F, 80.0F};
+    auto& scrollArea = registry.emplace<components::ScrollArea>(entity);
+    scrollArea.scroll = policies::Scroll::HORIZONTAL;
+    scrollArea.contentSize = {200.0F, 200.0F};
+
+    EXPECT_FALSE(utils::GetVerticalScrollbarGeometry(entity).visible);
+}
+
+TEST_F(UtilsTest, VerticalScrollbarGeometryStaysInvisibleWithoutOverflow)
+{
+    auto& registry = ActiveRegistry();
+    const auto entity = static_cast<ui::entity>(registry.create());
+    registry.emplace<components::Position>(entity);
+    registry.emplace<components::Size>(entity).size = {100.0F, 80.0F};
+    auto& scrollArea = registry.emplace<components::ScrollArea>(entity);
+    scrollArea.contentSize = {100.0F, 80.0F};
+
+    const auto geometry = utils::GetVerticalScrollbarGeometry(entity);
+
+    EXPECT_FALSE(geometry.visible);
+    EXPECT_FLOAT_EQ(geometry.maxScroll, 0.0F);
+}
+
+TEST_F(UtilsTest, VerticalScrollbarGeometryPreservesExistingOverflowFormula)
+{
+    auto& registry = ActiveRegistry();
+    const auto entity = static_cast<ui::entity>(registry.create());
+    registry.emplace<components::Position>(entity).value = {10.0F, 20.0F};
+    registry.emplace<components::Size>(entity).size = {100.0F, 80.0F};
+    registry.emplace<components::Padding>(entity).values = {5.0F, 7.0F, 5.0F, 3.0F};
+    auto& scrollArea = registry.emplace<components::ScrollArea>(entity);
+    scrollArea.contentSize = {90.0F, 140.0F};
+    scrollArea.scrollOffset.y() = 35.0F;
+
+    const auto geometry = utils::GetVerticalScrollbarGeometry(entity);
+
+    EXPECT_TRUE(geometry.visible);
+    EXPECT_FLOAT_EQ(geometry.containerRect.x, 10.0F);
+    EXPECT_FLOAT_EQ(geometry.containerRect.y, 20.0F);
+    EXPECT_FLOAT_EQ(geometry.containerRect.width, 100.0F);
+    EXPECT_FLOAT_EQ(geometry.containerRect.height, 80.0F);
+    EXPECT_FLOAT_EQ(geometry.viewportRect.x, 13.0F);
+    EXPECT_FLOAT_EQ(geometry.viewportRect.y, 25.0F);
+    EXPECT_FLOAT_EQ(geometry.viewportRect.width, 90.0F);
+    EXPECT_FLOAT_EQ(geometry.viewportRect.height, 70.0F);
+    EXPECT_FLOAT_EQ(geometry.maxScroll, 70.0F);
+    EXPECT_FLOAT_EQ(geometry.trackRect.x, 96.0F);
+    EXPECT_FLOAT_EQ(geometry.trackRect.y, 20.0F);
+    EXPECT_FLOAT_EQ(geometry.trackRect.width, 12.0F);
+    EXPECT_FLOAT_EQ(geometry.trackRect.height, 80.0F);
+    EXPECT_FLOAT_EQ(geometry.thumbHeight, 40.0F);
+    EXPECT_FLOAT_EQ(geometry.thumbRect.x, 97.0F);
+    EXPECT_FLOAT_EQ(geometry.thumbRect.y, 42.0F);
+    EXPECT_FLOAT_EQ(geometry.thumbRect.width, 10.0F);
+    EXPECT_FLOAT_EQ(geometry.thumbRect.height, 36.0F);
+}
+
+TEST_F(UtilsTest, VerticalScrollbarGeometryClampsThumbToSmallTrack)
+{
+    auto& registry = ActiveRegistry();
+    const auto entity = static_cast<ui::entity>(registry.create());
+    registry.emplace<components::Position>(entity);
+    registry.emplace<components::Size>(entity).size = {40.0F, 10.0F};
+    auto& scrollArea = registry.emplace<components::ScrollArea>(entity);
+    scrollArea.contentSize = {40.0F, 100.0F};
+    scrollArea.scrollOffset.y() = 1000.0F;
+
+    const auto geometry = utils::GetVerticalScrollbarGeometry(entity);
+
+    EXPECT_TRUE(geometry.visible);
+    EXPECT_FLOAT_EQ(geometry.thumbHeight, 10.0F);
+    EXPECT_FLOAT_EQ(geometry.thumbRect.y, 2.0F);
+    EXPECT_FLOAT_EQ(geometry.thumbRect.height, 6.0F);
+}
+
+TEST_F(UtilsTest, VerticalScrollbarGeometryClampsNegativeOffsetToTrackStart)
+{
+    auto& registry = ActiveRegistry();
+    const auto entity = static_cast<ui::entity>(registry.create());
+    registry.emplace<components::Position>(entity).value = {0.0F, 10.0F};
+    registry.emplace<components::Size>(entity).size = {100.0F, 100.0F};
+    auto& scrollArea = registry.emplace<components::ScrollArea>(entity);
+    scrollArea.contentSize = {100.0F, 200.0F};
+    scrollArea.scrollOffset.y() = -50.0F;
+
+    const auto geometry = utils::GetVerticalScrollbarGeometry(entity);
+
+    EXPECT_TRUE(geometry.visible);
+    EXPECT_FLOAT_EQ(geometry.thumbRect.y, 12.0F);
 }
 
 // ===================== IsEntityExist =====================

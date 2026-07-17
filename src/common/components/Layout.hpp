@@ -4,7 +4,7 @@
  *
  * 包含：Size / Position / CanvasSize / Margin / Padding /
  *       Hierarchy / ZOrderIndex / LayoutInfo / Spacer /
- *       Arrow / LineInfo / VerticalScrollbarGeometry
+ *       Arrow / LineInfo
  */
 #pragma once
 
@@ -137,24 +137,6 @@ struct LineInfo
     Vec2 endPoint{100.0F, 0.0F};
     Vec4 color{1.0F, 1.0F, 1.0F, 1.0F};
     float thickness = DEFAULT_THICKNESS;
-};
-
-/**
- * @brief 纵向滚动条几何缓存（由 LayoutSystem 写入，Renderer 只读）
- */
-struct VerticalScrollbarGeometry
-{
-    using is_component_tag = void;
-    bool visible = false;
-    Rect containerRect;
-    Rect viewportRect;
-    Rect trackRect;
-    Rect thumbRect;
-    float viewportHeight = 0.0F;
-    float contentHeight = 0.0F;
-    float trackHeight = 0.0F;
-    float thumbHeight = 0.0F;
-    float maxScroll = 0.0F;
 };
 
 } // namespace ui::components

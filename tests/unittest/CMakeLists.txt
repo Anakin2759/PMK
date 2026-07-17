@@ -41,6 +41,10 @@ add_executable(ui_unit_tests
     test_result.cpp
     test_UiRuntime.cpp
     test_SystemManager.cpp
+    test_ApplicationLifecycle.cpp
+    test_DeviceClaimState.cpp
+    test_GPUTextureOwner.cpp
+    test_GpuInitializationTransaction.cpp
 )
 configure_ui_test_target(ui_unit_tests)
 

@@ -16,15 +16,11 @@
 
 #include <cstdint>
 #include <type_traits>
+#include "ui/Geometry.hpp"
 #include "ui/api/Entity.hpp"
 #include "ui/Policies.hpp"
 #include "common/Types.hpp"
 #include "ui/api/Chains.hpp"
-
-namespace ui::components
-{
-struct VerticalScrollbarGeometry;
-}
 
 namespace ui
 {
@@ -92,7 +88,7 @@ void MarkRenderDirty(EntityLike entity)
 [[nodiscard]] float GetScrollViewportLength(ui::entity entity, bool isVertical);
 [[nodiscard]] float GetScrollContentLength(ui::entity entity, bool isVertical);
 [[nodiscard]] float GetScrollMaxOffset(ui::entity entity, bool isVertical);
-[[nodiscard]] components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity);
+[[nodiscard]] VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity);
 
 template <typename EntityLike>
     requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>

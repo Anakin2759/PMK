@@ -109,6 +109,7 @@ private:
      */
     void createWhiteTexture();
     void ensureInitialized();
+    void ensureGpuResourcesInitialized();
     ui::Result<void> tryInitializeFallback(SDL_Window* window);
     void initializeRenderers();
 

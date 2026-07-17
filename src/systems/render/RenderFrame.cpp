@@ -1,5 +1,6 @@
 /**
  * @file RenderFrame.cpp
+ * @brief RenderSystem 渲染帧处理逻辑
  *
  */
 
@@ -225,17 +226,6 @@ void RenderSystem::update()
         }
     }
 
-    if (!m_impl->m_useFallback && m_impl->m_pipelineCache == nullptr)
-    {
-        ui::UiRuntime::current().logger().warn("Pipeline cache not initialized");
-        return;
-    }
-
-    if (!m_impl->m_useFallback && m_impl->m_whiteTexture == nullptr)
-    {
-        createWhiteTexture();
-    }
-
     m_impl->m_stats.frameCount++;
     m_impl->m_stats.batchCount = 0;
     m_impl->m_stats.vertexCount = 0;
@@ -270,12 +260,23 @@ void RenderSystem::update()
         const float dpiScale = ComputeRenderScale(width, height, logicalWidth, logicalHeight, windowComp.displayScale);
         const SDL_FColor clearColor = DetermineClearColor(*m_reg, windowEntity);
 
-        if (!m_impl->m_useFallback && m_impl->m_pipelineCache->getPipeline() == nullptr)
+        if (!m_impl->m_useFallback && !m_impl->m_deviceClaimState.AreResourcesReady())
         {
             if (auto claimResult = m_impl->m_deviceManager->claimWindow(sdlWindow); !claimResult.has_value())
             {
                 ui::UiRuntime::current().logger().warn("[RenderSystem] claimWindow failed: {}", claimResult.error().ToString());
+                continue;
             }
+            m_impl->m_deviceClaimState.MarkDeviceLocked();
+            ensureGpuResourcesInitialized();
+            if (!m_impl->m_deviceClaimState.AreResourcesReady())
+            {
+                continue;
+            }
+        }
+
+        if (!m_impl->m_useFallback && m_impl->m_pipelineCache->getPipeline() == nullptr)
+        {
             if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
             {
                 ui::UiRuntime::current().logger().warn("[RenderSystem] pipeline creation failed: {}", pipeResult.error().ToString());
@@ -290,6 +291,15 @@ void RenderSystem::update()
                 {
                     ui::UiRuntime::current().logger().error("[RenderSystem] fallback initialization failed; skipping this frame");
                 }
+                continue;
+            }
+        }
+
+        if (!m_impl->m_useFallback && m_impl->m_whiteTexture == nullptr)
+        {
+            createWhiteTexture();
+            if (m_impl->m_whiteTexture == nullptr)
+            {
                 continue;
             }
         }

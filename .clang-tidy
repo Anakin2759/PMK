@@ -10,7 +10,8 @@ Checks: >
   readability-*,
   -clang-analyzer-deadcode*,
   -clang-analyzer-optin*,
-  -readability-identifier-length
+  -readability-identifier-length,
+  -misc-non-private-member-variables-in-classes
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
 FormatStyle:     none

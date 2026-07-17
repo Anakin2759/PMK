@@ -124,6 +124,12 @@ public:
             return Ok();
         }
 
+        // 已有窗口和资源绑定当前设备后，禁止因后续窗口声明失败而销毁全局设备。
+        if (!m_claimedWindows.empty())
+        {
+            return Err(UiErrc::WINDOW_CLAIM_FAILED, SDL_GetError());
+        }
+
         // 核心修改：如果声明失败（例如 D3D12 在 VM 中无法渲染），尝试回退到其他后端
         ui::UiRuntime::current().logger().warn("当前后端 {} 无法声明窗口 ({}). 尝试切换其他后端...", m_gpuDriver, SDL_GetError());
 
@@ -186,6 +192,7 @@ public:
 
     [[nodiscard]] SDL_GPUDevice* getDevice() const { return m_gpuDevice.get(); }
     [[nodiscard]] const std::string& getDriverName() const { return m_gpuDriver; }
+    [[nodiscard]] bool hasClaimedWindows() const noexcept { return !m_claimedWindows.empty(); }
 
     [[nodiscard]] SDL_GPUTexture* getWhiteTexture() const { return nullptr; } // TODO: Implement white texture creation
 

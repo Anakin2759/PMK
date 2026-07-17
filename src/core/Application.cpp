@@ -6,6 +6,7 @@
  */
 
 #include "Application.hpp"
+#include "ApplicationLifecycle.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -66,6 +67,7 @@ private:
     std::unique_ptr<UiRuntime> m_runtime;           // 管理全局状态和资源
     std::unique_ptr<UiRuntimeScope> m_runtimeScope; // 保持 legacy API 在应用生命周期内绑定当前 Runtime
     EventLoop m_eventLoop;
+    detail::ApplicationLifecycle m_lifecycle;
 
     // 核心 ECS 系统封装
     std::unique_ptr<SystemManager> m_systems;
@@ -102,6 +104,7 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
     {
         throw std::runtime_error(std::string("SDL_Init failed: ") + SDL_GetError());
     }
+    m_lifecycle.ArmSdl([] { SDL_Quit(); });
 
     if (config::AppConfig::instance().platformScalingEnabled()
         && config::AppConfig::instance().forcedPlatformScale() <= 0.0F)
@@ -151,11 +154,9 @@ ApplicationImpl::~ApplicationImpl() noexcept
 {
     try
     {
-    
         m_runtime->dispatcher().sink<events::QuitRequested>().disconnect<&ApplicationImpl::onQuitRequested>(*this);
         m_runtime->dispatcher().sink<events::DropDownCloseRequested>().disconnect<&OnDropDownCloseRequested>();
         m_systems->unregisterAllHandlers();
-        SDL_Quit();
     }
     catch (const std::exception& exception)
     {
@@ -167,6 +168,8 @@ ApplicationImpl::~ApplicationImpl() noexcept
     {
         WriteStderr("[Application] destructor cleanup failed with unknown exception\n");
     }
+
+    m_lifecycle.Shutdown([this] { m_systems.reset(); });
 }
 
 void ApplicationImpl::onQuitRequested([[maybe_unused]] events::QuitRequested& /*event*/)

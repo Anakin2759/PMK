@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <SDL3/SDL_gpu.h>
 
+#include "common/GPUWrappers.hpp"
 #include "ui/Result.hpp"
 
 namespace ui::managers
@@ -29,7 +30,7 @@ class DeviceManager;
  * @brief 图像纹理管理器（多实例，按渲染上下文持有）
  *
  * - 持有一个 DeviceManager* 句柄，所有纹理与该 device 绑定
- * - 缓存 `path -> SDL_GPUTexture*`，避免重复上传
+ * - 缓存 `path -> UniqueGPUTexture`，纹理始终绑定创建它的 device
  * - 析构时自动释放所有缓存纹理，无需调用方显式 releaseAll
  * - 支持 bmp（SDL_LoadBMP）和 png/jpeg（stb_image）格式
  */
@@ -63,21 +64,22 @@ private:
     /**
      * @brief 通过 stb_image 加载 png/jpeg 并上传
      */
-    SDL_GPUTexture* loadWithStb(const std::string& path, SDL_GPUDevice* device);
+    wrappers::UniqueGPUTexture loadWithStb(const std::string& path, SDL_GPUDevice* device);
 
     /**
      * @brief 通过 SDL_LoadBMP 加载 bmp 并上传
      */
-    SDL_GPUTexture* loadWithSdlBmp(const std::string& path, SDL_GPUDevice* device);
+    wrappers::UniqueGPUTexture loadWithSdlBmp(const std::string& path, SDL_GPUDevice* device);
 
     /**
      * @brief 将 RGBA 像素数据上传到 GPU 并返回纹理
      */
-    SDL_GPUTexture* uploadToGpu(SDL_GPUDevice* device, const unsigned char* pixels, uint32_t width, uint32_t height);
+    wrappers::UniqueGPUTexture
+        uploadToGpu(SDL_GPUDevice* device, const unsigned char* pixels, uint32_t width, uint32_t height);
 
     DeviceManager* m_deviceManager = nullptr;
-    // 路径 -> 已上传的 GPU 纹理（原始指针，生命周期同 ImageManager）
-    std::unordered_map<std::string, SDL_GPUTexture*> m_cache;
+    // 路径 -> 已上传的 GPU 纹理 owner；公开调用方仅借用 `.get()`。
+    std::unordered_map<std::string, wrappers::UniqueGPUTexture> m_cache;
 };
 
 } // namespace ui::managers

@@ -16,6 +16,7 @@
 #include "common/Animation.hpp"
 #include "common/EntityTypes.hpp"
 #include "ui/ErrorCodes.hpp"
+#include "ui/Geometry.hpp"
 #include "ui/Policies.hpp"
 #include "ui/Result.hpp"
 #include "common/Scale.hpp"
@@ -474,7 +475,7 @@ void QuitUiEventLoop();
 [[nodiscard]] float GetScrollViewportLength(ui::entity entity, bool isVertical);
 [[nodiscard]] float GetScrollContentLength(ui::entity entity, bool isVertical);
 [[nodiscard]] float GetScrollMaxOffset(ui::entity entity, bool isVertical);
-[[nodiscard]] components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity);
+[[nodiscard]] VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity);
 void InvokeTask(UiRuntime& runtime, VoidCallback func);
 using TaskHandle = uint32_t;
 TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, VoidCallback func);
@@ -541,7 +542,7 @@ inline void MarkRenderDirty(entt::entity entity)
     return GetScrollMaxOffset(detail::ToPublic(entity), isVertical);
 }
 
-[[nodiscard]] inline components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(entt::entity entity)
+[[nodiscard]] inline VerticalScrollbarGeometry GetVerticalScrollbarGeometry(entt::entity entity)
 {
     return GetVerticalScrollbarGeometry(detail::ToPublic(entity));
 }

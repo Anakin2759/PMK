@@ -338,18 +338,17 @@ void StateSystem::ScrollbarStateHelpers::updateHoverStates(StateSystem& system,
             continue;
         }
 
-        const components::VerticalScrollbarGeometry geometry =
-            ui::utils::GetVerticalScrollbarGeometry(entity);
+        const VerticalScrollbarGeometry geometry = ui::utils::GetVerticalScrollbarGeometry(entity);
         if (!geometry.visible)
         {
             continue;
         }
 
-        if (geometry.trackRect.contains(event.raw.position))
+        if (geometry.trackRect.Contains(event.raw.position.x(), event.raw.position.y()))
         {
             interState.trackHovered = true;
 
-            if (geometry.thumbRect.contains(event.raw.position))
+            if (geometry.thumbRect.Contains(event.raw.position.x(), event.raw.position.y()))
             {
                 interState.scrollbarHovered = true;
             }
@@ -457,15 +456,14 @@ StateSystem::ScrollbarHitType StateSystem::ScrollbarStateHelpers::checkHit(State
         return ScrollbarHitType::NONE;
     }
 
-    const components::VerticalScrollbarGeometry geometry =
-        ui::utils::GetVerticalScrollbarGeometry(entity);
+    const VerticalScrollbarGeometry geometry = ui::utils::GetVerticalScrollbarGeometry(entity);
     if (geometry.visible)
     {
-        if (geometry.trackRect.contains(mousePos))
+        if (geometry.trackRect.Contains(mousePos.x(), mousePos.y()))
         {
             outIsVertical = true;
 
-            if (geometry.thumbRect.contains(mousePos))
+            if (geometry.thumbRect.Contains(mousePos.x(), mousePos.y()))
             {
                 return ScrollbarHitType::THUMB;
             }

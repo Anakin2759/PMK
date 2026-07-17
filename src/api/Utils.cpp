@@ -216,9 +216,9 @@ float GetScrollMaxOffset(ui::entity entity, bool isVertical)
     return std::max(0.0F, contentLength - viewportLength);
 }
 
-components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
+VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
 {
-    components::VerticalScrollbarGeometry geometry;
+    VerticalScrollbarGeometry geometry;
     const auto* scrollArea = CurrentRegistry().try_get<components::ScrollArea>(entity);
     if (scrollArea == nullptr)
     {
@@ -232,11 +232,13 @@ components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity en
         return geometry;
     }
 
-    geometry.containerRect = GetEntityRect(entity);
-    geometry.viewportRect = GetScrollViewportRect(entity);
-    geometry.viewportHeight = geometry.viewportRect.height();
+    const Rect containerRect = GetEntityRect(entity);
+    const Rect viewportRect = GetScrollViewportRect(entity);
+    geometry.containerRect = {containerRect.x(), containerRect.y(), containerRect.width(), containerRect.height()};
+    geometry.viewportRect = {viewportRect.x(), viewportRect.y(), viewportRect.width(), viewportRect.height()};
+    geometry.viewportHeight = geometry.viewportRect.height;
     geometry.contentHeight = scrollArea->contentSize.y();
-    geometry.trackHeight = geometry.containerRect.height();
+    geometry.trackHeight = geometry.containerRect.height;
     geometry.maxScroll = std::max(0.0F, geometry.contentHeight - geometry.viewportHeight);
 
     if (geometry.contentHeight <= geometry.viewportHeight || geometry.trackHeight <= 0.0F)
@@ -244,10 +246,10 @@ components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity en
         return geometry;
     }
 
-    geometry.trackRect = {geometry.containerRect.x() + geometry.containerRect.width()
+    geometry.trackRect = {geometry.containerRect.x + geometry.containerRect.width
                               - components::ScrollArea::SCROLLBAR_TRACK_WIDTH
                               - components::ScrollArea::SCROLLBAR_TRACK_PADDING,
-                          geometry.containerRect.y(),
+                          geometry.containerRect.y,
                           components::ScrollArea::SCROLLBAR_TRACK_WIDTH,
                           geometry.trackHeight};
 
@@ -260,10 +262,10 @@ components::VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity en
         geometry.maxScroll > 0.0F ? std::clamp(scrollArea->scrollOffset.y() / geometry.maxScroll, 0.0F, 1.0F) : 0.0F;
     const float thumbTravel = std::max(0.0F, geometry.trackHeight - geometry.thumbHeight);
     const float thumbTop =
-        geometry.trackRect.y() + (thumbTravel * scrollRatio) + components::ScrollArea::SCROLLBAR_THUMB_INSET;
+        geometry.trackRect.y + (thumbTravel * scrollRatio) + components::ScrollArea::SCROLLBAR_THUMB_INSET;
 
     geometry.thumbRect = {
-        geometry.containerRect.x() + geometry.containerRect.width() - components::ScrollArea::SCROLLBAR_THUMB_WIDTH
+        geometry.containerRect.x + geometry.containerRect.width - components::ScrollArea::SCROLLBAR_THUMB_WIDTH
             - components::ScrollArea::SCROLLBAR_TRACK_PADDING - 1.0F,
         thumbTop,
         components::ScrollArea::SCROLLBAR_THUMB_WIDTH,
