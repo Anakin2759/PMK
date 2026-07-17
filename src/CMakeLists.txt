@@ -187,6 +187,7 @@ set(UI_HEADERS
     # Public foundations
     ${CMAKE_SOURCE_DIR}/include/ui/ErrorCodes.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Callback.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/Color.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Geometry.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Result.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Policies.hpp
@@ -284,6 +285,7 @@ set(UI_HEADERS
     api/Canvas.hpp
     api/Table.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Theme.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Visibility.hpp
     api/Shortcut.hpp
     managers/ImageManager.hpp
     systems/ShortcutSystem.hpp

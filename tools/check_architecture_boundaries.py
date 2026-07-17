@@ -242,6 +242,7 @@ def count_matches(root: Path):
         "State.hpp",
         "Theme.hpp",
         "Timer.hpp",
+        "Visibility.hpp",
     }
     for header_name in migrated_api_headers:
         legacy_path = root / "src" / "api" / header_name

@@ -20,11 +20,11 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <algorithm>
 #include <concepts>
-#include <cstdint>
 #include <functional>
 #include <type_traits>
+
+#include "ui/Color.hpp" // IWYU pragma: export -- legacy aggregate include
 
 namespace ui
 {
@@ -70,90 +70,6 @@ using Transform2D = Eigen::Affine2f;
  * @brief 仿射变换类型（3D）
  */
 using Transform3D = Eigen::Affine3f;
-
-// ===================== 颜色类型 =====================
-
-/**
- * @brief RGBA颜色结构体（浮点数表示，范围0.0-1.0）
- */
-struct Color
-{
-    float red = 1.0F;
-    float green = 1.0F;
-    float blue = 1.0F;
-    float alpha = 1.0F;
-
-    constexpr Color() = default;
-    constexpr Color(float red, float green, float blue, float alpha = 1.0F)
-        : red(red), green(green), blue(blue), alpha(alpha)
-    {
-    }
-
-    /**
-     * @brief 从Vec4构造颜色
-     */
-    explicit Color(const Vec4& vec) : red(vec.x()), green(vec.y()), blue(vec.z()), alpha(vec.w()) {}
-
-    /**
-     * @brief 转换为Vec4
-     */
-    [[nodiscard]] Vec4 toVec4() const { return {red, green, blue, alpha}; }
-
-    /**
-     * @brief 转换为SDL颜色格式（RGBA8888）
-     */
-    [[nodiscard]] uint32_t toSDLColor() const
-    {
-        auto clamp = [](float vertical) -> uint8_t
-        { return static_cast<uint8_t>(std::clamp(vertical, 0.0F, 1.0F) * 255.0F); };
-        return (static_cast<uint32_t>(clamp(red)) << 24U) | (static_cast<uint32_t>(clamp(green)) << 16U)
-             | (static_cast<uint32_t>(clamp(blue)) << 8U) | static_cast<uint32_t>(clamp(alpha));
-    }
-
-    /**
-     * @brief 从SDL颜色格式创建
-     */
-    static Color fromSDLColor(uint32_t sdlColor)
-    {
-        return {static_cast<float>((sdlColor >> 24) & 0xFF) / 255.0F,
-                static_cast<float>((sdlColor >> 16) & 0xFF) / 255.0F,
-                static_cast<float>((sdlColor >> 8) & 0xFF) / 255.0F,
-                static_cast<float>(sdlColor & 0xFF) / 255.0F};
-    }
-
-    /**
-     * @brief 从32位RGBA值创建（0-255范围）
-     */
-    static Color fromRGBA(uint8_t redVal, uint8_t greenVal, uint8_t blueVal, uint8_t alphaVal = 255)
-    {
-        return Color(static_cast<float>(redVal) / 255.0F,
-                     static_cast<float>(greenVal) / 255.0F,
-                     static_cast<float>(blueVal) / 255.0F,
-                     static_cast<float>(alphaVal) / 255.0F);
-    }
-
-    /**
-     * @brief 带透明度调整的颜色
-     */
-    [[nodiscard]] Color withAlpha(float newAlpha) const { return Color(red, green, blue, newAlpha); }
-
-    /**
-     * @brief 乘以透明度因子
-     */
-    [[nodiscard]] Color multiplyAlpha(float factor) const { return Color(red, green, blue, alpha * factor); }
-
-    // 预定义颜色 // NOLINT(readability-identifier-naming)
-    static constexpr Color White() { return {1.0F, 1.0F, 1.0F, 1.0F}; }       // NOLINT(readability-identifier-naming)
-    static constexpr Color Black() { return {0.0F, 0.0F, 0.0F, 1.0F}; }       // NOLINT(readability-identifier-naming)
-    static constexpr Color Red() { return {1.0F, 0.0F, 0.0F, 1.0F}; }         // NOLINT(readability-identifier-naming)
-    static constexpr Color Green() { return {0.0F, 1.0F, 0.0F, 1.0F}; }       // NOLINT(readability-identifier-naming)
-    static constexpr Color Blue() { return {0.0F, 0.0F, 1.0F, 1.0F}; }        // NOLINT(readability-identifier-naming)
-    static constexpr Color Yellow() { return {1.0F, 1.0F, 0.0F, 1.0F}; }      // NOLINT(readability-identifier-naming)
-    static constexpr Color Cyan() { return {0.0F, 1.0F, 1.0F, 1.0F}; }        // NOLINT(readability-identifier-naming)
-    static constexpr Color Magenta() { return {1.0F, 0.0F, 1.0F, 1.0F}; }     // NOLINT(readability-identifier-naming)
-    static constexpr Color Transparent() { return {0.0F, 0.0F, 0.0F, 0.0F}; } // NOLINT(readability-identifier-naming)
-    static constexpr Color Gray() { return {0.5F, 0.5F, 0.5F, 1.0F}; }        // NOLINT(readability-identifier-naming)
-};
 
 // ===================== 矩形类型 =====================
 
@@ -288,14 +204,6 @@ inline Vec2 Lerp(const Vec2& from, const Vec2& dest, float alpha)
 inline float Lerp(float from, float dest, float alpha)
 {
     return from + ((dest - from) * alpha);
-}
-
-inline Color Lerp(const Color& from, const Color& dest, float alpha)
-{
-    return {Lerp(from.red, dest.red, alpha),
-            Lerp(from.green, dest.green, alpha),
-            Lerp(from.blue, dest.blue, alpha),
-            Lerp(from.alpha, dest.alpha, alpha)};
 }
 
 /**

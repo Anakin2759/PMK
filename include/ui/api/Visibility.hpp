@@ -1,47 +1,23 @@
 /**
- * ************************************************************************
- *
  * @file Visibility.hpp
- * @author AnakinLiu (azrael2759@qq.com)
- * @date 2026-01-30
- * @version 0.1
- * @brief 可见性和样式快捷操作 API
-
-  提供简化的接口函数，方便用户快速设置UI实体的可见性、透明度、背景色、边框等属性。
-  这些函数封装了对相关组件的操作，提升开发效率。
- *
- * ************************************************************************
- * @copyright Copyright (c) 2026 AnakinLiu
- * For study and research only, no reprinting.
- * ************************************************************************
+ * @brief 可见性和基础视觉样式快捷操作 API。
  */
 #pragma once
 
+#include "ui/Color.hpp"
+#include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
-#include "common/Types.hpp"
-#include "ui/api/Chains.hpp" // Changed: Include Chains.hpp for DSL
 
 namespace ui::visibility
 {
-/**
- * @brief 设置可见性
- * @param entity 实体ID
- * @param visible 是否可见
- */
 void SetVisible(ui::entity entity, bool visible);
 void Show(ui::entity entity);
 void Hide(ui::entity entity);
-/**
- * @brief 设置透明度
- * @param entity 实体ID
- * @param alpha 透明度值（0.0 - 1.0）
- */
 void SetAlpha(ui::entity entity, float alpha);
 void SetBackgroundColor(ui::entity entity, const Color& color);
 void SetBorderRadius(ui::entity entity, float radius);
 void SetBorderColor(ui::entity entity, const Color& color);
 void SetBorderThickness(ui::entity entity, float thickness);
-
 } // namespace ui::visibility
 
 namespace ui::actions::visibility

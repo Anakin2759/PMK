@@ -31,7 +31,7 @@
 | Phase 0：架构基线 | **completed** | **100%** | 静态门禁已统计 `UiRuntime::current()`、PUBLIC include/link 和 queued-event 派发点；`FrameContext` 已记录每调度帧 Layout/Render update 次数；`test_TaskChain.cpp` 覆盖常规帧、即时追加和下一帧复位 | 无剩余交付项；指标继续作为后续工作基线保留 |
 | WP1 Runtime 与失败路径 | **active** | **65%** | 已有 `UiRuntime::tryCurrent()`；Runtime 构造不再切换 current；`UiRuntimeScope` 支持嵌套恢复；活动 Runtime 异常提前销毁会清除 stale current；`ApplicationImpl` 持有长期 scope；`CreateApplication()` catch 使用 stderr 后备路径；已有 5 个 Runtime 定向测试 | **没有** SDL 初始化失败注入测试；**没有**统一定义无 active Runtime 时所有 legacy API 的失败行为；非 Application 代码仍大量调用 `UiRuntime::current()` |
 | WP2 System 连接生命周期 | **completed** | **100%** | 已建立 `ASSEMBLING / REGISTERED / STOPPED` 状态机；register/unregister 在 manager 层幂等；`removeSystem()` 在 REGISTERED 状态下先 unregister 再 erase；注册后追加明确返回 `false`；manager 级测试覆盖 phase 排序、重复注册/注销、移除后事件不再触发、追加拒绝及全部 12 个内建 System 的 phase 契约 | 无剩余交付项；后续新增内建 System 必须同步更新 phase 契约测试 |
-| WP3 构建与 SDK 边界 | **blocked / active** | **72%** | `src/detail/` 已清零；多批 API 头及 Error/Result、Policies 已迁入 `include/`；Icon/Layout/Query/Size 已完成叶子头迁移；已有无内部依赖的 `ui::Callback` 和公共滚动条几何 DTO；`TweenOptions` 已迁为稳定公共叶子值类型，旧路径仅兼容转发；架构门禁和公开头编译测试已覆盖 | **没有**收紧 PUBLIC include：`${CMAKE_SOURCE_DIR}` 和 `src/` 仍公开；**没有**收紧 PUBLIC link：EnTT/Eigen/spdlog 仍传播；**没有**独立 install/export consumer；Utils 的 Rect/Vec2 以及 Controls/Text/Animation 其余接口仍受 Eigen/Color 公共类型决策阻塞 |
+| WP3 构建与 SDK 边界 | **blocked / active** | **74%** | `src/detail/` 已清零；多批 API 头及 Error/Result、Policies 已迁入 `include/`；Icon/Layout/Query/Size/Visibility 已完成叶子头迁移；`ui::Color` 已是无 Eigen 的公共值类型；已有公共 Callback、滚动条几何 DTO 和 `TweenOptions`；架构门禁和公开头编译测试已覆盖 | **没有**收紧 PUBLIC include：`${CMAKE_SOURCE_DIR}` 和 `src/` 仍公开；**没有**收紧 PUBLIC link：EnTT/Eigen/spdlog 仍传播；**没有**独立 install/export consumer；Utils 的 Rect/Vec2 以及 Controls/Animation 等接口仍受 Vec2/Rect/Eigen 公共 ABI 决策阻塞；Text/Table 尚待迁移 |
 | WP4 GPU shutdown | **active** | **70%** | 渲染实现已物理拆分；Application 保证 RenderSystem 先于 `SDL_Quit()`；首窗 claim 后锁定 device/backend；`ImageManager` 使用创建 device 绑定的 RAII owner；固定三节点事务统一初始化失败回滚与重复 cleanup；独立 offscreen/software 集成测试已连续三轮完成每轮 100 次真实窗口创建/关闭 | **没有**完整的 `RenderResourceContext` 所有权边界；fallback 100 次基线不等于真实 GPU 生命周期；**没有**真实 GPU 初始化失败注入、资源代际 token 和真实 GPU 100 次窗口验收；device 外部先行失效仍缺少类型级保护 |
 | WP5 单一帧管线 | **active / partial** | **30%** | `TaskChain`、System phase 和帧次数埋点提供了局部顺序及观测基础；公开 `Enqueue()` 已在 `QueuedTask` 的 Timer/内部 buffered events 后、Layout/Render 前自动派发；生产路径恰有一个派发点，递归入队延后一帧且多 Runtime 隔离已有测试 | **没有**唯一 `FrameTick`；Task 内节流尚未统一为 scheduler policy；即时 Layout/Render 补救点尚未形成白名单；输入延迟和全管线单帧约束尚未完整验收 |
 | WP6 Intrinsic Measurement | **not-started** | **0%** | 无本工作包目标实现 | **没有** `IntrinsicMeasureService`；`LayoutSystem.cpp` 仍使用 `content.length() * 8 + 10` 估宽和固定 `SCROLLBAR_GUTTER = 14`；CJK/emoji/shaped metrics 验收未做 |
@@ -46,7 +46,7 @@
 | detail/helper 收敛    | completed | `src/detail/` 清零；内部适配集中到 helper；门禁禁止 detail 文件回归                 |
 | 首批公共 API 头       | completed | Entity、Event、Scale、State、Theme、Timer 迁入`include/ui/api/`                     |
 | DSL 公共 API 头       | completed | Chains、Hierarchy、Log 迁入`include/ui/api/`                                        |
-| 叶子公共 API 头       | completed | Icon、Layout、Query、Size 迁入 `include/ui/api/`；旧路径删除并纳入回归门禁           |
+| 叶子公共 API 头       | completed | Icon、Layout、Query、Size、Visibility 迁入 `include/ui/api/`；旧路径删除并纳入回归门禁 |
 | 公共 Callback 解耦    | completed | 新增 `ui::Callback`；Controls/Text 公开签名移除内部 component callback 依赖          |
 | 滚动条几何 DTO        | completed | 新增无 EnTT/Eigen 依赖的公共标量几何类型；移除伪 component DTO，保持原计算与命中语义 |
 | TweenOptions 公共化   | completed | 权威定义迁至 `include/ui/TweenOptions.hpp`；旧内部头仅兼容转发，默认值和布局契约不变      |
@@ -572,7 +572,7 @@ Policies、Result 与标准库，不引入 EnTT、component、Runtime 或 Eigen�
 不再包含或暴露 `common/components/Interaction.hpp` 和 `ui::components::on_event`。内部 `on_event` 暂时保留为
 `ui::Callback` 的兼容别名，因此 move-only 语义、参数形式、转发方式和同步调用时机均未改变。架构门禁已禁止公开
 API 头重新包含 `common/components/*`，测试同时验证公共类型与内部兼容别名保持同一具体类型。本批仍未迁移
-Controls/Text 头，因为其 `Color`/`Vec2` 公开签名继续受 `Types.hpp`/Eigen 决策阻塞。
+Controls 头，因为其 `Callback<Vec2>` 公开签名继续受 `Types.hpp`/Eigen 决策阻塞；Color 已完成公共化，不再是 Text/Table 的阻塞项。
 
 纵向滚动条几何公共化批次已完成：新增 `include/ui/Geometry.hpp`，其中 `GeometryRect` 和
 `VerticalScrollbarGeometry` 仅由 `bool`/`float` 组成，保持 standard-layout 与 trivially-copyable，不依赖 EnTT、Eigen、
@@ -599,6 +599,12 @@ TaskChain/PublicEvent 定向测试 13 passed / 0 failed，全量测试 170 passe
 Runtime，并在 Timer 与内部 buffered events 后自动调用唯一的公开队列派发点；测试覆盖同步不触发、下一调度帧派发、
 递归入队延后一帧和多 Runtime 隔离。架构指标为 `UiRuntime::current()` 302 处、PUBLIC 内部 include 2 项、
 PUBLIC 内部依赖 3 项、生产帧 queued-event 派发点 1。唯一 FrameTick、Task 节流策略和即时补救白名单仍未完成。
+
+WP3 Visibility 公共头迁移执行快照（2026-07-17，Debug）：`Visibility.hpp` 已迁至 `include/ui/api/`，直接依赖
+`ui/Color.hpp` 而不再包含 `common/Types.hpp`；旧 `src/api/Visibility.hpp` 已删除并由架构门禁禁止回归。函数签名、
+DSL 和运行时行为不变。构建、架构门禁与公开头检查通过；Visibility/PublicLeafHeaders 定向测试 26 passed / 0 failed，
+全量测试 171 passed / 0 failed。指标保持 302 / 2 / 3 / 1。该批确认 Color 已完成公共化；剩余核心阻塞是
+Vec2/Rect/Eigen ABI、独立 consumer 和 CMake PUBLIC 边界。
 
 错误基础设施公共化批次已完成：权威 `ErrorCodes.hpp`、`Result.hpp` 已迁入 `include/ui/`，
 `src/common` 下保留兼容转发头，内部实现和测试已切换到稳定公共路径。架构门禁现已禁止公共头重新包含

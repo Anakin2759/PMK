@@ -3,6 +3,7 @@
 // IWYU pragma: begin_exports
 #include "ui/ErrorCodes.hpp"
 #include "ui/Callback.hpp"
+#include "ui/Color.hpp"
 #include "ui/Geometry.hpp"
 #include "ui/Result.hpp"
 #include "ui/Policies.hpp"
@@ -29,5 +30,5 @@
 #include "ui/api/Theme.hpp"
 #include "ui/api/Timer.hpp"
 #include "api/Utils.hpp"
-#include "api/Visibility.hpp"
+#include "ui/api/Visibility.hpp"
 // IWYU pragma: end_exports

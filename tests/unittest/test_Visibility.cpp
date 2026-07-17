@@ -6,7 +6,7 @@
 #include <entt/entt.hpp>
 #include "common/components/Layout.hpp"
 #include "common/components/Visual.hpp"
-#include "src/api/Visibility.hpp"
+#include <ui/api/Visibility.hpp>
 #include "src/common/Policies.hpp"
 #include "src/common/Tags.hpp"
 #include "src/core/UiRuntime.hpp"

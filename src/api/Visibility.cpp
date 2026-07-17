@@ -1,4 +1,4 @@
-#include "Visibility.hpp"
+#include "ui/api/Visibility.hpp"
 
 #include "helper/Helper.hpp"
 
