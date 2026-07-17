@@ -21,7 +21,7 @@
 #include <type_traits>
 
 #include "ui/api/Chains.hpp"
-#include "common/Animation.hpp"
+#include "ui/TweenOptions.hpp"
 #include "ui/api/Entity.hpp"
 #include "common/Types.hpp"
 

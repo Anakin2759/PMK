@@ -190,6 +190,7 @@ set(UI_HEADERS
     ${CMAKE_SOURCE_DIR}/include/ui/Geometry.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Result.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/Policies.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/TweenOptions.hpp
 
     # Components
     common/CustomizationPoints.hpp

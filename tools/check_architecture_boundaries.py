@@ -25,7 +25,7 @@ STATIC_RUNTIME_RE = re.compile(
 )
 COMMON_RUNTIME_INCLUDE_RE = re.compile(r'#\s*include\s+"(?:core/RuntimeFacade\.hpp|singleton/Registry\.hpp)"')
 PUBLIC_API_FORBIDDEN_INCLUDE_RE = re.compile(
-    r'#\s*include\s+[<"](?:(?:src/)?helper/[^">]+|(?:src/)?detail/[^">]+|(?:src/)?entt(?:/[^">]+)?|(?:src/)?common/components/[^">]+|(?:src/)?common/(?:ErrorCodes|Result|Policies)\.hpp|(?:src/)?traits/[^">]+|core/RuntimeFacade\.hpp|singleton/Registry\.hpp|singleton/Dispatcher\.hpp)'
+    r'#\s*include\s+[<"](?:(?:src/)?helper/[^">]+|(?:src/)?detail/[^">]+|(?:src/)?entt(?:/[^">]+)?|(?:src/)?common/components/[^">]+|(?:src/)?common/(?:Animation|ErrorCodes|Result|Policies)\.hpp|(?:src/)?traits/[^">]+|core/RuntimeFacade\.hpp|singleton/Registry\.hpp|singleton/Dispatcher\.hpp)'
 )
 ENTT_ENTITY_RE = re.compile(r"\bentt::entity\b")
 ENTT_NAMESPACE_RE = re.compile(r"\bentt::")
@@ -251,6 +251,24 @@ def count_matches(root: Path):
             unlisted_detail_cpp_counts[key] += 1
             locations.setdefault(("detail-cpp-not-in-ui-sources", *key), []).append((1, rel))
 
+    animation_compatibility_header = root / "src" / "common" / "Animation.hpp"
+    expected_animation_forwarder = [
+        '#pragma once',
+        '#include "ui/TweenOptions.hpp" // IWYU pragma: export',
+    ]
+    animation_forwarder_lines = [
+        line.strip()
+        for line in animation_compatibility_header.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    if animation_forwarder_lines != expected_animation_forwarder:
+        rel = normalized_relative(animation_compatibility_header, root)
+        key = (rel, "animation-compatibility-header-not-pure-forwarder")
+        unlisted_detail_cpp_counts[key] += 1
+        locations.setdefault(("detail-cpp-not-in-ui-sources", *key), []).append(
+            (1, "expected only #pragma once and ui/TweenOptions.hpp include")
+        )
+
     for path in iter_source_files(root):
         rel = normalized_relative(path, root)
         try:
@@ -301,7 +319,7 @@ def count_matches(root: Path):
 
             if (
                 rel.startswith("src/")
-                and path.suffix in IMPLEMENTATION_EXTENSIONS
+                and (path.suffix in IMPLEMENTATION_EXTENSIONS or rel == "src/core/TaskChain.hpp")
                 and rel not in {"src/api/Event.cpp"}
                 and QUEUED_EVENT_DISPATCH_RE.search(line)
             ):
@@ -453,6 +471,15 @@ def main(argv: list[str]) -> int:
             "detail-cpp-not-in-ui-sources", unlisted_detail_cpp_counts, ALLOWED_UNLISTED_DETAIL_CPP_COUNTS
         )
     )
+    if len(queued_event_dispatch_sites) != 1:
+        violations.append(
+            Violation(
+                rule="queued-event-frame-dispatch-site-count",
+                path="src/core/TaskChain.hpp",
+                line_no=1,
+                text=f"expected exactly 1 production dispatch site, found {len(queued_event_dispatch_sites)}",
+            )
+        )
 
     print("Architecture metrics:")
     print(f"  UiRuntime::current() calls: {sum(runtime_current_counts.values())}")

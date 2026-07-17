@@ -36,7 +36,10 @@ private:
 [[nodiscard]] EventConnection On(std::string_view name, EventCallback callback);
 void Trigger(EventId eventId, EventPayload payload = {});
 void Trigger(std::string_view name, EventPayload payload = {});
+/// 入队并在所属 Runtime 的下一次 QueuedTask 阶段自动派发。
 void Enqueue(EventId eventId, EventPayload payload = {});
+/// 入队并在所属 Runtime 的下一次 QueuedTask 阶段自动派发。
 void Enqueue(std::string_view name, EventPayload payload = {});
+/// 立即清空当前 Runtime 的公开事件队列；保留供测试和显式调度使用。
 void DispatchQueued();
 } // namespace ui::event

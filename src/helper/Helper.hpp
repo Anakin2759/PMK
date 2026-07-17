@@ -13,12 +13,12 @@
 #include <vector>
 
 #include "common/CustomEvent.hpp"
-#include "common/Animation.hpp"
 #include "common/EntityTypes.hpp"
 #include "ui/ErrorCodes.hpp"
 #include "ui/Geometry.hpp"
 #include "ui/Policies.hpp"
 #include "ui/Result.hpp"
+#include "ui/TweenOptions.hpp"
 #include "common/Scale.hpp"
 #include "common/Tags.hpp"
 #include "common/Theme.hpp"

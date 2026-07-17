@@ -6,6 +6,7 @@
 #include "ui/Geometry.hpp"
 #include "ui/Result.hpp"
 #include "ui/Policies.hpp"
+#include "ui/TweenOptions.hpp"
 #include "api/Animation.hpp"
 #include "api/Canvas.hpp"
 #include "ui/api/Chains.hpp"

@@ -3,6 +3,7 @@
 #include <entt/entt.hpp>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,10 +15,14 @@
 #include "src/utils/Dispatcher.hpp"
 #include "src/utils/Registry.hpp"
 
+#include <ui/api/Event.hpp>
+
 namespace ui::tests
 {
 namespace
 {
+
+inline constexpr std::uint32_t TEST_FRAME_INTERVAL_MS = 16U;
 
 struct CountingTask
 {
@@ -172,6 +177,85 @@ TEST_F(TaskChainTest, QueuedTaskUpdatesFrameContextBeforeDispatchingQueuedEvents
     ASSERT_EQ(observedEvents.size(), 2U);
     EXPECT_EQ(observedEvents.at(0), "timer");
     EXPECT_EQ(observedEvents.at(1), "update");
+}
+
+TEST_F(TaskChainTest, QueuedTaskAutomaticallyDispatchesPublicEventsAfterInternalQueue)
+{
+    std::vector<std::string> observedEvents;
+    EventRecorder recorder{&observedEvents};
+    auto& runtime = UiRuntime::current();
+    auto timerConnection = entt::scoped_connection{
+        runtime.dispatcher().sink<events::UpdateTimer>().connect<&EventRecorder::onTimer>(recorder)};
+    auto connection = event::On("public.event.frame", [&observedEvents](const event::EventPayload&)
+                                { observedEvents.emplace_back("public"); });
+
+    event::Enqueue("public.event.frame");
+    EXPECT_TRUE(observedEvents.empty());
+
+    tasks::QueuedTask{.runtime = &runtime}(TEST_FRAME_INTERVAL_MS);
+
+    ASSERT_EQ(observedEvents.size(), 2U);
+    EXPECT_EQ(observedEvents.at(0), "timer");
+    EXPECT_EQ(observedEvents.at(1), "public");
+}
+
+TEST_F(TaskChainTest, PublicEventsEnqueuedDuringDispatchWaitForAnotherQueuedFrame)
+{
+    auto& runtime = UiRuntime::current();
+    int callCount = 0;
+    auto connection = event::On("public.event.recursive", [&callCount](const event::EventPayload&)
+                                {
+                                    ++callCount;
+                                    if (callCount == 1)
+                                    {
+                                        event::Enqueue("public.event.recursive");
+                                    }
+                                });
+    event::Enqueue("public.event.recursive");
+
+    tasks::QueuedTask queuedTask{.runtime = &runtime};
+    queuedTask(TEST_FRAME_INTERVAL_MS);
+    EXPECT_EQ(callCount, 1);
+
+    queuedTask(TEST_FRAME_INTERVAL_MS);
+    EXPECT_EQ(callCount, 2);
+}
+
+TEST(TaskChainRuntimeIsolationTest, QueuedTaskDispatchesOnlyItsBoundRuntime)
+{
+    UiRuntime firstRuntime;
+    UiRuntime secondRuntime;
+    int firstCalls = 0;
+    int secondCalls = 0;
+
+    std::optional<event::EventConnection> firstConnection;
+    std::optional<event::EventConnection> secondConnection;
+    {
+        UiRuntimeScope const firstScope(firstRuntime);
+        firstConnection.emplace(event::On("public.event.runtime", [&firstCalls](const event::EventPayload&)
+                                          { ++firstCalls; }));
+        event::Enqueue("public.event.runtime");
+    }
+    {
+        UiRuntimeScope const secondScope(secondRuntime);
+        secondConnection.emplace(event::On("public.event.runtime", [&secondCalls](const event::EventPayload&)
+                                           { ++secondCalls; }));
+        event::Enqueue("public.event.runtime");
+
+        tasks::QueuedTask{.runtime = &firstRuntime}(TEST_FRAME_INTERVAL_MS);
+        EXPECT_EQ(firstCalls, 1);
+        EXPECT_EQ(secondCalls, 0);
+
+        tasks::QueuedTask{.runtime = &secondRuntime}(TEST_FRAME_INTERVAL_MS);
+        EXPECT_EQ(firstCalls, 1);
+        EXPECT_EQ(secondCalls, 1);
+
+        secondConnection.reset();
+    }
+    {
+        UiRuntimeScope const firstScope(firstRuntime);
+        firstConnection.reset();
+    }
 }
 
 TEST_F(TaskChainTest, RenderTaskTriggersFrameStagesInFixedOrderAndHonorsDelay)

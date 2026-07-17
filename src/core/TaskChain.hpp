@@ -29,6 +29,8 @@
 #include "common/Events.hpp"
 #include "common/GlobalContext.hpp"
 #include "core/UiRuntime.hpp"
+#include "core/UiRuntimeScope.hpp"
+#include "helper/Helper.hpp"
 #include "SystemManager.hpp"
 
 namespace ui::tasks
@@ -167,6 +169,9 @@ struct QueuedTask
 
     void operator()(uint32_t delta)
     {
+        // 调度对象显式绑定目标 Runtime，避免嵌套 Application 的 current 指向其他实例。
+        UiRuntimeScope const runtimeScope{*runtime};
+
         // 队列阶段先推进帧上下文，再驱动定时器与缓冲事件派发。
         auto& frameContext = runtime->registry().template getOrEmplaceInCtx<globalcontext::FrameContext>();
         ++frameContext.frameNumber;
@@ -177,6 +182,8 @@ struct QueuedTask
         auto& disp = runtime->dispatcher();
         disp.trigger<ui::events::UpdateTimer>();
         disp.update();
+        // 公开 queued event 在布局/渲染前恰好派发一次；派发中入队留到下一调度帧。
+        detail::event_bridge::DispatchQueued();
     }
 };
 

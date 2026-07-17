@@ -70,8 +70,13 @@ add_executable(ui_api_tests
 )
 configure_ui_test_target(ui_api_tests)
 
+add_executable(ui_fallback_lifecycle_tests
+    test_FallbackWindowLifecycle.cpp
+)
+configure_ui_test_target(ui_fallback_lifecycle_tests)
+
 # Backward-compatible aggregate target name for existing workflows.
-add_custom_target(ui_tests DEPENDS ui_unit_tests ui_ecs_tests ui_api_tests)
+add_custom_target(ui_tests DEPENDS ui_unit_tests ui_ecs_tests ui_api_tests ui_fallback_lifecycle_tests)
 
 set_source_files_properties(${CMAKE_SOURCE_DIR}/include/ui.hpp PROPERTIES LANGUAGE CXX)
 add_library(ui_public_header_check OBJECT ${CMAKE_SOURCE_DIR}/include/ui.hpp)
@@ -86,3 +91,10 @@ include(GoogleTest)
 gtest_discover_tests(ui_unit_tests PROPERTIES LABELS "unit")
 gtest_discover_tests(ui_ecs_tests PROPERTIES LABELS "ecs")
 gtest_discover_tests(ui_api_tests PROPERTIES LABELS "api")
+gtest_discover_tests(ui_fallback_lifecycle_tests PROPERTIES
+    LABELS "integration;sdl;lifecycle"
+    ENVIRONMENT "SDL_VIDEODRIVER=offscreen"
+    RUN_SERIAL TRUE
+    RESOURCE_LOCK ui_sdl_video
+    TIMEOUT 60
+)

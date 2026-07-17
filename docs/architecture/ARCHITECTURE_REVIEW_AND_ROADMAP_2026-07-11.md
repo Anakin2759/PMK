@@ -19,9 +19,9 @@
 ### 0.2 一眼可见的结论
 
 - **已完成：2 项**——Phase 0 架构基线、WP2 System 连接生命周期。
-- **正在推进：3 项**——WP1、WP4、WP7。
+- **正在推进：4 项**——WP1、WP4、WP5、WP7。
 - **部分完成但受阻：1 项**——WP3，公共头迁移已有成果，但最终 SDK/CMake 边界仍未闭环。
-- **尚未形成目标能力：3 项**——WP5、WP6、WP8；它们只有局部基础或前置铺垫。
+- **尚未形成目标能力：2 项**——WP6、WP8；它们只有局部基础或前置铺垫。
 - **尚未开始且受前置阻塞：1 项**——WP9。
 
 ### 0.3 工作包进度看板
@@ -31,9 +31,9 @@
 | Phase 0：架构基线 | **completed** | **100%** | 静态门禁已统计 `UiRuntime::current()`、PUBLIC include/link 和 queued-event 派发点；`FrameContext` 已记录每调度帧 Layout/Render update 次数；`test_TaskChain.cpp` 覆盖常规帧、即时追加和下一帧复位 | 无剩余交付项；指标继续作为后续工作基线保留 |
 | WP1 Runtime 与失败路径 | **active** | **65%** | 已有 `UiRuntime::tryCurrent()`；Runtime 构造不再切换 current；`UiRuntimeScope` 支持嵌套恢复；活动 Runtime 异常提前销毁会清除 stale current；`ApplicationImpl` 持有长期 scope；`CreateApplication()` catch 使用 stderr 后备路径；已有 5 个 Runtime 定向测试 | **没有** SDL 初始化失败注入测试；**没有**统一定义无 active Runtime 时所有 legacy API 的失败行为；非 Application 代码仍大量调用 `UiRuntime::current()` |
 | WP2 System 连接生命周期 | **completed** | **100%** | 已建立 `ASSEMBLING / REGISTERED / STOPPED` 状态机；register/unregister 在 manager 层幂等；`removeSystem()` 在 REGISTERED 状态下先 unregister 再 erase；注册后追加明确返回 `false`；manager 级测试覆盖 phase 排序、重复注册/注销、移除后事件不再触发、追加拒绝及全部 12 个内建 System 的 phase 契约 | 无剩余交付项；后续新增内建 System 必须同步更新 phase 契约测试 |
-| WP3 构建与 SDK 边界 | **blocked / active** | **68%** | `src/detail/` 已清零；多批 API 头及 Error/Result、Policies 已迁入 `include/`；Icon/Layout/Query/Size 已完成叶子头迁移；新增无内部依赖的 `ui::Callback`，Controls/Text 公开签名不再暴露 component callback；纵向滚动条几何已改为无 EnTT/Eigen 依赖的公共标量 DTO；架构门禁和公开头编译测试已覆盖 | **没有**收紧 PUBLIC include：`${CMAKE_SOURCE_DIR}` 和 `src/` 仍公开；**没有**收紧 PUBLIC link：EnTT/Eigen/spdlog 仍传播；**没有**独立 install/export consumer；Utils 其余 Rect/Vec2 以及 Controls/Text/Animation 等仍受 Eigen 公共类型决策阻塞 |
-| WP4 GPU shutdown | **active** | **65%** | 渲染实现已物理拆成 Backend、Resources、Frame；Application 已保证 RenderSystem 先于 `SDL_Quit()` 销毁；首窗 claim 后锁定 device/backend；`ImageManager` 已使用创建 device 绑定的 RAII owner；固定三节点 GPU 初始化事务已让 shader 失败可观察，并统一中途失败逆序回滚与重复 cleanup；cleanup 保证资源先于 device 并复位 claim 状态 | **没有**完整的 `RenderResourceContext` 所有权边界；**没有**真实 GPU 初始化失败注入、资源代际 token 和 100 次窗口创建/销毁生命周期验收；外部原因导致 device 先于 owner 失效时仍缺少类型级保护 |
-| WP5 单一帧管线 | **not-started / partial** | **15%** | `TaskChain`、System phase 和帧次数埋点提供了局部顺序及观测基础 | **没有**唯一 `FrameTick`；Task 内节流尚未统一为 scheduler policy；生产帧路径中 **没有**调用公开 `event::DispatchQueued()`，当前 `Enqueue()` 仍需手动派发；固定阶段契约未建立 |
+| WP3 构建与 SDK 边界 | **blocked / active** | **72%** | `src/detail/` 已清零；多批 API 头及 Error/Result、Policies 已迁入 `include/`；Icon/Layout/Query/Size 已完成叶子头迁移；已有无内部依赖的 `ui::Callback` 和公共滚动条几何 DTO；`TweenOptions` 已迁为稳定公共叶子值类型，旧路径仅兼容转发；架构门禁和公开头编译测试已覆盖 | **没有**收紧 PUBLIC include：`${CMAKE_SOURCE_DIR}` 和 `src/` 仍公开；**没有**收紧 PUBLIC link：EnTT/Eigen/spdlog 仍传播；**没有**独立 install/export consumer；Utils 的 Rect/Vec2 以及 Controls/Text/Animation 其余接口仍受 Eigen/Color 公共类型决策阻塞 |
+| WP4 GPU shutdown | **active** | **70%** | 渲染实现已物理拆分；Application 保证 RenderSystem 先于 `SDL_Quit()`；首窗 claim 后锁定 device/backend；`ImageManager` 使用创建 device 绑定的 RAII owner；固定三节点事务统一初始化失败回滚与重复 cleanup；独立 offscreen/software 集成测试已连续三轮完成每轮 100 次真实窗口创建/关闭 | **没有**完整的 `RenderResourceContext` 所有权边界；fallback 100 次基线不等于真实 GPU 生命周期；**没有**真实 GPU 初始化失败注入、资源代际 token 和真实 GPU 100 次窗口验收；device 外部先行失效仍缺少类型级保护 |
+| WP5 单一帧管线 | **active / partial** | **30%** | `TaskChain`、System phase 和帧次数埋点提供了局部顺序及观测基础；公开 `Enqueue()` 已在 `QueuedTask` 的 Timer/内部 buffered events 后、Layout/Render 前自动派发；生产路径恰有一个派发点，递归入队延后一帧且多 Runtime 隔离已有测试 | **没有**唯一 `FrameTick`；Task 内节流尚未统一为 scheduler policy；即时 Layout/Render 补救点尚未形成白名单；输入延迟和全管线单帧约束尚未完整验收 |
 | WP6 Intrinsic Measurement | **not-started** | **0%** | 无本工作包目标实现 | **没有** `IntrinsicMeasureService`；`LayoutSystem.cpp` 仍使用 `content.length() * 8 + 10` 估宽和固定 `SCROLLBAR_GUTTER = 14`；CJK/emoji/shaped metrics 验收未做 |
 | WP7 RenderSystem 拆分 | **active / partial** | **25%** | 已拆出 `RenderBackend.cpp`、`RenderResources.cpp`、`RenderFrame.cpp`；已有 `RendererRegistry` 基础 | **没有**真正的 `RenderResourceContext` 和 `RenderPipeline` 类型；`RenderSystemImpl` 仍直接持有 9 类 manager/backend、渲染队列和资源；renderer 分派尚未收敛为唯一机制 |
 | WP8 API 版本化 | **not-started / foundation** | **15%** | 已有 `ui::entity`、`EntityHandle` 和部分 runtime-bound Factory 重载，公共头迁移提供了基础 | **没有**稳定的 runtime-bound handle 生命周期契约；**没有**裸 entity API 的 `[[deprecated]]` 标记、迁移周期和版本化文档；公开 API 尚未收敛到 `EntityHandle` |
@@ -49,11 +49,12 @@
 | 叶子公共 API 头       | completed | Icon、Layout、Query、Size 迁入 `include/ui/api/`；旧路径删除并纳入回归门禁           |
 | 公共 Callback 解耦    | completed | 新增 `ui::Callback`；Controls/Text 公开签名移除内部 component callback 依赖          |
 | 滚动条几何 DTO        | completed | 新增无 EnTT/Eigen 依赖的公共标量几何类型；移除伪 component DTO，保持原计算与命中语义 |
+| TweenOptions 公共化   | completed | 权威定义迁至 `include/ui/TweenOptions.hpp`；旧内部头仅兼容转发，默认值和布局契约不变      |
 | Error / Result 公共化 | completed | 权威头位于`include/ui/`；`src/common` 仅兼容转发；公共头禁止旧路径                |
 | Policies 公共化       | completed | 权威头位于`include/ui/Policies.hpp`；位运算单点提供；内部 traits 不再重复注入运算符 |
 | Ninja 构建限流        | completed | 默认 compile pool=2、link pool=1；默认高并发 clang-cl OOM 已止血                      |
 
-**当前主线：** WP2 已完成。下一优先级是继续 WP3 的公共类型解耦，并继续收敛 WP4 的统一 GPU shutdown。
+**当前主线：** WP2 已完成，WP5 已启动并完成 public queued event 固定阶段的最小批次。下一优先级是继续 WP3 的公共类型解耦、收敛 WP4 的统一 GPU shutdown，并在后续 WP5 批次建立唯一 FrameTick。
 `Types.hpp`/Eigen 的公开类型决策完成前，不机械迁移 Animation 等头，也不强行收紧 CMake
 PUBLIC 传播。WP5～WP9 目前都不能标记为已完成。
 
@@ -305,7 +306,7 @@ flowchart LR
 
 ## Phase 0：建立基线（2～3 天）
 
-**当前状态：completed。** 静态边界基线已固化并由门禁执行：`UiRuntime::current()` 305 处、PUBLIC 内部 include 路径 2 项、PUBLIC 内部依赖 3 项、queued event 生产帧派发点 0 处。运行时侧由 `FrameContext` 记录单调递增的调度帧序号与当帧 Layout/Render update 入口次数；任务链测试已覆盖常规刷新各一次、同帧即时 Render 追加以及下一调度帧复位。该指标统计 System update 调用，不等同于 Yoga root 数或 GPU present 数。
+**当前状态：completed。** 静态边界基线已固化并由门禁执行；初始快照为 `UiRuntime::current()` 305 处、PUBLIC 内部 include 路径 2 项、PUBLIC 内部依赖 3 项、queued event 生产帧派发点 0 处。当前指标已推进为 302 / 2 / 3 / 1。运行时侧由 `FrameContext` 记录单调递增的调度帧序号与当帧 Layout/Render update 入口次数；任务链测试已覆盖常规刷新各一次、同帧即时 Render 追加以及下一调度帧复位。该指标统计 System update 调用，不等同于 Yoga root 数或 GPU present 数。
 
 **目标：** 在改架构前先让债务可计数。
 
@@ -388,6 +389,12 @@ cache、renderer、command buffer、white texture 和 pipeline，并在末尾复
 处理剩余节点。8 项纯逻辑测试覆盖成功、三处失败、乱序提交、失败后禁止重试、未开始 shutdown、重复 shutdown 和
 清理异常隔离；测试未启动真实 SDL/GPU。
 
+Fallback 窗口生命周期基线已完成：新增独立 `ui_fallback_lifecycle_tests` 进程，固定 SDL `offscreen` video driver
+并通过 `--backend=cpu` 强制进入 software fallback。单次测试顺序完成 100 次 runtime-bound Window 创建、真实
+software renderer 初始化、CloseWindow 定向派发、ECS entity 失效和 SDL window 销毁，Application 析构后验证
+SDL video 已退出；该测试连续独立运行三轮均通过。该批真实使用 SDL/offscreen/software renderer，但没有创建
+`SDL_GPUDevice`，因此仅作为 fallback 生命周期基线，不替代真实 GPU 100 次验收。
+
 - 绘制资源 DAG，将清理集中到幂等入口。
 - 覆盖中途初始化失败、重复清理、窗口循环创建销毁。
 
@@ -397,11 +404,11 @@ cache、renderer、command buffer、white texture 和 pipeline，并在末尾复
 
 ### WP5 单一帧管线
 
-**当前状态：not-started / partial。** 局部阶段顺序已经存在，但尚未形成唯一 FrameTick。
+**当前状态：active / partial。** 局部阶段顺序已经存在，public queued event 已接入固定阶段，但尚未形成唯一 FrameTick。
 
 - 建立唯一 `FrameTick` 和固定阶段。
 - 移除 Task 内散落的 16/32 ms countdown。
-- 将 public queued events 接入固定阶段。
+- [x] 将 public queued events 接入固定阶段：`QueuedTask` 在 Timer 和内部 buffered events 后、Layout/Render 前自动派发；递归入队延后一帧，多 Runtime 不串队列。
 - 对必要的即时补救点建立白名单及原因说明。
 
 **验收：**
@@ -470,7 +477,7 @@ cache、renderer、command buffer、white texture 和 pipeline，并在末尾复
 | 正常可达主动泄漏分支            |     当前存在 |                        0 |
 | 默认单帧 Layout 次数            | 常规刷新帧 1 |                     ≤ 1 |
 | 默认单帧 Render 次数            | 常规刷新帧 1 |                     ≤ 1 |
-| queued event 生产帧派发点       |            0 |                        1 |
+| queued event 生产帧派发点       |            1 |                        1 |
 | 窗口循环创建/销毁稳定次数       |       未固定 |                   ≥ 100 |
 | 独立 consumer 构建              |       未闭环 |                  CI 必过 |
 | 架构文档状态缺失                |         多处 |                        0 |
@@ -490,15 +497,20 @@ cache、renderer、command buffer、white texture 和 pipeline，并在末尾复
 
 ## 8. 决策门
 
-实施前需明确以下产品级选择：
+**状态：已决策（2026-07-17）。** 以下产品级选择已经确认，不再作为 Phase 2～4 的前置阻塞项。
 
-1. 是否支持同线程多 Application/多 Runtime，还是仅要求测试隔离？支持
-2. `ui::event::Enqueue()` 是否承诺自动在下一帧派发？承诺
-3. 发布目标是源码内嵌静态库，还是可安装 SDK？  都要，可选
-4. CPU fallback 是正式后端，还是仅调试/故障降级路径？正式后端
-5. 下一主版本是否允许公开 API 收敛到 `EntityHandle` 并弃用裸 entity？是
+| 决策项 | 已确认结论 | 对后续实施的约束 |
+| --- | --- | --- |
+| 同线程多 Application / 多 Runtime | **支持** | Runtime/current 生命周期必须具备嵌套、逐层恢复和实例隔离语义；不得以“进程内仅一个 Application”为前提简化资源、事件或公开句柄生命周期。 |
+| `ui::event::Enqueue()` 派发语义 | **承诺自动在下一帧固定阶段派发** | WP5 必须将公开 queued event 接入唯一 FrameTick；手动 dispatch 只能作为显式测试或高级控制入口，不能作为正常使用前提。 |
+| 发布形态 | **同时支持源码内嵌静态库和可安装 SDK，由使用方选择** | WP3/WP9 必须同时保留静态嵌入构建，并完成 install/export/package consumer；两种模式应共享稳定公共头和一致的依赖可见性契约。 |
+| CPU fallback 定位 | **正式后端** | fallback 必须纳入持续测试、生命周期、错误处理和功能契约；不得仅作为调试分支或 GPU 初始化失败后的临时兜底。 |
+| 下一主版本公开实体 API | **允许收敛到 `EntityHandle` 并弃用裸 entity** | WP8 应为裸 entity API 制定明确的 `[[deprecated]]` 周期、迁移文档和 runtime token/句柄失效契约；新增公开 API 优先采用 runtime-bound handle。 |
 
-在这些问题未决前，可安全推进 Phase 0 和 Phase 1；Phase 2 之后的接口形态应受决策门约束。
+据此，Phase 2 可以直接按“唯一帧阶段自动派发 queued event”推进；Phase 3 必须将 CPU fallback
+视为与 GPU 并列的正式渲染后端；Phase 4 同时验收源码内嵌和可安装 SDK，并允许在下一主版本完成
+`EntityHandle` 收敛。后续规划不得重新以这些事项“尚未决策”为由阻塞实施；若需改变结论，必须新增带日期的
+替代决策并说明兼容与迁移影响。
 
 ---
 
@@ -575,13 +587,18 @@ inset、offset clamp、`visible` 置位时机以及矩形闭区间命中语义�
 
 Phase 0 静态架构基线已于 2026-07-15 落地到 `tools/check_architecture_boundaries.py`。门禁现在直接统计并
 baseline 真实 `UiRuntime::current()`（当前 302 处）、PUBLIC 内部 include 路径（2 项）以及 EnTT/Eigen/spdlog
-PUBLIC 依赖（3 项）；任何新增或基线过期都会失败。公开 queued event 在生产帧路径中的自动派发点当前为 0，
-该指标会持续输出，但在 WP5 接入固定 FrameTick 前不把“缺少派发点”作为构建失败。Phase 0 剩余项仅为
-Layout/Render 每帧次数的运行时埋点与 CI 留存。
+PUBLIC 依赖（3 项）；任何新增或基线过期都会失败。公开 queued event 在生产帧路径中的自动派发点当前为 1，
+门禁要求该接入点恰好为 1。Phase 0 指标继续作为后续工作基线保留。
 
-执行快照（2026-07-17，Debug）：构建成功；架构门禁和公开头检查通过；GpuInitializationTransaction 定向测试 8 passed / 0 failed，全量测试 165 passed / 0 failed。新增纯逻辑测试覆盖固定顺序提交、三处初始化失败逆序回滚、失败后禁止重试、未开始/重复 shutdown 和清理异常隔离；未启动真实 SDL/GPU。架构指标为 `UiRuntime::current()` 302 处、PUBLIC 内部 include 2 项、PUBLIC 内部依赖 3 项、生产帧 queued-event 派发点 0。
+WP5 接入前执行快照（2026-07-17，Debug）：构建成功；架构门禁和公开头检查通过；PublicLeafHeaders/TweenSystem 定向测试 7 passed / 0 failed，全量测试 167 passed / 0 failed。新增测试验证 `TweenOptions` 的 standard-layout、trivially-copyable、四项默认值及旧路径兼容；架构门禁验证公共头不反向包含旧内部头且旧头保持纯转发。当时架构指标为 `UiRuntime::current()` 302 处、PUBLIC 内部 include 2 项、PUBLIC 内部依赖 3 项、生产帧 queued-event 派发点 0。
 剩余公共头仍受 `src/common` Eigen 值类型以及 Factory/Runtime 边界阻塞；下一批应完成基础数学值类型决策，
 不应直接强制收紧 PUBLIC include/link。
+
+WP5 public queued event 固定阶段批次执行快照（2026-07-17，Debug）：构建成功；架构门禁和公开头检查通过；
+TaskChain/PublicEvent 定向测试 13 passed / 0 failed，全量测试 170 passed / 0 failed。`QueuedTask` 现在显式激活其绑定
+Runtime，并在 Timer 与内部 buffered events 后自动调用唯一的公开队列派发点；测试覆盖同步不触发、下一调度帧派发、
+递归入队延后一帧和多 Runtime 隔离。架构指标为 `UiRuntime::current()` 302 处、PUBLIC 内部 include 2 项、
+PUBLIC 内部依赖 3 项、生产帧 queued-event 派发点 1。唯一 FrameTick、Task 节流策略和即时补救白名单仍未完成。
 
 错误基础设施公共化批次已完成：权威 `ErrorCodes.hpp`、`Result.hpp` 已迁入 `include/ui/`，
 `src/common` 下保留兼容转发头，内部实现和测试已切换到稳定公共路径。架构门禁现已禁止公共头重新包含
