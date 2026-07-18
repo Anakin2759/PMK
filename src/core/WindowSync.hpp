@@ -148,7 +148,7 @@ inline void SyncWindowPosition(entt::entity entity, SDL_Window* sdlWindow)
     constexpr float POSITION_EPSILON = 0.01F;
     if (std::abs(posComp->value.x()) < POSITION_EPSILON && std::abs(posComp->value.y()) < POSITION_EPSILON)
     {
-        posComp->value = Eigen::Vector2f{static_cast<float>(currentX), static_cast<float>(currentY)};
+        posComp->value = ui::Vec2{static_cast<float>(currentX), static_cast<float>(currentY)};
         return;
     }
 
@@ -190,7 +190,7 @@ inline void SyncWindowSize(entt::entity entity, SDL_Window* sdlWindow)
     {
         if (currentWidth > 0 && currentHeight > 0)
         {
-            sizeComp->size = Eigen::Vector2f{static_cast<float>(currentWidth), static_cast<float>(currentHeight)};
+            sizeComp->size = ui::Vec2{static_cast<float>(currentWidth), static_cast<float>(currentHeight)};
         }
         return;
     }

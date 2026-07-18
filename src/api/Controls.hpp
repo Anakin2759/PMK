@@ -14,10 +14,15 @@
  */
 #pragma once
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "ui/Callback.hpp"
+#include "ui/Color.hpp"
+#include "ui/MathTypes.hpp"
 #include "ui/api/Entity.hpp"
 #include "ui/Policies.hpp"
-#include "common/Types.hpp"
 #include "ui/api/Chains.hpp"
 
 namespace ui::controls

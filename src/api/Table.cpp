@@ -1,4 +1,4 @@
-#include "Table.hpp"
+#include "ui/api/Table.hpp"
 
 #include <string>
 #include <utility>

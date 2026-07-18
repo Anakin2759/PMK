@@ -20,21 +20,20 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <cmath>
 #include <concepts>
 #include <functional>
 #include <type_traits>
+#include <utility>
 
+#include "common/EigenConversions.hpp"
 #include "ui/Color.hpp" // IWYU pragma: export -- legacy aggregate include
+#include "ui/MathTypes.hpp" // IWYU pragma: export -- legacy aggregate include
 
 namespace ui
 {
 
 // ===================== 基础向量类型 =====================
-
-/**
- * @brief 2D向量类型（替代ImVec2）
- */
-using Vec2 = Eigen::Vector2f;
 
 /**
  * @brief 3D向量类型
@@ -70,73 +69,6 @@ using Transform2D = Eigen::Affine2f;
  * @brief 仿射变换类型（3D）
  */
 using Transform3D = Eigen::Affine3f;
-
-// ===================== 矩形类型 =====================
-
-/**
- * @brief 轴对齐矩形（AABB）
- */
-struct Rect
-{
-    Vec2 position{0.0F, 0.0F}; // 左上角位置
-    Vec2 size{0.0F, 0.0F};     // 尺寸
-
-    Rect() = default;
-    Rect(float posX, float posY, float width, float height) : position(posX, posY), size(width, height) {}
-    Rect(const Vec2& pos, const Vec2& sizeVal) : position(pos), size(sizeVal) {}
-
-    [[nodiscard]] float x() const { return position.x(); }
-    [[nodiscard]] float y() const { return position.y(); }
-    [[nodiscard]] float width() const { return size.x(); }
-    [[nodiscard]] float height() const { return size.y(); }
-
-    [[nodiscard]] float left() const { return position.x(); }
-    [[nodiscard]] float top() const { return position.y(); }
-    [[nodiscard]] float right() const { return position.x() + size.x(); }
-    [[nodiscard]] float bottom() const { return position.y() + size.y(); }
-
-    [[nodiscard]] Vec2 topLeft() const { return position; }
-    [[nodiscard]] Vec2 topRight() const { return Vec2(right(), top()); }
-    [[nodiscard]] Vec2 bottomLeft() const { return Vec2(left(), bottom()); }
-    [[nodiscard]] Vec2 bottomRight() const { return position + size; }
-    [[nodiscard]] Vec2 center() const { return position + (size * 0.5F); }
-
-    /**
-     * @brief 点是否在矩形内
-     */
-    [[nodiscard]] bool contains(const Vec2& point) const
-    {
-        return point.x() >= left() && point.x() <= right() && point.y() >= top() && point.y() <= bottom();
-    }
-
-    /**
-     * @brief 矩形是否相交
-     */
-    [[nodiscard]] bool intersects(const Rect& other) const
-    {
-        return other.left() <= right() && other.right() >= left() && other.top() <= bottom() && other.bottom() >= top();
-    }
-
-    /**
-     * @brief 扩展矩形
-     */
-    [[nodiscard]] Rect expanded(float amount) const
-    {
-        return Rect(position.x() - amount, position.y() - amount, size.x() + (amount * 2), size.y() + (amount * 2));
-    }
-
-    /**
-     * @brief 按边距缩小矩形
-     */
-    [[nodiscard]] Rect shrunk(const Vec4& margins) const
-    {
-        // margins: (top, right, bottom, left)
-        return Rect(position.x() + margins.w(),
-                    position.y() + margins.x(),
-                    size.x() - margins.y() - margins.w(),
-                    size.y() - margins.x() - margins.z());
-    }
-};
 
 // ===================== 边距/内边距类型 =====================
 
@@ -234,9 +166,9 @@ inline Mat2 Scale2D(float scaleX, float scaleY)
 inline Transform2D MakeTransform2D(const Vec2& translation, float rotation = 0.0F, const Vec2& scale = Vec2(1, 1))
 {
     Transform2D transform = Transform2D::Identity();
-    transform.translate(translation);
+    transform.translate(detail::eigen::ToEigen(translation));
     transform.rotate(rotation);
-    transform.scale(scale);
+    transform.scale(detail::eigen::ToEigen(scale));
     return transform;
 }
 

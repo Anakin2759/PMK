@@ -229,11 +229,14 @@ def count_matches(root: Path):
             locations.setdefault(("detail-cpp-not-in-ui-sources", *key), []).append((1, rel))
 
     migrated_api_headers = {
+        "Animation.hpp",
         "Chains.hpp",
         "Entity.hpp",
         "Event.hpp",
         "Hierarchy.hpp",
         "Icon.hpp",
+        "Image.hpp",
+        "Table.hpp",
         "Layout.hpp",
         "Log.hpp",
         "Query.hpp",
@@ -241,6 +244,7 @@ def count_matches(root: Path):
         "Size.hpp",
         "State.hpp",
         "Theme.hpp",
+        "Text.hpp",
         "Timer.hpp",
         "Visibility.hpp",
     }

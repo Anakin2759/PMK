@@ -16,7 +16,8 @@
 
 #include "ui/api/Entity.hpp"
 #include <vector>
-#include "common/Types.hpp"
+#include "ui/Color.hpp"
+#include "ui/MathTypes.hpp"
 #include "ui/api/Chains.hpp"
 
 namespace ui::canvas

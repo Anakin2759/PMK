@@ -15,11 +15,13 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <string>
 #include <type_traits>
 #include "ui/Geometry.hpp"
+#include "ui/MathTypes.hpp"
 #include "ui/api/Entity.hpp"
 #include "ui/Policies.hpp"
-#include "common/Types.hpp"
 #include "ui/api/Chains.hpp"
 
 namespace ui
@@ -138,7 +140,7 @@ template <typename EntityLike>
     return GetScrollMaxOffset(static_cast<ui::entity>(entity), isVertical);
 }
 
-void InvokeTask(UiRuntime& runtime, ::ui::VoidCallback func);
+void InvokeTask(UiRuntime& runtime, std::function<void()> func);
 using TaskHandle = uint32_t;
 /**
  * @brief 注册一个定时任务，返回任务句柄
@@ -146,7 +148,7 @@ using TaskHandle = uint32_t;
  * @param func 任务函数
  * @return 任务句柄
  */
-TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, ::ui::VoidCallback func);
+TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, std::function<void()> func);
 /**
  * @brief 取消注册一个定时任务
  * @param handle 任务句柄

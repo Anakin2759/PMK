@@ -87,6 +87,13 @@ target_compile_options(ui_public_header_check PRIVATE
 )
 add_dependencies(ui_api_tests ui_public_header_check)
 
+add_library(ui_public_math_types_header_check OBJECT
+    ${CMAKE_SOURCE_DIR}/tests/support/PublicMathTypesHeaderCheck.cpp
+)
+target_compile_features(ui_public_math_types_header_check PRIVATE cxx_std_23)
+target_include_directories(ui_public_math_types_header_check PRIVATE ${CMAKE_SOURCE_DIR}/include)
+add_dependencies(ui_api_tests ui_public_math_types_header_check)
+
 include(GoogleTest)
 gtest_discover_tests(ui_unit_tests PROPERTIES LABELS "unit")
 gtest_discover_tests(ui_ecs_tests PROPERTIES LABELS "ecs")

@@ -118,8 +118,10 @@ TEST_F(VisibilityTest, HideOnInvalidEntityIsNoOp)
 
 TEST_F(VisibilityTest, WindowSizeTargetUsesPositiveEcsSize)
 {
+    constexpr float WIDTH = 160.0F;
+    constexpr float HEIGHT = 300.0F;
     components::Size size{};
-    size.size = Eigen::Vector2f{160.0F, 300.0F};
+    size.size = ui::Vec2{WIDTH, HEIGHT};
 
     int width = 0;
     int height = 0;
@@ -131,27 +133,31 @@ TEST_F(VisibilityTest, WindowSizeTargetUsesPositiveEcsSize)
 
 TEST_F(VisibilityTest, WindowSizeTargetRejectsNonPositiveSize)
 {
+    constexpr float WIDTH = 160.0F;
+    constexpr float HEIGHT = 300.0F;
     components::Size size{};
     int width = 0;
     int height = 0;
 
-    size.size = Eigen::Vector2f{0.0F, 300.0F};
+    size.size = ui::Vec2{0.0F, HEIGHT};
     EXPECT_FALSE(window_sync::TryGetWindowSizeTarget(size, width, height));
 
-    size.size = Eigen::Vector2f{160.0F, -1.0F};
+    size.size = ui::Vec2{WIDTH, -1.0F};
     EXPECT_FALSE(window_sync::TryGetWindowSizeTarget(size, width, height));
 }
 
 TEST_F(VisibilityTest, WindowSizeTargetRejectsNonFiniteSize)
 {
+    constexpr float WIDTH = 160.0F;
+    constexpr float HEIGHT = 300.0F;
     components::Size size{};
     int width = 0;
     int height = 0;
 
-    size.size = Eigen::Vector2f{std::numeric_limits<float>::infinity(), 300.0F};
+    size.size = ui::Vec2{std::numeric_limits<float>::infinity(), HEIGHT};
     EXPECT_FALSE(window_sync::TryGetWindowSizeTarget(size, width, height));
 
-    size.size = Eigen::Vector2f{160.0F, std::numeric_limits<float>::quiet_NaN()};
+    size.size = ui::Vec2{WIDTH, std::numeric_limits<float>::quiet_NaN()};
     EXPECT_FALSE(window_sync::TryGetWindowSizeTarget(size, width, height));
 }
 

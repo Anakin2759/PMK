@@ -765,7 +765,7 @@ void StateSystem::PointerStateHelpers::handleEntityRelease(StateSystem& system,
     constexpr float CLICK_DRAG_THRESHOLD_SQ = 9.0F;
     const Vec2 releaseDragDistance = event.raw.position - state.activePressPosition;
     const bool suppressClick =
-        state.activeDragMoved || hadScrollbarDrag || releaseDragDistance.squaredNorm() > CLICK_DRAG_THRESHOLD_SQ;
+        state.activeDragMoved || hadScrollbarDrag || LengthSquared(releaseDragDistance) > CLICK_DRAG_THRESHOLD_SQ;
 
     if (system.m_isDraggingSlider)
     {
@@ -1206,7 +1206,7 @@ void StateSystem::onHitPointerMove(const events::HitPointerMove& event)
     {
         constexpr float CLICK_DRAG_THRESHOLD_SQ = 9.0F;
         const Vec2 dragDistance = event.raw.position - state.activePressPosition;
-        state.activeDragMoved = dragDistance.squaredNorm() > CLICK_DRAG_THRESHOLD_SQ;
+        state.activeDragMoved = LengthSquared(dragDistance) > CLICK_DRAG_THRESHOLD_SQ;
     }
 
     if (m_isDraggingSlider)

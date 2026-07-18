@@ -12,6 +12,7 @@
 #include <stack>
 #include <unordered_map>
 #include "common/GlobalContext.hpp"
+#include "common/EigenConversions.hpp"
 #include "common/components/Window.hpp"
 #include "common/AppConfig.hpp"
 #include "core/WindowSync.hpp"
@@ -337,7 +338,7 @@ void RenderSystem::update()
             Eigen::Vector2f rootOffset = Eigen::Vector2f(0, 0);
             if (const auto* pos = m_reg->try_get<components::Position>(windowEntity))
             {
-                rootOffset = -pos->value;
+                rootOffset = -detail::eigen::ToEigen(pos->value);
             }
 
             rootContext.position = rootOffset;
@@ -453,19 +454,22 @@ void RenderSystem::collectRenderData(entt::entity entity, core::RenderContext& c
         const auto* offsetComp = m_reg->try_get<components::RenderOffset>(currentEntity);
 
         float const globalAlpha = currentContext.alpha * (alphaComp != nullptr ? alphaComp->value : 1.0F);
-        Eigen::Vector2f absolutePos = currentContext.position + pos.value;
-        Eigen::Vector2f finalSize = size.size;
+        const Eigen::Vector2f position = detail::eigen::ToEigen(pos.value);
+        const Eigen::Vector2f componentSize = detail::eigen::ToEigen(size.size);
+        Eigen::Vector2f absolutePos = currentContext.position + position;
+        Eigen::Vector2f finalSize = componentSize;
 
         if (offsetComp != nullptr)
         {
-            absolutePos += offsetComp->value;
+            absolutePos += detail::eigen::ToEigen(offsetComp->value);
         }
 
         if (scaleComp != nullptr)
         {
-            Eigen::Vector2f const scaleDiff = size.size.cwiseProduct(Eigen::Vector2f::Ones() - scaleComp->value);
+            const Eigen::Vector2f scale = detail::eigen::ToEigen(scaleComp->value);
+            Eigen::Vector2f const scaleDiff = componentSize.cwiseProduct(Eigen::Vector2f::Ones() - scale);
             absolutePos += scaleDiff * 0.5F;
-            finalSize = size.size.cwiseProduct(scaleComp->value);
+            finalSize = componentSize.cwiseProduct(scale);
         }
 
         Eigen::Vector2f contentOffset(0.0F, 0.0F);
@@ -487,7 +491,7 @@ void RenderSystem::collectRenderData(entt::entity entity, core::RenderContext& c
             scissorRect.h = static_cast<int>(std::max(0.0F, viewportRect.height()));
 
             childBaseContext.pushScissor(scissorRect);
-            contentOffset = -scrollArea->scrollOffset;
+            contentOffset = -detail::eigen::ToEigen(scrollArea->scrollOffset);
         }
         else if (m_reg->any_of<components::LayoutInfo>(currentEntity))
         {

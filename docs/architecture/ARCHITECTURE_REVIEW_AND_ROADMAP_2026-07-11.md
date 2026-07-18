@@ -31,7 +31,7 @@
 | Phase 0：架构基线 | **completed** | **100%** | 静态门禁已统计 `UiRuntime::current()`、PUBLIC include/link 和 queued-event 派发点；`FrameContext` 已记录每调度帧 Layout/Render update 次数；`test_TaskChain.cpp` 覆盖常规帧、即时追加和下一帧复位 | 无剩余交付项；指标继续作为后续工作基线保留 |
 | WP1 Runtime 与失败路径 | **active** | **65%** | 已有 `UiRuntime::tryCurrent()`；Runtime 构造不再切换 current；`UiRuntimeScope` 支持嵌套恢复；活动 Runtime 异常提前销毁会清除 stale current；`ApplicationImpl` 持有长期 scope；`CreateApplication()` catch 使用 stderr 后备路径；已有 5 个 Runtime 定向测试 | **没有** SDL 初始化失败注入测试；**没有**统一定义无 active Runtime 时所有 legacy API 的失败行为；非 Application 代码仍大量调用 `UiRuntime::current()` |
 | WP2 System 连接生命周期 | **completed** | **100%** | 已建立 `ASSEMBLING / REGISTERED / STOPPED` 状态机；register/unregister 在 manager 层幂等；`removeSystem()` 在 REGISTERED 状态下先 unregister 再 erase；注册后追加明确返回 `false`；manager 级测试覆盖 phase 排序、重复注册/注销、移除后事件不再触发、追加拒绝及全部 12 个内建 System 的 phase 契约 | 无剩余交付项；后续新增内建 System 必须同步更新 phase 契约测试 |
-| WP3 构建与 SDK 边界 | **blocked / active** | **74%** | `src/detail/` 已清零；多批 API 头及 Error/Result、Policies 已迁入 `include/`；Icon/Layout/Query/Size/Visibility 已完成叶子头迁移；`ui::Color` 已是无 Eigen 的公共值类型；已有公共 Callback、滚动条几何 DTO 和 `TweenOptions`；架构门禁和公开头编译测试已覆盖 | **没有**收紧 PUBLIC include：`${CMAKE_SOURCE_DIR}` 和 `src/` 仍公开；**没有**收紧 PUBLIC link：EnTT/Eigen/spdlog 仍传播；**没有**独立 install/export consumer；Utils 的 Rect/Vec2 以及 Controls/Animation 等接口仍受 Vec2/Rect/Eigen 公共 ABI 决策阻塞；Text/Table 尚待迁移 |
+| WP3 构建与 SDK 边界 | **active** | **85%** | `src/detail/` 已清零；多批公共头及 Animation/Image/Table 已迁入 `include/`；已落地无第三方依赖的 `Color`、`Vec2`、`Rect`、Callback、Geometry DTO 和 TweenOptions；Canvas/Controls/Factory/Utils 的公开头已移除 `common/Types.hpp` 直接依赖；Eigen 运算边界使用显式转换；独立 MathTypes header check 无需 Eigen | **没有**迁移 Canvas/Controls/Factory/Utils 的物理头路径；**没有**完成 Types.hpp 其余职责拆分；**没有**收紧 PUBLIC include/link；**没有**独立 install/export consumer |
 | WP4 GPU shutdown | **active** | **70%** | 渲染实现已物理拆分；Application 保证 RenderSystem 先于 `SDL_Quit()`；首窗 claim 后锁定 device/backend；`ImageManager` 使用创建 device 绑定的 RAII owner；固定三节点事务统一初始化失败回滚与重复 cleanup；独立 offscreen/software 集成测试已连续三轮完成每轮 100 次真实窗口创建/关闭 | **没有**完整的 `RenderResourceContext` 所有权边界；fallback 100 次基线不等于真实 GPU 生命周期；**没有**真实 GPU 初始化失败注入、资源代际 token 和真实 GPU 100 次窗口验收；device 外部先行失效仍缺少类型级保护 |
 | WP5 单一帧管线 | **active / partial** | **30%** | `TaskChain`、System phase 和帧次数埋点提供了局部顺序及观测基础；公开 `Enqueue()` 已在 `QueuedTask` 的 Timer/内部 buffered events 后、Layout/Render 前自动派发；生产路径恰有一个派发点，递归入队延后一帧且多 Runtime 隔离已有测试 | **没有**唯一 `FrameTick`；Task 内节流尚未统一为 scheduler policy；即时 Layout/Render 补救点尚未形成白名单；输入延迟和全管线单帧约束尚未完整验收 |
 | WP6 Intrinsic Measurement | **not-started** | **0%** | 无本工作包目标实现 | **没有** `IntrinsicMeasureService`；`LayoutSystem.cpp` 仍使用 `content.length() * 8 + 10` 估宽和固定 `SCROLLBAR_GUTTER = 14`；CJK/emoji/shaped metrics 验收未做 |
@@ -46,7 +46,7 @@
 | detail/helper 收敛    | completed | `src/detail/` 清零；内部适配集中到 helper；门禁禁止 detail 文件回归                 |
 | 首批公共 API 头       | completed | Entity、Event、Scale、State、Theme、Timer 迁入`include/ui/api/`                     |
 | DSL 公共 API 头       | completed | Chains、Hierarchy、Log 迁入`include/ui/api/`                                        |
-| 叶子公共 API 头       | completed | Icon、Layout、Query、Size、Visibility 迁入 `include/ui/api/`；旧路径删除并纳入回归门禁 |
+| 叶子公共 API 头       | completed | Animation、Icon、Image、Layout、Query、Size、Table、Visibility、Text 迁入 `include/ui/api/`；旧路径删除并纳入回归门禁 |
 | 公共 Callback 解耦    | completed | 新增 `ui::Callback`；Controls/Text 公开签名移除内部 component callback 依赖          |
 | 滚动条几何 DTO        | completed | 新增无 EnTT/Eigen 依赖的公共标量几何类型；移除伪 component DTO，保持原计算与命中语义 |
 | TweenOptions 公共化   | completed | 权威定义迁至 `include/ui/TweenOptions.hpp`；旧内部头仅兼容转发，默认值和布局契约不变      |
@@ -55,8 +55,8 @@
 | Ninja 构建限流        | completed | 默认 compile pool=2、link pool=1；默认高并发 clang-cl OOM 已止血                      |
 
 **当前主线：** WP2 已完成，WP5 已启动并完成 public queued event 固定阶段的最小批次。下一优先级是继续 WP3 的公共类型解耦、收敛 WP4 的统一 GPU shutdown，并在后续 WP5 批次建立唯一 FrameTick。
-`Types.hpp`/Eigen 的公开类型决策完成前，不机械迁移 Animation 等头，也不强行收紧 CMake
-PUBLIC 传播。WP5～WP9 目前都不能标记为已完成。
+`Vec2`/`Rect` 自有公共值类型已落地，Animation/Image/Table 物理头已迁移；下一批可按依赖面逐个迁移 Canvas/Controls/Factory/Utils
+的物理头路径；在全部公共头闭包和独立 consumer 验收前不强行收紧 CMake PUBLIC 传播。WP5～WP9 目前都不能标记为已完成。
 
 ## 1. 执行摘要
 
@@ -506,11 +506,13 @@ SDL video 已退出；该测试连续独立运行三轮均通过。该批真实�
 | 发布形态 | **同时支持源码内嵌静态库和可安装 SDK，由使用方选择** | WP3/WP9 必须同时保留静态嵌入构建，并完成 install/export/package consumer；两种模式应共享稳定公共头和一致的依赖可见性契约。 |
 | CPU fallback 定位 | **正式后端** | fallback 必须纳入持续测试、生命周期、错误处理和功能契约；不得仅作为调试分支或 GPU 初始化失败后的临时兜底。 |
 | 下一主版本公开实体 API | **允许收敛到 `EntityHandle` 并弃用裸 entity** | WP8 应为裸 entity API 制定明确的 `[[deprecated]]` 周期、迁移文档和 runtime token/句柄失效契约；新增公开 API 优先采用 runtime-bound handle。 |
+| 数学类型与 Eigen 公共 ABI | **公开 API 不再暴露 Eigen；Eigen 仅用于内部运算并在边界显式转换** | WP3 应引入无第三方依赖、standard-layout、trivially-copyable 的自有 `ui::Vec2`/`ui::Rect`；公开头不得包含 Eigen 或以 Eigen alias 作为签名。内部可继续使用 Eigen 矩阵/向量，但仅在运算入口和结果出口转换；完成迁移后将 Eigen 从 PUBLIC 依赖收紧为 PRIVATE。 |
 
 据此，Phase 2 可以直接按“唯一帧阶段自动派发 queued event”推进；Phase 3 必须将 CPU fallback
 视为与 GPU 并列的正式渲染后端；Phase 4 同时验收源码内嵌和可安装 SDK，并允许在下一主版本完成
 `EntityHandle` 收敛。后续规划不得重新以这些事项“尚未决策”为由阻塞实施；若需改变结论，必须新增带日期的
-替代决策并说明兼容与迁移影响。
+替代决策并说明兼容与迁移影响。数学类型决策于 2026-07-18 补充确认，直接解除 WP3 的产品决策阻塞；
+实现仍需按独立工作包完成类型契约、转换边界、API 迁移和 consumer 验收。
 
 ---
 
@@ -555,7 +557,7 @@ flowchart LR
 
 公共头物理迁移已启动，首批 `Entity.hpp`、`Event.hpp`、`Scale.hpp`、`State.hpp`、`Theme.hpp`、`Timer.hpp` 已迁入 `include/ui/api/`，旧 `src/api` 副本已删除，`ui.hpp` 与内部调用点已切换到新路径。架构门禁同时禁止这批头重新出现在 `src/api`。该批次保持构建和公开调用兼容。
 
-尚未执行 CMake PUBLIC include 与 EnTT linkage 的最终收紧：剩余 API 头仍在 `src/api`，且部分公开签名仍引用位于 `src/common` 的 Eigen 值类型。`Controls.hpp`/`Text.hpp` 的 callback 解耦和 `Utils.hpp` 的 scrollbar geometry 公共值类型已经完成；后续必须形成 Eigen 公开类型决策。
+尚未执行 CMake PUBLIC include 与 EnTT linkage 的最终收紧：剩余 API 头仍在 `src/api`，且部分公开签名仍引用位于 `src/common` 的 Eigen 值类型。`Controls.hpp`/`Text.hpp` 的 callback 解耦、Text 稳定头迁移和 `Utils.hpp` 的 scrollbar geometry 公共值类型已经完成。2026-07-18 已确认公开 API 不再暴露 Eigen，后续应落地自有 `Vec2`/`Rect` 并只在内部运算边界转换。
 
 第二批公共 DSL 骨架迁移已完成：`Chains.hpp`、`Hierarchy.hpp`、`Log.hpp` 已迁入
 `include/ui/api/`，旧 `src/api` 副本已删除。其余 API 头统一通过
@@ -573,6 +575,10 @@ Policies、Result 与标准库，不引入 EnTT、component、Runtime 或 Eigen�
 `ui::Callback` 的兼容别名，因此 move-only 语义、参数形式、转发方式和同步调用时机均未改变。架构门禁已禁止公开
 API 头重新包含 `common/components/*`，测试同时验证公共类型与内部兼容别名保持同一具体类型。本批仍未迁移
 Controls 头，因为其 `Callback<Vec2>` 公开签名继续受 `Types.hpp`/Eigen 决策阻塞；Color 已完成公共化，不再是 Text/Table 的阻塞项。
+
+Text 公共头迁移批次已完成：`include/ui/api/Text.hpp` 直接依赖公共 `Callback`、`Color`、`Policies`、Entity 和
+Chains，并显式包含 `<string>`/`<utility>`；不再通过 `common/Types.hpp` 引入 Eigen。旧 `src/api/Text.hpp` 已删除并
+纳入门禁。函数、回调具体类型、DSL 和 move-only 语义均未改变。
 
 纵向滚动条几何公共化批次已完成：新增 `include/ui/Geometry.hpp`，其中 `GeometryRect` 和
 `VerticalScrollbarGeometry` 仅由 `bool`/`float` 组成，保持 standard-layout 与 trivially-copyable，不依赖 EnTT、Eigen、
@@ -606,6 +612,11 @@ DSL 和运行时行为不变。构建、架构门禁与公开头检查通过；V
 全量测试 171 passed / 0 failed。指标保持 302 / 2 / 3 / 1。该批确认 Color 已完成公共化；剩余核心阻塞是
 Vec2/Rect/Eigen ABI、独立 consumer 和 CMake PUBLIC 边界。
 
+WP3 Text 公共头迁移执行快照（2026-07-18，Debug）：构建、架构门禁和公开头检查通过；
+PublicLeafHeaders/MainWindow/ThemeSystem Button 定向测试 15 passed / 0 failed，全量测试 171 passed / 0 failed。
+架构指标保持 302 / 2 / 3 / 1。下一低风险叶子候选是 Table；Controls/Animation/Canvas/Utils/Factory/Image 仍受
+Vec2/Rect/Eigen 公共 ABI 决策约束。
+
 错误基础设施公共化批次已完成：权威 `ErrorCodes.hpp`、`Result.hpp` 已迁入 `include/ui/`，
 `src/common` 下保留兼容转发头，内部实现和测试已切换到稳定公共路径。架构门禁现已禁止公共头重新包含
 `common/ErrorCodes.hpp` 或 `common/Result.hpp`。本批未改变 `UiErrc`、`Error`、`Result<T>`、`TRY` 宏或错误码数值，
@@ -617,5 +628,29 @@ Policies 公共化批次已完成：权威定义迁入 `include/ui/Policies.hpp`
 但不再重复注入运算符。架构门禁已禁止公共头重新依赖 `common/Policies.hpp` 或 `src/traits`。
 
 以上结果复用同一份 2026-07-16 Debug 执行快照，不代表 WP3、Runtime 或发布矩阵已经验收完成。
-下一批候选是动画公共类型，但 `src/api/Animation.hpp` 的公开签名仍依赖 `Types.hpp` 中的 Eigen 别名，
-因此应先决定“原样公共化 Eigen 类型”还是引入自有数学值类型，不能仅移动 Animation 头来伪造 SDK 隔离。
+公共 `Vec2`/`Rect` 基础批次已完成。后续不得重新引入 Eigen alias 或隐式转换；应按公开头依赖复杂度逐个迁移
+Canvas/Controls/Factory/Utils，并继续将 Eigen 运算限制在命名的内部转换边界。
+
+WP3 公共 Vec2/Rect 与 Eigen 边界执行快照（2026-07-18，Debug）：新增 `include/ui/MathTypes.hpp`，固定 Vec2 两个
+float、Rect 四个 float 的布局和最小运算契约；`common/Types.hpp` 已删除 Eigen Vec2 alias 与旧 Rect 权威定义。
+Animation/Canvas/Controls/Factory/Image/Utils/Table 公开头不再直接包含 `common/Types.hpp`，RenderFrame、IconRenderer
+和 Transform helper 在进入 Eigen 运算时显式 `ToEigen()`，StateSystem 使用 `LengthSquared()`。独立 MathTypes header
+check 仅获得项目 `include/` 且无需 Eigen。Debug 构建、架构门禁和公开头检查通过；定向测试 70 passed / 0 failed，
+全量测试 173 passed / 0 failed；指标保持 302 / 2 / 3 / 1。Eigen PRIVATE 化和独立 install/export consumer 仍待后续。
+
+WP3 Image 公共头迁移执行快照（2026-07-18，Debug）：`Image.hpp` 已迁至 `include/ui/api/`，旧
+`src/api/Image.hpp` 已删除并由门禁禁止回归；实现、umbrella header 和 CMake 公共头清单均使用稳定路径。
+Image API 与 DSL 签名、资源加载行为均未改变。Debug 构建、架构门禁和公开头检查通过；PublicLeafHeaders
+定向测试 7 passed / 0 failed，全量测试 173 passed / 0 failed，指标保持 302 / 2 / 3 / 1。下一低风险候选为 Table。
+
+WP3 Table 公共头迁移执行快照（2026-07-18，Debug）：`Table.hpp` 已迁至 `include/ui/api/`，旧
+`src/api/Table.hpp` 已删除并由门禁禁止回归；实现、umbrella header 和 CMake 公共头清单均使用稳定路径。
+Table API、vector move 捕获和 Chain DSL 行为均未改变。Debug 全量构建、架构门禁、umbrella header 和公开头检查
+通过；全量测试 173 passed / 0 failed，指标保持 302 / 2 / 3 / 1。剩余物理头候选为
+Animation/Canvas/Controls/Factory/Utils，均需按依赖面继续拆分，不能据此提前收紧 PUBLIC include/link。
+
+WP3 Animation 公共头迁移执行快照（2026-07-18，Debug）：`Animation.hpp` 已迁至 `include/ui/api/`，旧
+`src/api/Animation.hpp` 已删除并由门禁禁止回归；Animation 实现、Factory 内部调用、umbrella header 和 CMake
+公共头清单均使用稳定路径。公开函数、integral/enum 转发模板、EntityAction 与 Chain DSL 行为均未改变。
+Debug 全量构建、架构门禁、umbrella header 和公开头检查通过；全量测试 173 passed / 0 failed，指标保持
+302 / 2 / 3 / 1。剩余物理头候选为 Canvas/Controls/Factory/Utils；下一低风险候选是 Canvas，但应先补足最小公开契约覆盖。

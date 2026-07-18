@@ -272,9 +272,11 @@ set(UI_HEADERS
     interface/ISystem.hpp
     
     # API
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Animation.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Chains.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Hierarchy.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Icon.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Image.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Layout.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Log.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Query.hpp
@@ -283,8 +285,9 @@ set(UI_HEADERS
     api/Controls.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Event.hpp
     api/Canvas.hpp
-    api/Table.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Table.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Theme.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Text.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Visibility.hpp
     api/Shortcut.hpp
     managers/ImageManager.hpp

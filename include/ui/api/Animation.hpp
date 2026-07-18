@@ -1,14 +1,11 @@
 /**
  * ************************************************************************
  *
- * @file animation.hpp
+ * @file Animation.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-01-27
  * @version 0.1
- * @brief 动画API封装
-  - 提供启动和停止位置与透明度动画的接口
-  - 基于ECS组件实现动画状态管理
-  - 简化动画控制逻辑，便于UI元素动画效果实现
+ * @brief 动画 API 封装
  *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
@@ -17,13 +14,15 @@
  */
 #pragma once
 
+#include <concepts>
 #include <optional>
 #include <type_traits>
 
-#include "ui/api/Chains.hpp"
+#include "ui/Color.hpp"
+#include "ui/MathTypes.hpp"
 #include "ui/TweenOptions.hpp"
+#include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
-#include "common/Types.hpp"
 
 namespace ui::animation
 {

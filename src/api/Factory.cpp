@@ -16,7 +16,7 @@
 #include "ui/api/Hierarchy.hpp"
 #include "SDL3/SDL_error.h"
 #include "Utils.hpp"
-#include "Animation.hpp"
+#include "ui/api/Animation.hpp"
 #include "core/PlatformWindow.hpp"
 #include "systems/TimerSystem.hpp"
 #include "entt/entity/fwd.hpp"

@@ -22,6 +22,7 @@
 #include <cmath>
 
 #include "interface/IRenderer.hpp"
+#include "common/EigenConversions.hpp"
 #include "utils/Registry.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Layout.hpp"
@@ -64,7 +65,7 @@ public:
 
         // 计算图标的绘制位置和大小
         // 使用组件定义的尺寸和颜色
-        Eigen::Vector2f iconDrawSize = iconComp->size;
+        Eigen::Vector2f iconDrawSize = detail::eigen::ToEigen(iconComp->size);
         Eigen::Vector4f tint = Eigen::Vector4f(
             iconComp->tintColor.red, iconComp->tintColor.green, iconComp->tintColor.blue, iconComp->tintColor.alpha);
 

@@ -1,11 +1,16 @@
 #include <ui/Callback.hpp>
 #include <ui/Color.hpp>
 #include <ui/Geometry.hpp>
+#include <ui/MathTypes.hpp>
 #include <ui/TweenOptions.hpp>
+#include <ui/api/Animation.hpp>
 #include <ui/api/Icon.hpp>
+#include <ui/api/Image.hpp>
+#include <ui/api/Table.hpp>
 #include <ui/api/Layout.hpp>
 #include <ui/api/Query.hpp>
 #include <ui/api/Size.hpp>
+#include <ui/api/Text.hpp>
 #include <ui/api/Visibility.hpp>
 
 #include <gtest/gtest.h>
@@ -70,6 +75,82 @@ TEST(PublicGeometryTest, GeometryTypesArePortableValues)
     static_assert(rect.Contains(1.0F, 2.0F));
     static_assert(rect.Contains(4.0F, 6.0F));
     static_assert(!rect.Contains(4.1F, 6.0F));
+    SUCCEED();
+}
+
+TEST(PublicMathTypesTest, Vec2IsPortableAndKeepsBasicArithmetic)
+{
+    constexpr float ONE = 1.0F;
+    constexpr float TWO = 2.0F;
+    constexpr float THREE = 3.0F;
+    constexpr float FOUR = 4.0F;
+    constexpr float SIX = 6.0F;
+    constexpr float EIGHT = 8.0F;
+    constexpr float TWENTY_FIVE = 25.0F;
+    static_assert(std::is_standard_layout_v<Vec2>);
+    static_assert(std::is_trivially_copyable_v<Vec2>);
+    static_assert(sizeof(Vec2) == sizeof(float) * 2U);
+    static_assert(alignof(Vec2) == alignof(float));
+
+    constexpr Vec2 zero;
+    static_assert(zero == Vec2{0.0F, 0.0F});
+
+    constexpr Vec2 value{THREE, FOUR};
+    static_assert(value.x() == THREE);
+    static_assert(value.y() == FOUR);
+    static_assert(LengthSquared(value) == TWENTY_FIVE);
+    static_assert(value + Vec2{ONE, TWO} == Vec2{FOUR, SIX});
+    static_assert(value - Vec2{ONE, TWO} == Vec2{TWO, TWO});
+    static_assert(-value == Vec2{-THREE, -FOUR});
+    static_assert(value * TWO == Vec2{SIX, EIGHT});
+    static_assert(TWO * value == Vec2{SIX, EIGHT});
+
+    constexpr auto mutated = [=]
+    {
+        Vec2 result{ONE, TWO};
+        result.x() = THREE;
+        result.y() = FOUR;
+        result += Vec2{ONE, ONE};
+        result -= Vec2{TWO, ONE};
+        result *= TWO;
+        return result;
+    }();
+    static_assert(mutated == Vec2{FOUR, EIGHT});
+    SUCCEED();
+}
+
+TEST(PublicMathTypesTest, RectKeepsFourFloatLayoutAndClosedBounds)
+{
+    constexpr float OUTSIDE_LEFT = 0.9F;
+    constexpr float LEFT = 1.0F;
+    constexpr float TOP = 2.0F;
+    constexpr float WIDTH = 3.0F;
+    constexpr float HEIGHT = 4.0F;
+    constexpr float RIGHT = 4.0F;
+    constexpr float OUTSIDE_RIGHT = 4.1F;
+    constexpr float BOTTOM = 6.0F;
+    static_assert(std::is_standard_layout_v<Rect>);
+    static_assert(std::is_trivially_copyable_v<Rect>);
+    static_assert(sizeof(Rect) == sizeof(float) * 4U);
+    static_assert(alignof(Rect) == alignof(float));
+
+    constexpr Rect rect{LEFT, TOP, WIDTH, HEIGHT};
+    static_assert(rect.x() == LEFT);
+    static_assert(rect.y() == TOP);
+    static_assert(rect.width() == WIDTH);
+    static_assert(rect.height() == HEIGHT);
+    static_assert(rect.left() == LEFT);
+    static_assert(rect.top() == TOP);
+    static_assert(rect.right() == RIGHT);
+    static_assert(rect.bottom() == BOTTOM);
+    static_assert(rect.contains({LEFT, TOP}));
+    static_assert(rect.contains({RIGHT, BOTTOM}));
+    static_assert(!rect.contains({OUTSIDE_LEFT, TOP}));
+    static_assert(!rect.contains({OUTSIDE_RIGHT, BOTTOM}));
+
+    constexpr Rect vectorRect{Vec2{LEFT, TOP}, Vec2{WIDTH, HEIGHT}};
+    static_assert(vectorRect.position == Vec2{LEFT, TOP});
+    static_assert(vectorRect.size == Vec2{WIDTH, HEIGHT});
     SUCCEED();
 }
 
