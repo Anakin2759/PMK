@@ -8,6 +8,15 @@
  */
 #pragma once
 
-// IWYU pragma: begin_exports
-#include "common/EntityTypes.hpp"
-// IWYU pragma: end_exports
+#include <cstdint>
+#include <limits>
+
+namespace ui
+{
+
+using entity = std::uint32_t;
+
+/// @brief 空实体常量。
+inline constexpr entity null_entity = std::numeric_limits<entity>::max();
+
+} // namespace ui

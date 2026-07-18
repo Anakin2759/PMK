@@ -6,7 +6,7 @@
 #include "common/components/Interaction.hpp"
 #include "common/components/Layout.hpp"
 #include <entt/entt.hpp>
-#include "src/api/Controls.hpp"
+#include "ui/api/Controls.hpp"
 #include "ui/api/Hierarchy.hpp"
 #include "src/common/Events.hpp"
 #include "src/common/Tags.hpp"
@@ -110,6 +110,27 @@ TEST_F(DragDropTest, SetOnDragStartStoresCallback)
 
     controls::SetOnDragStart(entity, [&called] { called = true; });
 
+    auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
+    ASSERT_NE(comp, nullptr);
+    ASSERT_TRUE(static_cast<bool>(comp->onDragStart));
+    comp->onDragStart();
+    EXPECT_TRUE(called);
+}
+
+TEST_F(DragDropTest, OnDragStartChainTransfersMoveOnlyCallbackOwnership)
+{
+    constexpr int RESOURCE_VALUE = 42;
+    const auto entity = factory::CreateLabel("D", "drag_cb_move_only");
+    auto owner = std::make_unique<int>(RESOURCE_VALUE);
+    bool called = false;
+
+    entity | chains::OnDragStart([resource = std::move(owner), &called, expected = RESOURCE_VALUE]
+                                 {
+                                     EXPECT_EQ(*resource, expected);
+                                     called = true;
+                                 });
+
+    EXPECT_EQ(owner, nullptr);
     auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
     ASSERT_TRUE(static_cast<bool>(comp->onDragStart));

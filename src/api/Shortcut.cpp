@@ -1,4 +1,4 @@
-#include "Shortcut.hpp"
+#include "ui/api/Shortcut.hpp"
 #include "systems/ShortcutSystem.hpp"
 #include <utility>
 

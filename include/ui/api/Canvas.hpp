@@ -14,11 +14,12 @@
  */
 #pragma once
 
-#include "ui/api/Entity.hpp"
 #include <vector>
+
 #include "ui/Color.hpp"
 #include "ui/MathTypes.hpp"
 #include "ui/api/Chains.hpp"
+#include "ui/api/Entity.hpp"
 
 namespace ui::canvas
 {
@@ -29,29 +30,20 @@ void DrawRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, fl
 void DrawFilledRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color);
 void DrawCircle(ui::entity entity, Vec2 center, float radius, Color color, float lineWidth = 1.0F);
 void DrawFilledCircle(ui::entity entity, Vec2 center, float radius, Color color);
-
-// ---- 新增：折线 & 三次贝塞尔 ----
 void DrawPolyline(ui::entity entity, std::vector<Vec2> points, Color color, float lineWidth = 1.0F);
-
 void DrawCubicBezier(
     ui::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color, float lineWidth = 1.0F);
 
-// ---- Painter：路径构建器，调用 commit() 将路径写入 Canvas ----
+/** @brief 路径构建器，调用 commit() 将路径写入 Canvas。 */
 class Painter
 {
 public:
     explicit Painter(ui::entity canvas) : m_canvas(canvas) {}
 
-    // 移动画笔（不绘制）
     Painter& moveTo(Vec2 pos);
-    // 连线到目标点（添加线段）
     Painter& lineTo(Vec2 pos);
-    // 三次贝塞尔曲线（控制点1 + 控制点2 + 终点）
     Painter& cubicTo(Vec2 cp1, Vec2 cp2, Vec2 endPos);
-    // 将当前路径直接设置为折线顶点（替换内部点列表）
     Painter& polyline(std::vector<Vec2> points);
-
-    // 提交当前路径为一条折线到 Canvas（清空内部路径）
     Painter& commit(Color color, float lineWidth = 1.0F);
 
 private:

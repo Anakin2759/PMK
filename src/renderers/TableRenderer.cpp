@@ -25,7 +25,7 @@
 #include "SDL3/SDL_gpu.h"
 #include "SDL3/SDL_rect.h"
 #include "common/RenderTypes.hpp"
-#include "common/Scale.hpp"
+#include "ui/api/Scale.hpp"
 #include "common/Types.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Interaction.hpp"

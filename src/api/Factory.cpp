@@ -1,6 +1,6 @@
 
 
-#include "Factory.hpp"
+#include "ui/api/Factory.hpp"
 #include "ui/api/Scale.hpp"
 #include "common/Tags.hpp"
 #include "ui/Policies.hpp"
@@ -15,7 +15,7 @@
 #include "utils/Dispatcher.hpp"
 #include "ui/api/Hierarchy.hpp"
 #include "SDL3/SDL_error.h"
-#include "Utils.hpp"
+#include "ui/api/Utils.hpp"
 #include "ui/api/Animation.hpp"
 #include "core/PlatformWindow.hpp"
 #include "systems/TimerSystem.hpp"
@@ -26,7 +26,6 @@
 #include "common/components/Interaction.hpp"
 #include "common/components/Data.hpp"
 #include "ui/Result.hpp"
-#include "core/Application.hpp"
 #include "core/UiRuntime.hpp"
 #include "helper/Helper.hpp"
 #include "entt/entity/entity.hpp"

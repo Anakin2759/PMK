@@ -41,11 +41,6 @@ namespace ui
 using Vec3 = Eigen::Vector3f;
 
 /**
- * @brief 4D向量类型（替代ImVec4，用于边距/内边距等）
- */
-using Vec4 = Eigen::Vector4f;
-
-/**
  * @brief 2x2矩阵类型
  */
 using Mat2 = Eigen::Matrix2f;

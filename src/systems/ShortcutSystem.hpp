@@ -30,7 +30,7 @@
 #include <vector>
 #include <algorithm>
 #include "common/Events.hpp"
-#include "common/Shortcut.hpp"
+#include "ui/api/Shortcut.hpp"
 #include "interface/ISystem.hpp"
 #include "core/UiRuntime.hpp"
 #include "utils/Dispatcher.hpp"

@@ -58,7 +58,6 @@ IMPLEMENTATION_EXTENSIONS = {".c", ".cc", ".cpp", ".cxx"}
 # even when a file already has one allowed include/call of the same kind.
 ALLOWED_API_INCLUDE_COUNTS = Counter(
     {
-        ("src/core/Application.cpp", '#include "api/Factory.hpp"'): 1,
     }
 )
 
@@ -106,15 +105,7 @@ ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
     }
 )
 
-ALLOWED_PUBLIC_CMAKE_DEBT_COUNTS = Counter(
-    {
-        ("src/CMakeLists.txt", "PUBLIC include: ${CMAKE_SOURCE_DIR}"): 1,
-        ("src/CMakeLists.txt", "PUBLIC include: ${CMAKE_CURRENT_SOURCE_DIR}"): 1,
-        ("src/CMakeLists.txt", "PUBLIC link: EnTT::EnTT"): 1,
-        ("src/CMakeLists.txt", "PUBLIC link: Eigen3::Eigen"): 1,
-        ("src/CMakeLists.txt", "PUBLIC link: spdlog::spdlog_header_only"): 1,
-    }
-)
+ALLOWED_PUBLIC_CMAKE_DEBT_COUNTS = Counter({})
 
 ALLOWED_RAW_ACCESS_COUNTS = Counter(
     {
@@ -230,9 +221,12 @@ def count_matches(root: Path):
 
     migrated_api_headers = {
         "Animation.hpp",
+        "Canvas.hpp",
         "Chains.hpp",
+        "Controls.hpp",
         "Entity.hpp",
         "Event.hpp",
+        "Factory.hpp",
         "Hierarchy.hpp",
         "Icon.hpp",
         "Image.hpp",
@@ -246,6 +240,7 @@ def count_matches(root: Path):
         "Theme.hpp",
         "Text.hpp",
         "Timer.hpp",
+        "Utils.hpp",
         "Visibility.hpp",
     }
     for header_name in migrated_api_headers:

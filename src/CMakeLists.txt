@@ -159,6 +159,7 @@ set(UI_SOURCES
     managers/TextTextureCache.cpp
     ${UI_STD_EMBED_RESOURCE_TABLE_SOURCE}
     api/Size.cpp
+    api/Scale.cpp
     api/Visibility.cpp
     api/Layout.cpp
     api/Text.cpp
@@ -236,6 +237,8 @@ set(UI_HEADERS
     managers/StdEmbedResourceTable.hpp
     
     # Core
+    ${CMAKE_SOURCE_DIR}/include/ui/Application.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/WindowsMacroShield.hpp
     core/Application.hpp
     core/SystemManager.hpp
     core/EventLoop.hpp
@@ -272,6 +275,7 @@ set(UI_HEADERS
     interface/ISystem.hpp
     
     # API
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Factory.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Animation.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Chains.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Hierarchy.hpp
@@ -280,21 +284,23 @@ set(UI_HEADERS
     ${CMAKE_SOURCE_DIR}/include/ui/api/Layout.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Log.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Query.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Scale.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Size.hpp
-    api/Utils.hpp
-    api/Controls.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Utils.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Controls.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Event.hpp
-    api/Canvas.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Canvas.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Table.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Theme.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Text.hpp
     ${CMAKE_SOURCE_DIR}/include/ui/api/Visibility.hpp
-    api/Shortcut.hpp
+    ${CMAKE_SOURCE_DIR}/include/ui/api/Shortcut.hpp
     managers/ImageManager.hpp
     systems/ShortcutSystem.hpp
 )
 # UI 模块库定义
 add_library(ui STATIC ${UI_SOURCES} ${UI_HEADERS})
+add_library(VMPUI::ui ALIAS ui)
 
 target_precompile_headers(ui PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp>"
@@ -304,11 +310,11 @@ target_precompile_headers(ui PRIVATE
 target_include_directories(ui
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/third_party/stb
     PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
 if(_UI_DO_SHADER_COMPILE)
@@ -491,17 +497,14 @@ target_link_libraries(ui PRIVATE
     yogacore
     freetype
     harfbuzz
+    EnTT::EnTT
+    Eigen3::Eigen
+    spdlog::spdlog_header_only
 )
 
 if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
     target_link_libraries(ui PRIVATE ui_fonts)
 endif()
-
-target_link_libraries(ui PUBLIC
-    EnTT::EnTT
-    Eigen3::Eigen
-    spdlog::spdlog_header_only
-)
 
 target_compile_definitions(ui PRIVATE UI_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
 
@@ -589,5 +592,34 @@ if(ENABLE_COVERAGE AND MSVC)
     target_compile_options(ui PRIVATE /Zi /Od)
     target_link_options(ui PRIVATE /DEBUG)
 endif()
+
+# ==================== SDK install ====================
+install(TARGETS ui
+    EXPORT VMPUITargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
+    set_property(TARGET cmrc-base APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
+    install(TARGETS ui_fonts cmrc-base
+        EXPORT VMPUITargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(FILES "${CMRC_INCLUDE_DIR}/cmrc/cmrc.hpp"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/cmrc"
+    )
+endif()
+
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/include/"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
 
 

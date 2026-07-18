@@ -5,7 +5,7 @@
  * Implementation for Application
  */
 
-#include "Application.hpp"
+#include "ui/Application.hpp"
 #include "ApplicationLifecycle.hpp"
 
 #include <algorithm>
@@ -33,7 +33,7 @@
 #include "common/GlobalContext.hpp"
 #include "core/EventLoop.hpp"
 #include "core/PlatformWindow.hpp"
-#include "api/Factory.hpp"
+#include "ui/api/Factory.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Logger.hpp"
 

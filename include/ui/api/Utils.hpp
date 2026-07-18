@@ -18,11 +18,12 @@
 #include <functional>
 #include <string>
 #include <type_traits>
+
 #include "ui/Geometry.hpp"
 #include "ui/MathTypes.hpp"
-#include "ui/api/Entity.hpp"
 #include "ui/Policies.hpp"
 #include "ui/api/Chains.hpp"
+#include "ui/api/Entity.hpp"
 
 namespace ui
 {
@@ -38,7 +39,6 @@ void SetWindowFlag(ui::entity entity, policies::WindowFlag flag);
 void MarkLayoutChanged(ui::entity entity);
 void MarkVisualChanged(ui::entity entity);
 void MarkLayoutAndVisualChanged(ui::entity entity);
-
 void MarkLayoutDirty(ui::entity entity);
 void MarkRenderDirty(ui::entity entity);
 void CloseWindow(ui::entity entity);
@@ -141,32 +141,17 @@ template <typename EntityLike>
 }
 
 void InvokeTask(UiRuntime& runtime, std::function<void()> func);
-using TaskHandle = uint32_t;
-/**
- * @brief 注册一个定时任务，返回任务句柄
- * @param interval 间隔时间（毫秒）
- * @param func 任务函数
- * @return 任务句柄
- */
-TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, std::function<void()> func);
-/**
- * @brief 取消注册一个定时任务
- * @param handle 任务句柄
- */
+using TaskHandle = std::uint32_t;
+TaskHandle TimerCallback(UiRuntime& runtime, std::uint32_t interval, std::function<void()> func);
 void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle);
-
-// 判断根据别名判断实体是否存在
 bool IsEntityExist(const std::string& alias);
 
 } // namespace ui::utils
 
-namespace ui::actions
-{
-namespace utils
+namespace ui::actions::utils
 {
 inline constexpr EntityAction<&ui::utils::SetWindowFlag> SET_WINDOW_FLAG_ACTION{};
-} // namespace utils
-} // namespace ui::actions
+} // namespace ui::actions::utils
 
 namespace ui::chains
 {
@@ -174,5 +159,4 @@ inline auto WindowFlag(policies::WindowFlag flag)
 {
     return ui::actions::utils::SET_WINDOW_FLAG_ACTION.bind(flag);
 }
-
 } // namespace ui::chains

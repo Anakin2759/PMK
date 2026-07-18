@@ -2,7 +2,7 @@
 
 # VMP-ui 架构锐评与演进路线（2026-07-11）
 
-> 状态：active（Phase 0 已完成；Phase 1 分项推进；WP3 最终 SDK 边界收紧仍受公共头依赖阻塞）
+> 状态：active（Phase 0 已完成；Phase 1 分项推进；WP3 SDK/CMake 边界已闭环）
 > 范围：公开 API、Runtime、事件与帧循环、System、布局、渲染、资源生命周期、CMake、测试与文档治理
 > 原则：先消除确定性风险，再收敛执行模型，最后建设扩展能力。
 
@@ -18,11 +18,10 @@
 
 ### 0.2 一眼可见的结论
 
-- **已完成：2 项**——Phase 0 架构基线、WP2 System 连接生命周期。
+- **已完成：3 项**——Phase 0 架构基线、WP2 System 连接生命周期、WP3 构建与 SDK 边界。
 - **正在推进：4 项**——WP1、WP4、WP5、WP7。
-- **部分完成但受阻：1 项**——WP3，公共头迁移已有成果，但最终 SDK/CMake 边界仍未闭环。
 - **尚未形成目标能力：2 项**——WP6、WP8；它们只有局部基础或前置铺垫。
-- **尚未开始且受前置阻塞：1 项**——WP9。
+- **尚未开始：1 项**——WP9；WP3 前置阻塞已解除，但发布矩阵尚未建设。
 
 ### 0.3 工作包进度看板
 
@@ -31,13 +30,13 @@
 | Phase 0：架构基线 | **completed** | **100%** | 静态门禁已统计 `UiRuntime::current()`、PUBLIC include/link 和 queued-event 派发点；`FrameContext` 已记录每调度帧 Layout/Render update 次数；`test_TaskChain.cpp` 覆盖常规帧、即时追加和下一帧复位 | 无剩余交付项；指标继续作为后续工作基线保留 |
 | WP1 Runtime 与失败路径 | **active** | **65%** | 已有 `UiRuntime::tryCurrent()`；Runtime 构造不再切换 current；`UiRuntimeScope` 支持嵌套恢复；活动 Runtime 异常提前销毁会清除 stale current；`ApplicationImpl` 持有长期 scope；`CreateApplication()` catch 使用 stderr 后备路径；已有 5 个 Runtime 定向测试 | **没有** SDL 初始化失败注入测试；**没有**统一定义无 active Runtime 时所有 legacy API 的失败行为；非 Application 代码仍大量调用 `UiRuntime::current()` |
 | WP2 System 连接生命周期 | **completed** | **100%** | 已建立 `ASSEMBLING / REGISTERED / STOPPED` 状态机；register/unregister 在 manager 层幂等；`removeSystem()` 在 REGISTERED 状态下先 unregister 再 erase；注册后追加明确返回 `false`；manager 级测试覆盖 phase 排序、重复注册/注销、移除后事件不再触发、追加拒绝及全部 12 个内建 System 的 phase 契约 | 无剩余交付项；后续新增内建 System 必须同步更新 phase 契约测试 |
-| WP3 构建与 SDK 边界 | **active** | **85%** | `src/detail/` 已清零；多批公共头及 Animation/Image/Table 已迁入 `include/`；已落地无第三方依赖的 `Color`、`Vec2`、`Rect`、Callback、Geometry DTO 和 TweenOptions；Canvas/Controls/Factory/Utils 的公开头已移除 `common/Types.hpp` 直接依赖；Eigen 运算边界使用显式转换；独立 MathTypes header check 无需 Eigen | **没有**迁移 Canvas/Controls/Factory/Utils 的物理头路径；**没有**完成 Types.hpp 其余职责拆分；**没有**收紧 PUBLIC include/link；**没有**独立 install/export consumer |
+| WP3 构建与 SDK 边界 | **completed** | **100%** | `src/detail/` 已清零；目标公共 API 头均已迁入 `include/` 并形成自包含闭包；`ui::entity` 及 Vec2/Vec4/Rect 权威定义已进入稳定公共头；Factory/Application PImpl 已建立；Windows 通用宏由公共屏蔽层移除；ui 的 PUBLIC 源码 include 与 EnTT/Eigen/spdlog link 债均已清零；已安装可重定位的 `VMPUIConfig.cmake`/`VMPUITargets.cmake`、公共头、静态库及静态链接闭包依赖；隔离安装树 consumer 通过 `find_package(VMPUI CONFIG REQUIRED)` 和 `VMPUI::ui` 编译链接 | 无本工作包剩余验收项；公开完整 UiRuntime 和 Types.hpp 内部矩阵职责拆分转入 Runtime/API 后续治理，不再作为 SDK 边界完成条件 |
 | WP4 GPU shutdown | **active** | **70%** | 渲染实现已物理拆分；Application 保证 RenderSystem 先于 `SDL_Quit()`；首窗 claim 后锁定 device/backend；`ImageManager` 使用创建 device 绑定的 RAII owner；固定三节点事务统一初始化失败回滚与重复 cleanup；独立 offscreen/software 集成测试已连续三轮完成每轮 100 次真实窗口创建/关闭 | **没有**完整的 `RenderResourceContext` 所有权边界；fallback 100 次基线不等于真实 GPU 生命周期；**没有**真实 GPU 初始化失败注入、资源代际 token 和真实 GPU 100 次窗口验收；device 外部先行失效仍缺少类型级保护 |
 | WP5 单一帧管线 | **active / partial** | **30%** | `TaskChain`、System phase 和帧次数埋点提供了局部顺序及观测基础；公开 `Enqueue()` 已在 `QueuedTask` 的 Timer/内部 buffered events 后、Layout/Render 前自动派发；生产路径恰有一个派发点，递归入队延后一帧且多 Runtime 隔离已有测试 | **没有**唯一 `FrameTick`；Task 内节流尚未统一为 scheduler policy；即时 Layout/Render 补救点尚未形成白名单；输入延迟和全管线单帧约束尚未完整验收 |
 | WP6 Intrinsic Measurement | **not-started** | **0%** | 无本工作包目标实现 | **没有** `IntrinsicMeasureService`；`LayoutSystem.cpp` 仍使用 `content.length() * 8 + 10` 估宽和固定 `SCROLLBAR_GUTTER = 14`；CJK/emoji/shaped metrics 验收未做 |
 | WP7 RenderSystem 拆分 | **active / partial** | **25%** | 已拆出 `RenderBackend.cpp`、`RenderResources.cpp`、`RenderFrame.cpp`；已有 `RendererRegistry` 基础 | **没有**真正的 `RenderResourceContext` 和 `RenderPipeline` 类型；`RenderSystemImpl` 仍直接持有 9 类 manager/backend、渲染队列和资源；renderer 分派尚未收敛为唯一机制 |
 | WP8 API 版本化 | **not-started / foundation** | **15%** | 已有 `ui::entity`、`EntityHandle` 和部分 runtime-bound Factory 重载，公共头迁移提供了基础 | **没有**稳定的 runtime-bound handle 生命周期契约；**没有**裸 entity API 的 `[[deprecated]]` 标记、迁移周期和版本化文档；公开 API 尚未收敛到 `EntityHandle` |
-| WP9 构建与发布矩阵 | **blocked / not-started** | **0%** | 仅验证当前 Windows clang-cl Debug 工作树构建 | 项目根目录 **没有** CMake Presets；**没有** UI 库 install/export/package consumer；**没有** Windows/Linux、MSVC/clang-cl/clang/gcc 持续矩阵；需等待 WP3 边界闭环 |
+| WP9 构建与发布矩阵 | **not-started** | **5%** | 已验证当前 Windows clang-cl Debug 工作树构建和隔离安装树 package consumer | 项目根目录 **没有** CMake Presets；**没有** Windows/Linux、MSVC/clang-cl/clang/gcc 持续矩阵；安装包尚未进入 CI 与多配置发布验收 |
 
 ### 已完成的边界迁移批次
 
@@ -46,17 +45,19 @@
 | detail/helper 收敛    | completed | `src/detail/` 清零；内部适配集中到 helper；门禁禁止 detail 文件回归                 |
 | 首批公共 API 头       | completed | Entity、Event、Scale、State、Theme、Timer 迁入`include/ui/api/`                     |
 | DSL 公共 API 头       | completed | Chains、Hierarchy、Log 迁入`include/ui/api/`                                        |
-| 叶子公共 API 头       | completed | Animation、Icon、Image、Layout、Query、Size、Table、Visibility、Text 迁入 `include/ui/api/`；旧路径删除并纳入回归门禁 |
+| 叶子公共 API 头       | completed | Animation、Canvas、Controls、Icon、Image、Layout、Query、Size、Table、Visibility、Text 迁入 `include/ui/api/`；旧路径删除并纳入回归门禁 |
 | 公共 Callback 解耦    | completed | 新增 `ui::Callback`；Controls/Text 公开签名移除内部 component callback 依赖          |
 | 滚动条几何 DTO        | completed | 新增无 EnTT/Eigen 依赖的公共标量几何类型；移除伪 component DTO，保持原计算与命中语义 |
 | TweenOptions 公共化   | completed | 权威定义迁至 `include/ui/TweenOptions.hpp`；旧内部头仅兼容转发，默认值和布局契约不变      |
 | Error / Result 公共化 | completed | 权威头位于`include/ui/`；`src/common` 仅兼容转发；公共头禁止旧路径                |
 | Policies 公共化       | completed | 权威头位于`include/ui/Policies.hpp`；位运算单点提供；内部 traits 不再重复注入运算符 |
+| Factory/Application 边界 | completed | Factory 权威头迁入 `include/ui/api/`；Application PImpl 外壳迁入 `include/ui/`；独立头检查和示例 public-only include 通过 |
+| PUBLIC 构建边界收紧 | completed | ui 仅公开稳定 `include/`；EnTT/Eigen/spdlog 转为 PRIVATE；Event/Scale/Shortcut/Theme 残余源码依赖完成公共闭包 |
+| 安装导出与独立 consumer | completed | 安装 `VMPUI::ui`、公共头及静态依赖闭包；隔离前缀下 `find_package(VMPUI CONFIG REQUIRED)` 编译链接通过 |
 | Ninja 构建限流        | completed | 默认 compile pool=2、link pool=1；默认高并发 clang-cl OOM 已止血                      |
 
-**当前主线：** WP2 已完成，WP5 已启动并完成 public queued event 固定阶段的最小批次。下一优先级是继续 WP3 的公共类型解耦、收敛 WP4 的统一 GPU shutdown，并在后续 WP5 批次建立唯一 FrameTick。
-`Vec2`/`Rect` 自有公共值类型已落地，Animation/Image/Table 物理头已迁移；下一批可按依赖面逐个迁移 Canvas/Controls/Factory/Utils
-的物理头路径；在全部公共头闭包和独立 consumer 验收前不强行收紧 CMake PUBLIC 传播。WP5～WP9 目前都不能标记为已完成。
+**当前主线：** WP2、WP3 已完成，WP5 已启动并完成 public queued event 固定阶段的最小批次。下一优先级是收敛 WP4 的统一 GPU shutdown，并在后续 WP5 批次建立唯一 FrameTick；WP9 的 WP3 前置阻塞已经解除。
+`Vec2`/`Vec4`/`Rect` 自有公共值类型、`ui::entity` 公共权威定义、Factory 物理头、Application PImpl 公开外壳以及可安装 CMake package 均已落地；目标公共头和静态链接闭包已经由独立安装树 consumer 验收。
 
 ## 1. 执行摘要
 
@@ -350,13 +351,15 @@ phase 契约。
 
 ### WP3 构建与 SDK 边界
 
-**当前状态：blocked / active。** 多批公共头迁移和公共 callback 解耦已经完成；最终 CMake 收紧仍被剩余 `src/api`/`src/common`、Eigen 公共类型和独立 consumer 缺失阻塞。
+**当前状态：completed。** 公共头闭包、公共 callback/数学类型解耦、CMake PUBLIC 边界收紧、安装导出和独立安装树 consumer 均已完成。
 
-- EnTT PRIVATE；PUBLIC include 仅公开目录。
-- 区分内部 API 测试和独立 consumer 测试。
-- 更新当前路径和符号对应的架构门禁。
+- ~~EnTT PRIVATE；PUBLIC include 仅公开目录。~~ 已完成。
+- ~~区分内部 API 测试和独立 consumer 测试。~~ 已完成。
+- ~~更新当前路径和符号对应的架构门禁。~~ 已完成。
+- ~~提供 `VMPUIConfig.cmake`、版本文件和 `VMPUI::ui` 导出目标。~~ 已完成。
+- ~~从隔离安装前缀配置并链接调用非 inline API 的独立 consumer。~~ 已完成。
 
-**验收：** 独立 consumer 不需要 EnTT include path；公开头检查与现有测试全部通过。
+**验收：** 独立 consumer 不需要手工添加 EnTT 或源码 include path；公开头检查、Debug 构建、176 项 CTest、架构门禁和安装树静态链接全部通过。
 
 ### WP4 GPU shutdown
 
@@ -629,7 +632,7 @@ Policies 公共化批次已完成：权威定义迁入 `include/ui/Policies.hpp`
 
 以上结果复用同一份 2026-07-16 Debug 执行快照，不代表 WP3、Runtime 或发布矩阵已经验收完成。
 公共 `Vec2`/`Rect` 基础批次已完成。后续不得重新引入 Eigen alias 或隐式转换；应按公开头依赖复杂度逐个迁移
-Canvas/Controls/Factory/Utils，并继续将 Eigen 运算限制在命名的内部转换边界。
+Factory，并继续将 Eigen 运算限制在命名的内部转换边界。
 
 WP3 公共 Vec2/Rect 与 Eigen 边界执行快照（2026-07-18，Debug）：新增 `include/ui/MathTypes.hpp`，固定 Vec2 两个
 float、Rect 四个 float 的布局和最小运算契约；`common/Types.hpp` 已删除 Eigen Vec2 alias 与旧 Rect 权威定义。
@@ -654,3 +657,46 @@ WP3 Animation 公共头迁移执行快照（2026-07-18，Debug）：`Animation.h
 公共头清单均使用稳定路径。公开函数、integral/enum 转发模板、EntityAction 与 Chain DSL 行为均未改变。
 Debug 全量构建、架构门禁、umbrella header 和公开头检查通过；全量测试 173 passed / 0 failed，指标保持
 302 / 2 / 3 / 1。剩余物理头候选为 Canvas/Controls/Factory/Utils；下一低风险候选是 Canvas，但应先补足最小公开契约覆盖。
+
+WP3 Canvas 公共头迁移执行快照（2026-07-18，Debug）：`Canvas.hpp` 已迁至 `include/ui/api/`，旧
+`src/api/Canvas.hpp` 已删除并由门禁禁止回归；实现、umbrella header 和 CMake 公共头清单均使用稳定路径。
+命令式 API、Painter 和 Chain DSL 保持不变；新增 Runtime/GPU-free Painter 契约测试，固定构造、方法签名、fluent
+返回值和单点路径安全提交。Debug 全量构建、架构门禁、umbrella header 和公开头检查通过；全量测试
+174 passed / 0 failed，指标保持 302 / 2 / 3 / 1。剩余物理头候选为 Controls/Factory/Utils。
+
+WP3 Controls 公共头迁移执行快照（2026-07-18，Debug）：`Controls.hpp` 已迁至 `include/ui/api/`，旧
+`src/api/Controls.hpp` 已删除并由门禁禁止回归；实现、DragDrop 测试、umbrella header 和 CMake 公共头清单均使用
+稳定路径。公开 setter、EntityAction 和 Chain DSL 保持不变；新增复杂所有权签名断言及 move-only 资源经
+OnDragStart Chain 转移到组件并成功调用的行为测试。Debug 全量构建、架构门禁、umbrella header 和公开头检查通过；
+全量测试 176 passed / 0 failed，指标保持 302 / 2 / 3 / 1。剩余物理头为 Factory/Utils，均涉及 Runtime/Application 边界。
+
+WP3 Entity/Utils 公共边界执行快照（2026-07-18，Debug）：`ui::entity` 与 `null_entity` 的权威定义已从
+`src/common/EntityTypes.hpp` 移入 `include/ui/api/Entity.hpp`，补齐 `<limits>` 自足依赖；旧内部头变为纯兼容转发。
+`Utils.hpp` 已迁至 `include/ui/api/`，旧 `src/api/Utils.hpp` 已删除并由门禁禁止回归；实现、Factory 内部调用、测试、
+umbrella header 和 CMake 清单均使用稳定路径。新增只获得项目 `include/` 的 PublicUtilsHeaderCheck，固定 TaskHandle、
+InvokeTask 和 TimerCallback 契约且无需 EnTT/Eigen。Debug 全量构建、架构门禁、公开头检查通过；全量测试
+176 passed / 0 failed，指标保持 302 / 2 / 3 / 1。剩余物理头仅 Factory，需先建立 Application/UiRuntime 稳定出口。
+
+WP3 Factory/Application 公共边界执行快照（2026-07-18，Debug）：新增稳定公开 `include/ui/Application.hpp` PImpl
+外壳与 `include/ui/api/Factory.hpp` 权威头，删除旧 `src/api/Factory.hpp`，`src/core/Application.hpp` 仅保留兼容转发；
+Factory 公开头只前置声明 `UiRuntime`，但包含完整 `Application`，确保调用方可安全销毁
+`Result<std::unique_ptr<Application>>`。新增 Application/Factory include-only object checks，示例移除显式源码 include，旧路径纳入
+架构门禁。Debug 全量构建、示例链接、公开头检查和架构门禁通过；全量 CTest 176 passed / 0 failed，指标保持
+302 / 2 / 3 / 1。WP3 提升至 95%，剩余工作是 PUBLIC include/link 收紧、Types.hpp 余项、install/export 与独立 package consumer；
+公开完整 UiRuntime 仍需后续批次处理。Windows 宏策略已选择“公共屏蔽”：`WindowsMacroShield.hpp` 在 Windows 上先幂等包含
+SDK 头，再移除 `CreateWindow`/`CreateDialog` 通用宏，保留显式 Win32 API；后置包含 Windows SDK 的独立编译门禁已通过。
+
+WP3 PUBLIC 构建边界收紧执行快照（2026-07-18，Debug）：`ui` 的 PUBLIC include 仅保留带
+`BUILD_INTERFACE`/`INSTALL_INTERFACE` 的稳定 `include/`，源码根和 `src/` 转为 PRIVATE；EnTT、Eigen、spdlog 从 PUBLIC
+link 收紧为 PRIVATE。收紧后暴露的 Event/Scale/Shortcut/Theme 四处源码闭包已修复：Event DTO、Shortcut API、ThemePalette
+迁入稳定头，Scale 实现 out-of-line；新增自有 `ui::Vec4`，公开数学 ABI 不再依赖 Eigen。示例在只有稳定 include 的条件下
+编译链接通过，Debug 全量构建、架构门禁和 176 项 CTest 均通过。指标由 302 / 2 / 3 / 1 降至 **302 / 0 / 0 / 1**。
+WP3 提升至 98%；尚未完成 install/export、package config 和独立安装树 consumer，因此仍不能标记 completed。
+
+WP3 安装导出闭环执行快照（2026-07-18，Debug）：新增 `VMPUI` package config/version 和 `VMPUI::ui` 导出目标，
+安装稳定 `include/`、`ui.lib`、CMRC 资源归档以及静态库最终链接所需的 SDL3、Yoga、FreeType、HarfBuzz、EnTT、
+Eigen、spdlog package。Yoga 与 CMRC 的安装接口改为相对路径，安装树可重定位。独立 `tests/install_consumer`
+仅执行 `find_package(VMPUI CONFIG REQUIRED)` 并链接 `VMPUI::ui`，调用 out-of-line `CreateApplication()` 强制验证
+完整静态链接闭包；隔离前缀配置与链接通过。消费端明确采用项目静态 SDK 的 `/MTd` 运行库契约，避免与 `/MDd`
+混链。Debug 构建、架构门禁和 CTest 全部通过，指标保持 **302 / 0 / 0 / 1**。WP3 达到 100% 并标记 completed；
+WP9 的前置阻塞解除。

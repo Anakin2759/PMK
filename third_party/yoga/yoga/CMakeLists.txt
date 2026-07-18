@@ -38,4 +38,4 @@ endif()
 target_include_directories(yogacore
     PUBLIC
     $<BUILD_INTERFACE:${YOGA_ROOT}>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include/yoga>)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)

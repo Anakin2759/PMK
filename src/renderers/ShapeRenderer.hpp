@@ -15,7 +15,7 @@
 
 #pragma once
 #include "interface/IRenderer.hpp"
-#include "common/Theme.hpp"
+#include "ui/api/Theme.hpp"
 #include "utils/Registry.hpp"
 
 #include "common/components/Visual.hpp"

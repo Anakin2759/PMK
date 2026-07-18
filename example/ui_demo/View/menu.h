@@ -90,7 +90,7 @@ inline void CreateMenuDialog()
     auto versionLabel = ui::factory::CreateLabel("v0.1.0 - 2026", "versionLabel");
 
     versionLabel | TextAlignment(ui::policies::Alignment::CENTER) | TextColor({0.6F, 0.6F, 0.6F, 1.0F})
-        | FontSize(12.0F);
+        | FontSize(12.0f);
 
     menuDialog | AddChild(versionLabel);
 

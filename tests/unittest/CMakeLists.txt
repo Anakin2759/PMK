@@ -5,10 +5,15 @@ function(configure_ui_test_target target_name)
     target_compile_definitions(${target_name} PRIVATE
         SDL_MAIN_HANDLED
     )
-    target_include_directories(${target_name} PRIVATE ${CMAKE_SOURCE_DIR})
+    target_include_directories(${target_name} PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
+    )
     target_link_libraries(${target_name} PRIVATE
         EnTT::EnTT
+        Eigen3::Eigen
         SDL3::SDL3
+        spdlog::spdlog_header_only
         ui
         GTest::gmock
         GTest::gmock_main
@@ -93,6 +98,36 @@ add_library(ui_public_math_types_header_check OBJECT
 target_compile_features(ui_public_math_types_header_check PRIVATE cxx_std_23)
 target_include_directories(ui_public_math_types_header_check PRIVATE ${CMAKE_SOURCE_DIR}/include)
 add_dependencies(ui_api_tests ui_public_math_types_header_check)
+
+add_library(ui_public_utils_header_check OBJECT
+    ${CMAKE_SOURCE_DIR}/tests/support/PublicUtilsHeaderCheck.cpp
+)
+target_compile_features(ui_public_utils_header_check PRIVATE cxx_std_23)
+target_include_directories(ui_public_utils_header_check PRIVATE ${CMAKE_SOURCE_DIR}/include)
+add_dependencies(ui_api_tests ui_public_utils_header_check)
+
+add_library(ui_public_application_header_check OBJECT
+    ${CMAKE_SOURCE_DIR}/tests/support/PublicApplicationHeaderCheck.cpp
+)
+target_compile_features(ui_public_application_header_check PRIVATE cxx_std_23)
+target_include_directories(ui_public_application_header_check PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+add_library(ui_public_factory_header_check OBJECT
+    ${CMAKE_SOURCE_DIR}/tests/support/PublicFactoryHeaderCheck.cpp
+)
+target_compile_features(ui_public_factory_header_check PRIVATE cxx_std_23)
+target_include_directories(ui_public_factory_header_check PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+add_library(ui_public_factory_windows_macro_check OBJECT
+    ${CMAKE_SOURCE_DIR}/tests/support/PublicFactoryWindowsMacroCheck.cpp
+)
+target_compile_features(ui_public_factory_windows_macro_check PRIVATE cxx_std_23)
+target_include_directories(ui_public_factory_windows_macro_check PRIVATE ${CMAKE_SOURCE_DIR}/include)
+add_dependencies(ui_api_tests
+    ui_public_application_header_check
+    ui_public_factory_header_check
+    ui_public_factory_windows_macro_check
+)
 
 include(GoogleTest)
 gtest_discover_tests(ui_unit_tests PROPERTIES LABELS "unit")

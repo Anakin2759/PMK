@@ -14,7 +14,10 @@ void SetPosition(ui::entity entity, float positionX, float positionY);
 
 namespace ui::actions::size
 {
-inline constexpr EntityAction<&ui::size::SetFixedSize> SET_FIXED_SIZE_ACTION{};
+    /**
+     * @brief  UI Size API 的 EntityAction 封装
+     */
+inline constexpr EntityAction<&ui::size::SetFixedSize> SET_FIXED_SIZE_ACTION{}; 
 inline constexpr EntityAction<&ui::size::SetSizePolicy> SET_SIZE_POLICY_ACTION{};
 inline constexpr EntityAction<&ui::size::SetSize> SET_SIZE_ACTION{};
 inline constexpr EntityAction<&ui::size::SetPosition> SET_POSITION_ACTION{};

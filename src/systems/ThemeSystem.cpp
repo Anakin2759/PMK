@@ -16,7 +16,7 @@
 #include "helper/Helper.hpp"
 #include "common/Events.hpp"
 #include "common/Tags.hpp"
-#include "common/Theme.hpp"
+#include "ui/api/Theme.hpp"
 #include "common/components/Data.hpp"
 #include "common/components/Visual.hpp"
 

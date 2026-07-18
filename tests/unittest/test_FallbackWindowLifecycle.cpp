@@ -1,5 +1,5 @@
-#include "src/api/Factory.hpp"
-#include "src/api/Utils.hpp"
+#include "ui/api/Factory.hpp"
+#include "ui/api/Utils.hpp"
 #include "src/common/Events.hpp"
 #include "src/core/UiRuntimeScope.hpp"
 

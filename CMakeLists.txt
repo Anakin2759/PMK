@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.31)
-project(VMP-ui LANGUAGES CXX)
+project(VMP-ui VERSION 0.1.0 LANGUAGES CXX)
 
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(CheckIPOSupported)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 option(ENABLE_BUILD_TESTS "Enable building of unit tests" OFF)
 option(BUILD_EXAMPLES "Enable building examples" ON)
@@ -116,6 +118,14 @@ endif()
 
 # ==================== 第三方库 ====================
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(SDL_INSTALL ON CACHE BOOL "" FORCE)
+set(SDL_INSTALL_CPACK OFF CACHE BOOL "" FORCE)
+set(SDL_INSTALL_DOCS OFF CACHE BOOL "" FORCE)
+set(SDL_INSTALL_TESTS OFF CACHE BOOL "" FORCE)
+set(ENTT_INSTALL ON CACHE BOOL "" FORCE)
+set(SPDLOG_INSTALL ON CACHE BOOL "" FORCE)
+set(EIGEN_BUILD_CMAKE_PACKAGE ON CACHE BOOL "" FORCE)
+set(HB_BUILD_SUBSET OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/cmrc)
 add_subdirectory(third_party/entt)
 add_subdirectory(third_party/spdlog)
@@ -138,6 +148,29 @@ add_subdirectory(third_party/harfbuzz)
 if(ENABLE_BUILD_TESTS)
     add_subdirectory(third_party/googletest)
 endif()
+
+# ===================== SDK package =====================
+set(VMPUI_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/VMPUI")
+configure_package_config_file(
+    "${CMAKE_SOURCE_DIR}/cmake/VMPUIConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/VMPUIConfig.cmake"
+    INSTALL_DESTINATION "${VMPUI_INSTALL_CMAKEDIR}"
+)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/VMPUIConfigVersion.cmake"
+    VERSION "${PROJECT_VERSION}"
+    COMPATIBILITY SameMajorVersion
+)
+install(EXPORT VMPUITargets
+    FILE VMPUITargets.cmake
+    NAMESPACE VMPUI::
+    DESTINATION "${VMPUI_INSTALL_CMAKEDIR}"
+)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/VMPUIConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/VMPUIConfigVersion.cmake"
+    DESTINATION "${VMPUI_INSTALL_CMAKEDIR}"
+)
 
 
 

@@ -1,9 +1,13 @@
 #include <ui/Callback.hpp>
+#include <ui/Application.hpp>
 #include <ui/Color.hpp>
 #include <ui/Geometry.hpp>
 #include <ui/MathTypes.hpp>
 #include <ui/TweenOptions.hpp>
 #include <ui/api/Animation.hpp>
+#include <ui/api/Canvas.hpp>
+#include <ui/api/Controls.hpp>
+#include <ui/api/Factory.hpp>
 #include <ui/api/Icon.hpp>
 #include <ui/api/Image.hpp>
 #include <ui/api/Table.hpp>
@@ -11,6 +15,7 @@
 #include <ui/api/Query.hpp>
 #include <ui/api/Size.hpp>
 #include <ui/api/Text.hpp>
+#include <ui/api/Utils.hpp>
 #include <ui/api/Visibility.hpp>
 
 #include <gtest/gtest.h>
@@ -30,11 +35,40 @@ TEST(PublicLeafHeadersTest, HeadersCompileFromStableIncludePaths)
     SUCCEED();
 }
 
+TEST(PublicCanvasPainterTest, KeepsFluentContractWithoutAccessingRuntime)
+{
+    using Painter = ui::canvas::Painter;
+    static_assert(std::is_constructible_v<Painter, ui::entity>);
+    static_assert(std::is_same_v<decltype(&Painter::moveTo), Painter& (Painter::*)(ui::Vec2)>);
+    static_assert(std::is_same_v<decltype(&Painter::lineTo), Painter& (Painter::*)(ui::Vec2)>);
+    static_assert(
+        std::is_same_v<decltype(&Painter::cubicTo), Painter& (Painter::*)(ui::Vec2, ui::Vec2, ui::Vec2)>);
+    static_assert(
+        std::is_same_v<decltype(&Painter::polyline), Painter& (Painter::*)(std::vector<ui::Vec2>)>);
+    static_assert(std::is_same_v<decltype(&Painter::commit), Painter& (Painter::*)(ui::Color, float)>);
+
+    Painter painter{ui::entity{}};
+    EXPECT_EQ(&painter, &painter.moveTo({1.0F, 2.0F}));
+    EXPECT_EQ(&painter, &painter.polyline({{3.0F, 4.0F}}));
+    EXPECT_EQ(&painter, &painter.commit(ui::Color::White()));
+}
+
 TEST(PublicCallbackTest, InternalCompatibilityAliasKeepsMoveOnlyCallbackType)
 {
     static_assert(std::is_same_v<Callback<int>, components::on_event<int>>);
     static_assert(std::is_move_constructible_v<Callback<>>);
     static_assert(!std::is_copy_constructible_v<Callback<>>);
+    SUCCEED();
+}
+
+TEST(PublicControlsTest, OwnershipBearingFunctionSignaturesRemainStable)
+{
+    static_assert(std::is_same_v<decltype(&ui::controls::SetSliderOnValueChanged),
+                                 void (*)(ui::entity, ui::Callback<float>)>);
+    static_assert(std::is_same_v<decltype(&ui::controls::SetDropDownOptions),
+                                 void (*)(ui::entity, std::vector<std::string>)>);
+    static_assert(std::is_same_v<decltype(&ui::controls::SetOnDragMove),
+                                 void (*)(ui::entity, ui::Callback<ui::Vec2>)>);
     SUCCEED();
 }
 

@@ -49,6 +49,37 @@ private:
     float m_y = 0.0F;
 };
 
+/**
+ * @brief 与数学后端无关的四维浮点向量值。
+ *
+ * 主要用于圆角、边距等四分量公共值；内部 Eigen 运算应在边界显式转换。
+ */
+struct Vec4
+{
+    constexpr Vec4() noexcept = default;
+    constexpr Vec4(float xValue, float yValue, float zValue, float wValue) noexcept
+        : m_x(xValue), m_y(yValue), m_z(zValue), m_w(wValue)
+    {
+    }
+
+    [[nodiscard]] constexpr float& x() noexcept { return m_x; }
+    [[nodiscard]] constexpr float x() const noexcept { return m_x; }
+    [[nodiscard]] constexpr float& y() noexcept { return m_y; }
+    [[nodiscard]] constexpr float y() const noexcept { return m_y; }
+    [[nodiscard]] constexpr float& z() noexcept { return m_z; }
+    [[nodiscard]] constexpr float z() const noexcept { return m_z; }
+    [[nodiscard]] constexpr float& w() noexcept { return m_w; }
+    [[nodiscard]] constexpr float w() const noexcept { return m_w; }
+
+    [[nodiscard]] constexpr bool operator==(const Vec4&) const noexcept = default;
+
+private:
+    float m_x = 0.0F;
+    float m_y = 0.0F;
+    float m_z = 0.0F;
+    float m_w = 0.0F;
+};
+
 [[nodiscard]] constexpr Vec2 operator+(Vec2 left, const Vec2& right) noexcept
 {
     left += right;
@@ -120,6 +151,10 @@ static_assert(std::is_standard_layout_v<Vec2>);
 static_assert(std::is_trivially_copyable_v<Vec2>);
 static_assert(sizeof(Vec2) == 2U * sizeof(float));
 static_assert(alignof(Vec2) == alignof(float));
+static_assert(std::is_standard_layout_v<Vec4>);
+static_assert(std::is_trivially_copyable_v<Vec4>);
+static_assert(sizeof(Vec4) == 4U * sizeof(float));
+static_assert(alignof(Vec4) == alignof(float));
 static_assert(std::is_standard_layout_v<Rect>);
 static_assert(std::is_trivially_copyable_v<Rect>);
 static_assert(sizeof(Rect) == 4U * sizeof(float));

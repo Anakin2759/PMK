@@ -17,17 +17,4 @@
  */
 #pragma once
 
-#include <cstdint>
-
-
-namespace ui
-{
-
-using entity = uint32_t;
-
-/// @brief 空实体常量，等价于 entt::null。
-inline constexpr entity null_entity = std::numeric_limits<entity>::max();
-
-
-
-} // namespace ui
+#include "ui/api/Entity.hpp" // IWYU pragma: export
