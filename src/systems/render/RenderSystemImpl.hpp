@@ -15,7 +15,6 @@
 #include <SDL3/SDL_gpu.h>
 #include <entt/entt.hpp>
 
-#include "common/GPUWrappers.hpp"
 #include "core/RenderContext.hpp"
 #include "interface/IBackendRenderer.hpp"
 #include "interface/IRenderer.hpp"
@@ -37,7 +36,8 @@ namespace ui::systems
 /**
  * @brief RenderSystem PIMPL 实现结构体
  *
- * 持有所有私有状态：9 个 manager unique_ptr、渲染队列、GPU 资源、运行时标志。
+ * 持有所有私有状态：9 个 manager unique_ptr、渲染队列和运行时标志。
+ * GPU 白色纹理由 DeviceManager 唯一持有；此结构仅保留 fallback 后端使用的哨兵标签。
  * 仅通过 RenderSystem::m_impl 访问，外部 TU 不可见此头文件。
  */
 struct RenderSystemImpl
@@ -74,9 +74,8 @@ struct RenderSystemImpl
 
     RenderSystem::RenderStats m_stats;
 
-    wrappers::UniqueGPUTexture m_whiteTexture;
     std::byte m_fallbackWhiteTextureCookie{};
-    SDL_GPUTexture* m_fallbackWhiteTextureTag = nullptr; ///< 指向 m_fallbackWhiteTextureCookie，由构造函数初始化
+    SDL_GPUTexture* m_fallbackWhiteTextureTag = nullptr; ///< fallback 专用非 GPU 哨兵，不拥有 DeviceManager 白色纹理
 
     bool m_useFallback = false;
     bool m_forceFallback = false;

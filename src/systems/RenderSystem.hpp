@@ -104,10 +104,6 @@ private:
      * @brief 渲染系统清理资源
      */
     void cleanup();
-    /**
-     * @brief 创建一个纯白色纹理，用于默认渲染
-     */
-    void createWhiteTexture();
     void ensureInitialized();
     void ensureGpuResourcesInitialized();
     ui::Result<void> tryInitializeFallback(SDL_Window* window);

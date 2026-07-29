@@ -23,6 +23,8 @@
  */
 #pragma once
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -45,6 +47,9 @@ namespace ui::managers
 
 /**
  * @brief 管理 GPU 设备和窗口声明
+ *
+ * 每个成功创建设备的代际同时创建并唯一持有一张 1x1 RGBA 白色纹理。
+ * 后端切换或清理时，白色纹理在所属 GPU 设备销毁前释放。
  */
 class DeviceManager
 {
@@ -170,11 +175,20 @@ public:
         }
     }
 
+    /**
+     * @brief 清理当前设备代际及其窗口声明和白色纹理
+     * @note 等待 GPU 空闲后先释放白色纹理，再销毁 GPU 设备；可重复调用。
+     */
     void cleanup()
     {
-        if (m_gpuDevice == nullptr) return;
+        if (m_gpuDevice == nullptr)
+        {
+            m_whiteTexture.reset();
+            return;
+        }
 
         SDL_WaitForGPUIdle(m_gpuDevice.get());
+        m_whiteTexture.reset();
 
         // 释放所有窗口声明
         for (auto windowID : m_claimedWindows)
@@ -194,9 +208,107 @@ public:
     [[nodiscard]] const std::string& getDriverName() const { return m_gpuDriver; }
     [[nodiscard]] bool hasClaimedWindows() const noexcept { return !m_claimedWindows.empty(); }
 
-    [[nodiscard]] SDL_GPUTexture* getWhiteTexture() const { return nullptr; } // TODO: Implement white texture creation
+    /**
+     * @brief 获取当前设备代际的白色纹理
+     * @return 非拥有的纹理指针；设备未成功初始化或已清理时返回 nullptr
+     * @note 返回指针的生命周期由 DeviceManager 管理，调用方不得释放。
+     */
+    [[nodiscard]] SDL_GPUTexture* getWhiteTexture() const { return m_whiteTexture.get(); }
 
 private:
+    /**
+     * @brief 为当前候选设备创建并提交 1x1 RGBA 白色纹理上传
+     * @return 上传命令提交成功时返回 true，否则返回 false
+     * @note 成功表示上传命令已提交，不表示 GPU 已执行完成。
+     */
+    bool createWhiteTexture()
+    {
+        SDL_GPUDevice* device = m_gpuDevice.get();
+        if (device == nullptr)
+        {
+            return false;
+        }
+
+        const SDL_GPUTextureCreateInfo textureInfo{.type = SDL_GPU_TEXTURETYPE_2D,
+                                                   .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+                                                   .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+                                                   .width = 1,
+                                                   .height = 1,
+                                                   .layer_count_or_depth = 1,
+                                                   .num_levels = 1,
+                                                   .sample_count = SDL_GPU_SAMPLECOUNT_1,
+                                                   .props = 0};
+        auto whiteTexture = wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(
+            device, SDL_CreateGPUTexture, &textureInfo);
+        if (!whiteTexture)
+        {
+            ui::UiRuntime::current().logger().error("DeviceManager: 创建白色纹理失败 ({})", SDL_GetError());
+            return false;
+        }
+
+        constexpr std::array<uint8_t, 4> WHITE_PIXEL{255, 255, 255, 255};
+        const SDL_GPUTransferBufferCreateInfo transferInfo{.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+                                                           .size = static_cast<uint32_t>(WHITE_PIXEL.size()),
+                                                           .props = 0};
+        auto transferBuffer = wrappers::MakeGpuResource<wrappers::UniqueGPUTransferBuffer>(
+            device, SDL_CreateGPUTransferBuffer, &transferInfo);
+        if (!transferBuffer)
+        {
+            ui::UiRuntime::current().logger().error("DeviceManager: 创建白纹理上传缓冲失败 ({})", SDL_GetError());
+            return false;
+        }
+
+        void* mappedData = SDL_MapGPUTransferBuffer(device, transferBuffer.get(), false);
+        if (mappedData == nullptr)
+        {
+            ui::UiRuntime::current().logger().error("DeviceManager: 映射白纹理上传缓冲失败 ({})", SDL_GetError());
+            return false;
+        }
+        std::memcpy(mappedData, WHITE_PIXEL.data(), WHITE_PIXEL.size());
+        SDL_UnmapGPUTransferBuffer(device, transferBuffer.get());
+
+        SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+        if (commandBuffer == nullptr)
+        {
+            ui::UiRuntime::current().logger().error("DeviceManager: 获取白纹理命令缓冲失败 ({})", SDL_GetError());
+            return false;
+        }
+
+        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (copyPass == nullptr)
+        {
+            ui::UiRuntime::current().logger().error("DeviceManager: 开始白纹理复制通道失败 ({})", SDL_GetError());
+            if (!SDL_CancelGPUCommandBuffer(commandBuffer))
+            {
+                ui::UiRuntime::current().logger().error("DeviceManager: 取消白纹理命令缓冲失败 ({})", SDL_GetError());
+            }
+            return false;
+        }
+
+        const SDL_GPUTextureTransferInfo source{
+            .transfer_buffer = transferBuffer.get(), .offset = 0, .pixels_per_row = 1, .rows_per_layer = 1};
+        const SDL_GPUTextureRegion destination{.texture = whiteTexture.get(),
+                                               .mip_level = 0,
+                                               .layer = 0,
+                                               .x = 0,
+                                               .y = 0,
+                                               .z = 0,
+                                               .w = 1,
+                                               .h = 1,
+                                               .d = 1};
+        SDL_UploadToGPUTexture(copyPass, &source, &destination, false);
+        SDL_EndGPUCopyPass(copyPass);
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        {
+            ui::UiRuntime::current().logger().error("DeviceManager: 提交白纹理上传失败 ({})", SDL_GetError());
+            return false;
+        }
+
+        m_whiteTexture = std::move(whiteTexture);
+        return true;
+    }
+
     void applyPreferredBackend()
     {
         auto preferred = config::AppConfig::instance().preferredBackend();
@@ -238,6 +350,14 @@ private:
         if (device != nullptr)
         {
             m_gpuDevice.reset(device);
+            if (!createWhiteTexture())
+            {
+                m_whiteTexture.reset();
+                m_gpuDevice.reset();
+                m_gpuDriver.clear();
+                ui::UiRuntime::current().logger().warn("后端 {} 白色纹理初始化失败，尝试下一后端", config.name);
+                return false;
+            }
             m_gpuDriver = config.name;
             m_currentBackendIndex = index;
             ui::UiRuntime::current().logger().info("GPU 初始化成功，锁定后端: {}", m_gpuDriver);
@@ -249,6 +369,7 @@ private:
     }
 
     wrappers::UniqueGPUDevice m_gpuDevice;
+    wrappers::UniqueGPUTexture m_whiteTexture; ///< 当前设备代际唯一拥有的白色纹理
     std::string m_gpuDriver;
     std::unordered_set<SDL_WindowID> m_claimedWindows;
 

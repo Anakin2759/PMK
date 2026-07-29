@@ -1,11 +1,101 @@
 #include <gtest/gtest.h>
 
+#include "src/common/GPUWrappers.hpp"
+#include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
+#include "src/managers/DeviceManager.hpp"
 #include "src/systems/render/DeviceClaimState.hpp"
+
+#include <array>
+#include <cstdint>
+#include <cstring>
+#include <memory>
 
 namespace ui::tests
 {
 namespace
 {
+
+bool ReadWhitePixel(SDL_GPUDevice* device, SDL_GPUTexture* texture, std::array<uint8_t, 4>& pixel)
+{
+    const SDL_GPUTransferBufferCreateInfo transferInfo{
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, .size = static_cast<uint32_t>(pixel.size()), .props = 0};
+    auto transferBuffer = wrappers::MakeGpuResource<wrappers::UniqueGPUTransferBuffer>(
+        device, SDL_CreateGPUTransferBuffer, &transferInfo);
+    if (!transferBuffer)
+    {
+        return false;
+    }
+
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+    if (commandBuffer == nullptr)
+    {
+        return false;
+    }
+    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+    if (copyPass == nullptr)
+    {
+        static_cast<void>(SDL_CancelGPUCommandBuffer(commandBuffer));
+        return false;
+    }
+
+    const SDL_GPUTextureRegion source{
+        .texture = texture, .mip_level = 0, .layer = 0, .x = 0, .y = 0, .z = 0, .w = 1, .h = 1, .d = 1};
+    const SDL_GPUTextureTransferInfo destination{
+        .transfer_buffer = transferBuffer.get(), .offset = 0, .pixels_per_row = 1, .rows_per_layer = 1};
+    SDL_DownloadFromGPUTexture(copyPass, &source, &destination);
+    SDL_EndGPUCopyPass(copyPass);
+
+    SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
+    if (fence == nullptr)
+    {
+        return false;
+    }
+    const bool waitSucceeded = SDL_WaitForGPUFences(device, true, &fence, 1);
+    SDL_ReleaseGPUFence(device, fence);
+    if (!waitSucceeded)
+    {
+        return false;
+    }
+
+    const void* mappedData = SDL_MapGPUTransferBuffer(device, transferBuffer.get(), false);
+    if (mappedData == nullptr)
+    {
+        return false;
+    }
+    std::memcpy(pixel.data(), mappedData, pixel.size());
+    SDL_UnmapGPUTransferBuffer(device, transferBuffer.get());
+    return true;
+}
+
+class DeviceManagerGpuTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        if ((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) != 0U)
+        {
+            return;
+        }
+        if (!SDL_InitSubSystem(SDL_INIT_VIDEO))
+        {
+            GTEST_SKIP() << "SDL Video initialization failed: " << SDL_GetError();
+        }
+        m_ownsVideoSubsystem = true;
+    }
+
+    void TearDown() override
+    {
+        if (m_ownsVideoSubsystem)
+        {
+            SDL_QuitSubSystem(SDL_INIT_VIDEO);
+            m_ownsVideoSubsystem = false;
+        }
+    }
+
+private:
+    bool m_ownsVideoSubsystem = false;
+};
 
 TEST(DeviceClaimStateTest, ResourcesCannotBecomeReadyBeforeFirstWindowLocksDevice)
 {
@@ -55,6 +145,41 @@ TEST(DeviceClaimStateTest, ResetReturnsToBackendSelectionPhase)
     EXPECT_FALSE(state.IsDeviceLocked());
     EXPECT_FALSE(state.AreResourcesReady());
     EXPECT_TRUE(state.MayTryAnotherBackend());
+}
+
+TEST_F(DeviceManagerGpuTest, WhiteTextureBelongsToDeviceGenerationAndContainsWhitePixel)
+{
+    UiRuntime runtime;
+    UiRuntimeScope const scope(runtime);
+    managers::DeviceManager manager;
+
+    const auto initializeResult = manager.initialize();
+    if (!initializeResult.has_value())
+    {
+        GTEST_SKIP() << "No SDL GPU backend available: " << SDL_GetError();
+    }
+
+    ASSERT_NE(manager.getDevice(), nullptr);
+    SDL_GPUTexture* const whiteTexture = manager.getWhiteTexture();
+    ASSERT_NE(whiteTexture, nullptr);
+    EXPECT_EQ(manager.getWhiteTexture(), whiteTexture);
+
+    std::array<uint8_t, 4> pixel{};
+    ASSERT_TRUE(ReadWhitePixel(manager.getDevice(), whiteTexture, pixel)) << SDL_GetError();
+    EXPECT_EQ(pixel, (std::array<uint8_t, 4>{255, 255, 255, 255}));
+
+    manager.cleanup();
+    EXPECT_EQ(manager.getDevice(), nullptr);
+    EXPECT_EQ(manager.getWhiteTexture(), nullptr);
+    manager.cleanup();
+    EXPECT_EQ(manager.getDevice(), nullptr);
+    EXPECT_EQ(manager.getWhiteTexture(), nullptr);
+
+    const auto reinitializeResult = manager.initialize();
+    ASSERT_TRUE(reinitializeResult.has_value()) << reinitializeResult.error().ToString();
+    EXPECT_NE(manager.getDevice(), nullptr);
+    EXPECT_NE(manager.getWhiteTexture(), nullptr);
+    manager.cleanup();
 }
 
 } // namespace

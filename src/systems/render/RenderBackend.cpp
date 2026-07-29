@@ -294,18 +294,11 @@ void RenderSystem::cleanup()
         m_impl->m_textTextureCache->clear();
     }
 
-    if (m_impl->m_whiteTexture)
-    {
-        ui::UiRuntime::current().logger().info("[RenderSystem] 释放白色纹理");
-        m_impl->m_whiteTexture.reset();
-    }
-
     ui::UiRuntime::current().logger().info("[RenderSystem] 清理渲染器");
     m_impl->m_renderers.clear();
     m_impl->m_batchManager.reset();
     m_impl->m_iconManager.reset();
     m_impl->m_imageManager.reset();
-    m_impl->m_whiteTexture.reset();
     m_impl->m_gpuInitialization.Shutdown(
         [this](render::GpuInitializationTransaction::Node node)
         {
@@ -324,6 +317,7 @@ void RenderSystem::cleanup()
         });
     m_impl->m_fontManager.reset();
 
+    // DeviceManager 在销毁设备前释放其唯一持有的白色纹理。
     if (m_impl->m_deviceManager != nullptr)
     {
         ui::UiRuntime::current().logger().info("[RenderSystem] 清理设备管理器");

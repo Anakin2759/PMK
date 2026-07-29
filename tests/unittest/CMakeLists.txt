@@ -130,10 +130,20 @@ add_dependencies(ui_api_tests
 )
 
 include(GoogleTest)
-gtest_discover_tests(ui_unit_tests PROPERTIES LABELS "unit")
-gtest_discover_tests(ui_ecs_tests PROPERTIES LABELS "ecs")
-gtest_discover_tests(ui_api_tests PROPERTIES LABELS "api")
+gtest_discover_tests(ui_unit_tests
+    DISCOVERY_TIMEOUT 60
+    PROPERTIES LABELS "unit"
+)
+gtest_discover_tests(ui_ecs_tests
+    DISCOVERY_TIMEOUT 60
+    PROPERTIES LABELS "ecs"
+)
+gtest_discover_tests(ui_api_tests
+    DISCOVERY_TIMEOUT 60
+    PROPERTIES LABELS "api"
+)
 gtest_discover_tests(ui_fallback_lifecycle_tests PROPERTIES
+    DISCOVERY_TIMEOUT 60
     LABELS "integration;sdl;lifecycle"
     ENVIRONMENT "SDL_VIDEODRIVER=offscreen"
     RUN_SERIAL TRUE

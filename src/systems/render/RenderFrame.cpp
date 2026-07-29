@@ -296,13 +296,10 @@ void RenderSystem::update()
             }
         }
 
-        if (!m_impl->m_useFallback && m_impl->m_whiteTexture == nullptr)
+        if (!m_impl->m_useFallback && m_impl->m_deviceManager->getWhiteTexture() == nullptr)
         {
-            createWhiteTexture();
-            if (m_impl->m_whiteTexture == nullptr)
-            {
-                continue;
-            }
+            ui::UiRuntime::current().logger().error("[RenderSystem] DeviceManager white texture unavailable");
+            continue;
         }
 
         m_impl->m_screenWidth = static_cast<float>(logicalWidth);
@@ -332,8 +329,9 @@ void RenderSystem::update()
             rootContext.batchManager = m_impl->m_batchManager.get();
             rootContext.backendRenderer = m_impl->m_useFallback ? m_impl->m_backendRenderer.get() : nullptr;
             rootContext.sdlWindow = sdlWindow;
+            // GPU 路径仅借用 DeviceManager 唯一持有的白色纹理，不转移所有权。
             rootContext.whiteTexture =
-                m_impl->m_useFallback ? m_impl->m_fallbackWhiteTextureTag : m_impl->m_whiteTexture.get();
+                m_impl->m_useFallback ? m_impl->m_fallbackWhiteTextureTag : m_impl->m_deviceManager->getWhiteTexture();
 
             Eigen::Vector2f rootOffset = Eigen::Vector2f(0, 0);
             if (const auto* pos = m_reg->try_get<components::Position>(windowEntity))

@@ -9,7 +9,7 @@
  *
  * 采用 Shelf Bin Packing 算法管理纹理图集：
  * - 每次分配从当前 shelf（行）尝试，不够则开新行
- * - 支持自动扩展图集尺寸（2048x2048 -> 4096x4096）
+ * - 支持将图集扩大一倍，最大为 4096x4096；扩容时迁移旧纹理并保留字形与 shelf 状态
  * - 每个字形记录其 UV 坐标和偏移量
  *
  * ************************************************************************
@@ -21,11 +21,12 @@
 #pragma once
 
 #include <SDL3/SDL_gpu.h>
+#include <cstring>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <unordered_map>
 #include <vector>
-#include <algorithm>
 #include "common/GPUWrappers.hpp"
 #include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
@@ -74,7 +75,10 @@ public:
      * @param padding 字形之间的内边距（像素）
      */
     explicit TextureAtlas(SDL_GPUDevice* device, uint32_t initialSize = 2048, uint32_t padding = 2)
-        : m_device(device), m_size(initialSize), m_padding(padding)
+                : m_device(device),
+                    m_texture(nullptr, wrappers::GPUTexturePtr::deleter_type(device)),
+                    m_size(initialSize),
+                    m_padding(padding)
     {
         if (!createTexture())
         {
@@ -82,13 +86,7 @@ public:
         }
     }
 
-    ~TextureAtlas()
-    {
-        if (m_texture)
-        {
-            SDL_ReleaseGPUTexture(m_device, m_texture.get());
-        }
-    }
+    ~TextureAtlas() = default;
 
     // 禁止拷贝和移动
     TextureAtlas(const TextureAtlas&) = delete;
@@ -116,6 +114,7 @@ public:
      * @param bearingY 垂直偏移
      * @param advanceX 水平前进量
      * @return 字形信息，失败返回 nullopt
+    * @note 新字形仅在上传命令提交成功后写入缓存；成功不表示 GPU 已执行完成。
      */
     std::optional<AtlasGlyph> addGlyph(uint32_t codepoint,
                                        const uint8_t* bitmap,
@@ -125,6 +124,11 @@ public:
                                        int32_t bearingY,
                                        float advanceX)
     {
+        if (bitmap == nullptr || width <= 0 || height <= 0)
+        {
+            return std::nullopt;
+        }
+
         // 检查是否已缓存
         auto iter = m_glyphMap.find(codepoint);
         if (iter != m_glyphMap.end())
@@ -133,6 +137,8 @@ public:
         }
 
         // 尝试分配空间
+        auto shelvesBeforeAllocation = m_shelves;
+        const uint32_t shelfYBeforeAllocation = m_currentShelfY;
         auto pos = allocate(width, height);
         if (!pos.has_value())
         {
@@ -142,22 +148,32 @@ public:
                 ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to expand atlas for codepoint {}", codepoint);
                 return std::nullopt;
             }
+            shelvesBeforeAllocation = m_shelves;
+            const uint32_t expandedShelfY = m_currentShelfY;
             pos = allocate(width, height);
             if (!pos.has_value())
             {
                 ui::UiRuntime::current().logger().error("[TextureAtlas] Still cannot allocate after expansion");
                 return std::nullopt;
             }
+            if (!uploadBitmap(bitmap, pos->first, pos->second, width, height))
+            {
+                m_shelves = std::move(shelvesBeforeAllocation);
+                m_currentShelfY = expandedShelfY;
+                ui::UiRuntime::current().logger().error(
+                    "[TextureAtlas] Failed to upload bitmap for codepoint {}", codepoint);
+                return std::nullopt;
+            }
         }
-
-        auto [xPos, yPos] = *pos;
-
-        // 上传位图到 GPU
-        if (!uploadBitmap(bitmap, xPos, yPos, width, height))
+        else if (!uploadBitmap(bitmap, pos->first, pos->second, width, height))
         {
+            m_shelves = std::move(shelvesBeforeAllocation);
+            m_currentShelfY = shelfYBeforeAllocation;
             ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to upload bitmap for codepoint {}", codepoint);
             return std::nullopt;
         }
+
+        auto [xPos, yPos] = *pos;
 
         // 构造字形信息
         AtlasGlyph glyph;
@@ -195,7 +211,8 @@ public:
     }
 
     /**
-     * @brief 清空图集
+        * @brief 清空字形缓存和 shelf 分配状态
+        * @note 不清除 GPU 纹理中的既有像素；后续有效区域由新上传覆盖。
      */
     void clear()
     {
@@ -253,6 +270,12 @@ private:
      */
     bool createTexture()
     {
+        if (m_device == nullptr || m_size == 0)
+        {
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Cannot create texture with invalid device or size");
+            return false;
+        }
+
         SDL_GPUTextureCreateInfo textureInfo{};
         textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
         textureInfo.format = SDL_GPU_TEXTUREFORMAT_R8_UNORM; // 单通道灰度
@@ -281,8 +304,21 @@ private:
      */
     std::optional<std::pair<uint32_t, uint32_t>> allocate(int32_t width, int32_t height)
     {
-        uint32_t glyphWidth = static_cast<uint32_t>(width) + m_padding;
-        uint32_t glyphHeight = static_cast<uint32_t>(height) + m_padding;
+        if (width <= 0 || height <= 0)
+        {
+            return std::nullopt;
+        }
+
+        const auto unsignedWidth = static_cast<uint32_t>(width);
+        const auto unsignedHeight = static_cast<uint32_t>(height);
+        if (unsignedWidth > std::numeric_limits<uint32_t>::max() - m_padding
+            || unsignedHeight > std::numeric_limits<uint32_t>::max() - m_padding)
+        {
+            return std::nullopt;
+        }
+
+        uint32_t glyphWidth = unsignedWidth + m_padding;
+        uint32_t glyphHeight = unsignedHeight + m_padding;
 
         // 尝试从现有 shelf 分配
         for (auto& shelf : m_shelves)
@@ -314,7 +350,13 @@ private:
     }
 
     /**
-     * @brief 扩展图集尺寸（2x）
+     * @brief 以事务方式将图集边长扩大一倍
+     *
+     * 将旧纹理内容复制到候选纹理；仅在复制命令提交成功后切换纹理和尺寸。
+     * 已缓存字形及 shelf 布局保持不变，字形 UV 按新尺寸重新计算。
+     *
+     * @return 提交扩容复制命令成功时返回 true；失败时返回 false，并保留原图集状态
+     * @note 成功表示复制命令已提交，不表示 GPU 已执行完成；本函数不会等待 GPU 空闲。
      */
     bool expand()
     {
@@ -324,7 +366,8 @@ private:
             return false;
         }
 
-        uint32_t newSize = m_size * 2;
+        const uint32_t oldSize = m_size;
+        const uint32_t newSize = oldSize * 2;
         ui::UiRuntime::current().logger().info("[TextureAtlas] Expanding atlas from {}x{} to {}x{}", m_size, m_size, newSize, newSize);
 
         // 创建新纹理
@@ -338,48 +381,157 @@ private:
         textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
         textureInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
 
-        SDL_GPUTexture* newTexture = SDL_CreateGPUTexture(m_device, &textureInfo);
+        auto newTexture = wrappers::MakeGpuResource<wrappers::GPUTexturePtr>(
+            m_device, SDL_CreateGPUTexture, &textureInfo);
         if (!newTexture)
         {
-            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to create expanded texture");
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to create expanded texture: {}", SDL_GetError());
             return false;
         }
 
-        // TODO: 理想情况下应该复制旧纹理内容到新纹理
-        // SDL3 GPU API 需要通过 blit 或重新上传实现
-        // 这里简化实现：仅释放旧纹理，字形需要重新上传
-
-        if (m_texture)
+        SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(m_device);
+        if (commandBuffer == nullptr)
         {
-            SDL_ReleaseGPUTexture(m_device, m_texture.get());
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to acquire expansion command buffer: {}", SDL_GetError());
+            return false;
         }
 
-        m_texture.reset(newTexture);
+        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (copyPass == nullptr)
+        {
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to begin expansion copy pass: {}", SDL_GetError());
+            if (!SDL_CancelGPUCommandBuffer(commandBuffer))
+            {
+                ui::UiRuntime::current().logger().error(
+                    "[TextureAtlas] Failed to cancel expansion command buffer: {}", SDL_GetError());
+            }
+            return false;
+        }
+
+        const SDL_GPUTextureLocation source{.texture = m_texture.get(), .mip_level = 0, .layer = 0, .x = 0, .y = 0, .z = 0};
+        const SDL_GPUTextureLocation destination{
+            .texture = newTexture.get(), .mip_level = 0, .layer = 0, .x = 0, .y = 0, .z = 0};
+        SDL_CopyGPUTextureToTexture(copyPass, &source, &destination, oldSize, oldSize, 1, false);
+        SDL_EndGPUCopyPass(copyPass);
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        {
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to submit expansion copy: {}", SDL_GetError());
+            return false;
+        }
+
+        m_texture.swap(newTexture);
         m_size = newSize;
 
-        // 重置布局状态（字形映射保留，但需重新上传）
-        // 简化处理：清空所有，让调用方重新添加
-        m_glyphMap.clear();
-        m_shelves.clear();
-        m_currentShelfY = 0;
+        const float atlasSize = static_cast<float>(newSize);
+        for (auto& [codepoint, glyph] : m_glyphMap)
+        {
+            static_cast<void>(codepoint);
+            glyph.u0 = static_cast<float>(glyph.x) / atlasSize;
+            glyph.v0 = static_cast<float>(glyph.y) / atlasSize;
+            glyph.u1 = static_cast<float>(glyph.x + glyph.width) / atlasSize;
+            glyph.v1 = static_cast<float>(glyph.y + glyph.height) / atlasSize;
+        }
 
-        ui::UiRuntime::current().logger().warn("[TextureAtlas] Expansion requires re-uploading all glyphs");
+        ui::UiRuntime::current().logger().info(
+            "[TextureAtlas] Migrated atlas content from {}x{} to {}x{}", oldSize, oldSize, newSize, newSize);
         return true;
     }
 
     /**
-     * @brief 上传位图到纹理（灰度转 R8）
+     * @brief 将单通道灰度位图上传到图集的 R8 纹理区域
+     * @param bitmap 连续存放的 R8 位图数据
+     * @param xPos 目标区域左上角的 X 像素坐标
+     * @param yPos 目标区域左上角的 Y 像素坐标
+     * @param width 位图宽度
+     * @param height 位图高度
+     * @return 上传命令提交成功时返回 true；参数、资源或提交失败时返回 false
+     * @note 成功仅表示命令缓冲已提交，不表示 GPU 已执行完成；本函数不会阻塞等待 GPU。
      */
     bool uploadBitmap(const uint8_t* bitmap, uint32_t xPos, uint32_t yPos, int32_t width, int32_t height)
     {
-        if (bitmap == nullptr || width <= 0 || height <= 0) return false;
+        if (m_device == nullptr || m_texture == nullptr || bitmap == nullptr || width <= 0 || height <= 0)
+        {
+            return false;
+        }
 
-        // 注意：SDL3 GPU API 需要通过 CopyPass 上传纹理
-        // 这里简化实现，实际应该创建 TransferBuffer 并使用 CopyPass
-        // 由于 SDL_UploadToGPUTexture 签名在不同版本可能不同，这里提供占位实现
-        // TODO: 完整实现需要 CommandBuffer + CopyPass + TransferBuffer
+        const auto uploadWidth = static_cast<uint32_t>(width);
+        const auto uploadHeight = static_cast<uint32_t>(height);
+        if (xPos > m_size || yPos > m_size || uploadWidth > m_size - xPos || uploadHeight > m_size - yPos
+            || uploadWidth > std::numeric_limits<uint32_t>::max() / uploadHeight)
+        {
+            return false;
+        }
 
-        ui::UiRuntime::current().logger().warn("[TextureAtlas] uploadBitmap not fully implemented, atlas updates may not work");
+        const uint32_t uploadSize = uploadWidth * uploadHeight;
+        const SDL_GPUTransferBufferCreateInfo transferInfo{
+            .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, .size = uploadSize, .props = 0};
+        auto transferBuffer = wrappers::MakeGpuResource<wrappers::UniqueGPUTransferBuffer>(
+            m_device, SDL_CreateGPUTransferBuffer, &transferInfo);
+        if (!transferBuffer)
+        {
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to create upload transfer buffer: {}", SDL_GetError());
+            return false;
+        }
+
+        void* mappedData = SDL_MapGPUTransferBuffer(m_device, transferBuffer.get(), false);
+        if (mappedData == nullptr)
+        {
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to map upload transfer buffer: {}", SDL_GetError());
+            return false;
+        }
+        std::memcpy(mappedData, bitmap, uploadSize);
+        SDL_UnmapGPUTransferBuffer(m_device, transferBuffer.get());
+
+        SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(m_device);
+        if (commandBuffer == nullptr)
+        {
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to acquire upload command buffer: {}", SDL_GetError());
+            return false;
+        }
+
+        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (copyPass == nullptr)
+        {
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to begin upload copy pass: {}", SDL_GetError());
+            if (!SDL_CancelGPUCommandBuffer(commandBuffer))
+            {
+                ui::UiRuntime::current().logger().error(
+                    "[TextureAtlas] Failed to cancel upload command buffer: {}", SDL_GetError());
+            }
+            return false;
+        }
+
+        const SDL_GPUTextureTransferInfo source{.transfer_buffer = transferBuffer.get(),
+                                                .offset = 0,
+                                                .pixels_per_row = uploadWidth,
+                                                .rows_per_layer = uploadHeight};
+        const SDL_GPUTextureRegion destination{.texture = m_texture.get(),
+                                               .mip_level = 0,
+                                               .layer = 0,
+                                               .x = xPos,
+                                               .y = yPos,
+                                               .z = 0,
+                                               .w = uploadWidth,
+                                               .h = uploadHeight,
+                                               .d = 1};
+        SDL_UploadToGPUTexture(copyPass, &source, &destination, false);
+        SDL_EndGPUCopyPass(copyPass);
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        {
+            ui::UiRuntime::current().logger().error(
+                "[TextureAtlas] Failed to submit bitmap upload: {}", SDL_GetError());
+            return false;
+        }
         return true;
     }
 
