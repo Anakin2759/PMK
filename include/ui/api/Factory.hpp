@@ -78,6 +78,8 @@ ui::entity CreateLineEdit(std::string_view initialText = "", std::string_view pl
 ui::entity CreateTextBrowser(std::string_view initialText = "", std::string_view placeholder = "",
                              std::string_view alias = "");
 ui::entity CreateCheckBox(const std::string& label, bool checked = false, std::string_view alias = "");
+ui::entity CreateSwitch(bool checked = false, std::string_view alias = "");
+ui::entity CreateRadioGroup(const std::vector<std::string>& options, int selectedIndex = 0, std::string_view alias = "");
 ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedIndex = 0, std::string_view alias = "");
 void CloseDropDownPopup(ui::entity ddEntity);
 

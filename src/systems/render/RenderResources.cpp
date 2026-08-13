@@ -20,6 +20,8 @@
 #include "renderers/TableRenderer.hpp"
 #include "renderers/CheckBoxRenderer.hpp"
 #include "renderers/DropDownRenderer.hpp"
+#include "renderers/SwitchRenderer.hpp"
+#include "renderers/RadioButtonRenderer.hpp"
 #include "interface/IRenderer.hpp"
 #include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
@@ -43,6 +45,8 @@ void RenderSystem::initializeRenderers()
     m_impl->m_renderers.push_back(std::make_unique<renderers::TableRenderer>(*m_reg));
     m_impl->m_renderers.push_back(std::make_unique<renderers::CheckBoxRenderer>(*m_reg));
     m_impl->m_renderers.push_back(std::make_unique<renderers::DropDownRenderer>(*m_reg));
+    m_impl->m_renderers.push_back(std::make_unique<renderers::SwitchRenderer>(*m_reg));
+    m_impl->m_renderers.push_back(std::make_unique<renderers::RadioButtonRenderer>(*m_reg));
 
     std::ranges::sort(m_impl->m_renderers, [](const std::unique_ptr<core::IRenderer>& leftRenderer,
                                               const std::unique_ptr<core::IRenderer>& rightRenderer)

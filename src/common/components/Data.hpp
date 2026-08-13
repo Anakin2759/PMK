@@ -337,6 +337,44 @@ struct Tooltip
     bool hovered = false;                   // 目标是否处于悬停状态
 };
 
+/**
+ * @brief Switch 二态开关组件
+ */
+struct Switch
+{
+    using is_component_tag = void;
+    bool checked = false;
+    Color trackColor{0.28F, 0.28F, 0.32F, 1.0F};      // 关闭态轨道
+    Color trackColorOn{0.31F, 0.67F, 0.98F, 1.0F};    // 开启态轨道
+    Color thumbColor{0.97F, 0.98F, 1.0F, 1.0F};       // 滑块
+    on_event<bool> onChanged;
+};
+
+/**
+ * @brief RadioButton 单选按钮组件
+ */
+struct RadioButton
+{
+    using is_component_tag = void;
+    bool checked = false;
+    std::string label;
+    entt::entity group = entt::null;  // 所属 RadioGroup 实体（null 表示独立）
+    int optionIndex = -1;
+    Color ringColor{0.70F, 0.70F, 0.75F, 1.0F};   // 外圆环
+    Color dotColor{0.31F, 0.67F, 0.98F, 1.0F};    // 选中中心圆点
+    on_event<bool> onChanged;
+};
+
+/**
+ * @brief RadioGroup 单选组组件（容器，持有一组互斥 RadioButton）
+ */
+struct RadioGroup
+{
+    using is_component_tag = void;
+    int selectedIndex = 0;
+    on_event<int> onChanged;
+};
+
 // ===================== Canvas 绘图组件 =====================
 
 enum class CanvasDrawType : uint8_t

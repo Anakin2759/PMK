@@ -296,6 +296,30 @@ struct TooltipTag
 };
 
 /**
+ * @brief Switch 二态开关标记
+ */
+struct SwitchTag
+{
+    using is_tags_tag = void;
+};
+
+/**
+ * @brief RadioButton 单选按钮标记
+ */
+struct RadioButtonTag
+{
+    using is_tags_tag = void;
+};
+
+/**
+ * @brief RadioGroup 单选组标记
+ */
+struct RadioGroupTag
+{
+    using is_tags_tag = void;
+};
+
+/**
  * @brief Canvas 绘图组件标记
  */
 struct CanvasTag

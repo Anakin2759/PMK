@@ -805,6 +805,106 @@ ui::entity CreateCheckBox(const std::string& label, bool checked, std::string_vi
     return entity;
 }
 
+ui::entity CreateSwitch(bool checked, std::string_view alias)
+{
+    auto& reg = CurrentRegistry();
+    auto entity = CreateBaseWidget(alias);
+    reg.emplace<components::SwitchTag>(entity);
+    reg.emplace<components::FocusableTag>(entity);
+    auto& switchComp = reg.emplace<components::Switch>(entity);
+    switchComp.checked = checked;
+    auto& size = reg.get<components::Size>(entity);
+    size.size = {scale::Metric(40.0F), scale::Metric(22.0F)};
+    size.sizePolicy = policies::Size::FIXED;
+    auto& clickable = reg.emplace<components::Clickable>(entity);
+    clickable.onClick = [entity]()
+    {
+        auto& reg = CurrentRegistry();
+        auto* switchComp = reg.try_get<components::Switch>(entity);
+        if (switchComp == nullptr)
+            return;
+        switchComp->checked = !switchComp->checked;
+        if (switchComp->onChanged)
+        {
+            switchComp->onChanged(switchComp->checked);
+        }
+        ui::utils::MarkVisualChanged(entity);
+    };
+    return entity;
+}
+
+ui::entity CreateRadioGroup(const std::vector<std::string>& options, int selectedIndex, std::string_view alias)
+{
+    auto& reg = CurrentRegistry();
+    auto entity = CreateBaseWidget(alias);
+    reg.emplace<components::RadioGroupTag>(entity);
+    auto& group = reg.emplace<components::RadioGroup>(entity);
+    group.selectedIndex = selectedIndex;
+    auto& layout = reg.emplace<components::LayoutInfo>(entity);
+    layout.direction = policies::LayoutDirection::VERTICAL;
+    layout.alignment = policies::Alignment::TOP_LEFT;
+    auto& size = reg.get<components::Size>(entity);
+    size.sizePolicy = policies::Size::AUTO;
+
+    const int optionCount = static_cast<int>(options.size());
+    for (int index = 0; index < optionCount; ++index)
+    {
+        const std::string& label = options[static_cast<std::size_t>(index)];
+        const std::string optionAlias = std::string(alias) + "_option_" + std::to_string(index);
+        const auto option = CreateBaseWidget(optionAlias);
+        reg.emplace<components::RadioButtonTag>(option);
+        reg.emplace<components::FocusableTag>(option);
+        auto& radioButton = reg.emplace<components::RadioButton>(option);
+        radioButton.checked = (index == selectedIndex);
+        radioButton.label = label;
+        radioButton.group = detail::ToInternal(entity);
+        radioButton.optionIndex = index;
+        auto& text = reg.emplace<components::Text>(option);
+        text.content = label;
+        text.alignment = policies::Alignment::LEFT | policies::Alignment::VCENTER;
+        auto& padding = reg.get_or_emplace<components::Padding>(option);
+        padding.values = {0.0F, 0.0F, 0.0F, scale::Metric(24.0F)};
+        auto& optionSize = reg.get<components::Size>(option);
+        optionSize.sizePolicy = policies::Size::AUTO;
+        optionSize.size = {scale::Metric(120.0F), scale::Metric(22.0F)};
+        auto& clickable = reg.emplace<components::Clickable>(option);
+        Registry* const regPtr = &reg;
+        clickable.onClick = [regPtr, option]()
+        {
+            auto& reg = *regPtr;
+            auto* radioButton = reg.try_get<components::RadioButton>(option);
+            if (radioButton == nullptr || radioButton->group == entt::null)
+                return;
+            auto* group = reg.try_get<components::RadioGroup>(radioButton->group);
+            if (group == nullptr)
+                return;
+
+            // 互斥：组内仅当前项选中
+            auto view = reg.view<components::RadioButton>();
+            const entt::entity optionInternal = detail::ToInternal(option);
+            for (const entt::entity member : view)
+            {
+                auto& memberButton = view.get<components::RadioButton>(member);
+                if (memberButton.group != radioButton->group)
+                    continue;
+                memberButton.checked = (member == optionInternal);
+                if (memberButton.onChanged)
+                {
+                    memberButton.onChanged(memberButton.checked);
+                }
+                ui::utils::MarkVisualChanged(member);
+            }
+            group->selectedIndex = radioButton->optionIndex;
+            if (group->onChanged)
+            {
+                group->onChanged(group->selectedIndex);
+            }
+        };
+        hierarchy::AddChild(entity, option);
+    }
+    return entity;
+}
+
 namespace
 {
 

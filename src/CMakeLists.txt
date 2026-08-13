@@ -302,6 +302,8 @@ set(UI_HEADERS
     renderers/TableRenderer.hpp
     renderers/CheckBoxRenderer.hpp
     renderers/DropDownRenderer.hpp
+    renderers/SwitchRenderer.hpp
+    renderers/RadioButtonRenderer.hpp
 
 
     utils/Logger.hpp
