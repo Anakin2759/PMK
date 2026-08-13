@@ -879,22 +879,42 @@ ui::entity CreateRadioGroup(const std::vector<std::string>& options, int selecte
             if (group == nullptr)
                 return;
 
-            // 互斥：组内仅当前项选中
-            auto view = reg.view<components::RadioButton>();
+            // 点击已选中项：no-op，避免重复触发 onChanged
+            if (radioButton->checked && group->selectedIndex == radioButton->optionIndex)
+                return;
+
             const entt::entity optionInternal = detail::ToInternal(option);
+
+            // 先统一修改状态（回调期间不持有 view 迭代器，避免迭代器失效 UB）
+            entt::entity newlyChecked = entt::null;
+            auto view = reg.view<components::RadioButton>();
             for (const entt::entity member : view)
             {
                 auto& memberButton = view.get<components::RadioButton>(member);
                 if (memberButton.group != radioButton->group)
                     continue;
-                memberButton.checked = (member == optionInternal);
-                if (memberButton.onChanged)
+                const bool shouldBeChecked = (member == optionInternal);
+                if (shouldBeChecked != memberButton.checked)
                 {
-                    memberButton.onChanged(memberButton.checked);
+                    memberButton.checked = shouldBeChecked;
+                    if (shouldBeChecked)
+                    {
+                        newlyChecked = member;
+                    }
+                    ui::utils::MarkVisualChanged(member);
                 }
-                ui::utils::MarkVisualChanged(member);
             }
             group->selectedIndex = radioButton->optionIndex;
+
+            // 状态修改完成后统一触发回调：仅新选中项触发 onChanged(true)
+            if (newlyChecked != entt::null)
+            {
+                if (auto* checkedButton = reg.try_get<components::RadioButton>(newlyChecked);
+                    checkedButton != nullptr && checkedButton->onChanged)
+                {
+                    checkedButton->onChanged(true);
+                }
+            }
             if (group->onChanged)
             {
                 group->onChanged(group->selectedIndex);

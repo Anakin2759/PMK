@@ -148,5 +148,72 @@ TEST_F(SwitchRadioTest, RadioGroupClickMovesSelectionToClickedOption)
     EXPECT_EQ(checkedCount, 1);
 }
 
+TEST_F(SwitchRadioTest, RadioGroupClickAlreadySelectedIsNoOp)
+{
+    const std::vector<std::string> options{"A", "B", "C"};
+    const auto group = factory::CreateRadioGroup(options, 1, "group");
+
+    int groupChangeCount = 0;
+    registry().get<components::RadioGroup>(group).onChanged = [&groupChangeCount](int) { ++groupChangeCount; };
+
+    // 找到 index=1（已选中）的 RadioButton 并点击
+    entt::entity target = entt::null;
+    for (const entt::entity entity : registry().view<components::RadioButton>())
+    {
+        if (registry().get<components::RadioButton>(entity).optionIndex == 1)
+        {
+            target = entity;
+            break;
+        }
+    }
+    ASSERT_NE(target, static_cast<entt::entity>(entt::null));
+
+    auto* clickable = registry().try_get<components::Clickable>(target);
+    ASSERT_NE(clickable, nullptr);
+    ASSERT_TRUE(clickable->onClick);
+    clickable->onClick();
+
+    // no-op：不重复触发 group.onChanged，选中状态不变
+    EXPECT_EQ(groupChangeCount, 0);
+    EXPECT_EQ(registry().get<components::RadioGroup>(group).selectedIndex, 1);
+}
+
+TEST_F(SwitchRadioTest, RadioGroupOnlyNewlyCheckedFiresOnChanged)
+{
+    const std::vector<std::string> options{"A", "B"};
+    factory::CreateRadioGroup(options, 0, "group");
+
+    // 记录被取消项的 onChanged 是否被触发
+    entt::entity option0 = entt::null;
+    entt::entity option1 = entt::null;
+    for (const entt::entity entity : registry().view<components::RadioButton>())
+    {
+        const auto& rb = registry().get<components::RadioButton>(entity);
+        if (rb.optionIndex == 0)
+            option0 = entity;
+        else
+            option1 = entity;
+    }
+
+    int option0ChangedCalls = 0;
+    int option1ChangedCalls = 0;
+    registry().get<components::RadioButton>(option0).onChanged = [&option0ChangedCalls](bool)
+    { ++option0ChangedCalls; };
+    registry().get<components::RadioButton>(option1).onChanged = [&option1ChangedCalls](bool)
+    { ++option1ChangedCalls; };
+
+    // 点击 index=1（未选中）
+    auto* clickable = registry().try_get<components::Clickable>(option1);
+    ASSERT_NE(clickable, nullptr);
+    ASSERT_TRUE(clickable->onClick);
+    clickable->onClick();
+
+    // 仅新选中项触发 onChanged(true)，被取消项不触发 onChanged(false)
+    EXPECT_EQ(option0ChangedCalls, 0);
+    EXPECT_EQ(option1ChangedCalls, 1);
+    EXPECT_TRUE(registry().get<components::RadioButton>(option1).checked);
+    EXPECT_FALSE(registry().get<components::RadioButton>(option0).checked);
+}
+
 }  // namespace
 }  // namespace ui::tests
