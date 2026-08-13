@@ -104,4 +104,4 @@ inline void InitCustomWindow(SDL_Window* sdlWindow, int borderWidth = 6, int cor
     EnableTransparency(sdlWindow, cornerRadius);
 }
 
-} // namespace ui::platform
+}  // namespace ui::platform

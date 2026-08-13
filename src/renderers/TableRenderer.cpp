@@ -138,8 +138,7 @@ void TableRenderer::updateScrollArea(entt::entity entity, TableRenderState& stat
     state.scrollOffsetX = scrollArea->scrollOffset.x();
 }
 
-void TableRenderer::renderHeaderBackground(const components::TableInfo& info,
-                                           core::RenderContext& context,
+void TableRenderer::renderHeaderBackground(const components::TableInfo& info, core::RenderContext& context,
                                            const TableRenderState& state) const
 {
     if (info.headers.empty())
@@ -148,16 +147,15 @@ void TableRenderer::renderHeaderBackground(const components::TableInfo& info,
     }
 
     context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, state.pushConstants);
-    context.batchManager->addRect(
-        {state.tableX, state.tableY}, {state.totalWidth, info.headerHeight}, toVec4(info.headerBgColor, context.alpha));
+    context.batchManager->addRect({state.tableX, state.tableY}, {state.totalWidth, info.headerHeight},
+                                  toVec4(info.headerBgColor, context.alpha));
 }
 
-void TableRenderer::renderHeaderText(const components::TableInfo& info,
-                                     core::RenderContext& context,
+void TableRenderer::renderHeaderText(const components::TableInfo& info, core::RenderContext& context,
                                      const TableRenderState& state) const
 {
-    if (info.headers.empty() || context.fontManager == nullptr || !context.fontManager->isLoaded()
-        || context.textTextureCache == nullptr)
+    if (info.headers.empty() || context.fontManager == nullptr || !context.fontManager->isLoaded() ||
+        context.textTextureCache == nullptr)
     {
         return;
     }
@@ -210,8 +208,7 @@ const Color& TableRenderer::rowBackgroundColor(const components::TableInfo& info
     return info.altRowBgColor;
 }
 
-void TableRenderer::renderRowBackgrounds(const components::TableInfo& info,
-                                         core::RenderContext& context,
+void TableRenderer::renderRowBackgrounds(const components::TableInfo& info, core::RenderContext& context,
                                          const TableRenderState& state) const
 {
     float rowY = state.bodyY - state.scrollOffsetY;
@@ -221,16 +218,14 @@ void TableRenderer::renderRowBackgrounds(const components::TableInfo& info,
         {
             const Color& backgroundColor = rowBackgroundColor(info, row);
             context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, state.pushConstants);
-            context.batchManager->addRect({state.tableX, rowY},
-                                          {state.totalWidth, state.effectiveRowHeight},
+            context.batchManager->addRect({state.tableX, rowY}, {state.totalWidth, state.effectiveRowHeight},
                                           toVec4(backgroundColor, context.alpha));
         }
         rowY += state.effectiveRowHeight;
     }
 }
 
-void TableRenderer::renderBodyGrid(const components::TableInfo& info,
-                                   core::RenderContext& context,
+void TableRenderer::renderBodyGrid(const components::TableInfo& info, core::RenderContext& context,
                                    const TableRenderState& state) const
 {
     // 竖向分隔线：随内容横向滚动
@@ -246,8 +241,7 @@ void TableRenderer::renderBodyGrid(const components::TableInfo& info,
                 context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, state.pushConstants);
                 const float gridThickness = scale::Metric(1.0F);
                 context.batchManager->addRect({columnX - (gridThickness * 0.5F), state.bodyY},
-                                              {gridThickness, state.bodyHeight},
-                                              state.gridColor);
+                                              {gridThickness, state.bodyHeight}, state.gridColor);
             }
         }
     }
@@ -261,14 +255,13 @@ void TableRenderer::renderBodyGrid(const components::TableInfo& info,
         {
             context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, state.pushConstants);
             const float gridThickness = scale::Metric(1.0F);
-            context.batchManager->addRect(
-                {state.tableX, rowY - (gridThickness * 0.5F)}, {state.totalWidth, gridThickness}, state.gridColor);
+            context.batchManager->addRect({state.tableX, rowY - (gridThickness * 0.5F)},
+                                          {state.totalWidth, gridThickness}, state.gridColor);
         }
     }
 }
 
-void TableRenderer::renderCellText(const components::TableInfo& info,
-                                   core::RenderContext& context,
+void TableRenderer::renderCellText(const components::TableInfo& info, core::RenderContext& context,
                                    const TableRenderState& state) const
 {
     if (context.fontManager == nullptr || !context.fontManager->isLoaded() || context.textTextureCache == nullptr)
@@ -298,12 +291,8 @@ void TableRenderer::renderCellText(const components::TableInfo& info,
     }
 }
 
-void TableRenderer::renderCellTexture(const std::string& text,
-                                      float cellX,
-                                      float rowY,
-                                      float rowHeight,
-                                      const Eigen::Vector4f& cellColor,
-                                      core::RenderContext& context) const
+void TableRenderer::renderCellTexture(const std::string& text, float cellX, float rowY, float rowHeight,
+                                      const Eigen::Vector4f& cellColor, core::RenderContext& context) const
 {
     const float cellFontSize = scale::Metric(12.0F);
     const float cellTextPadding = scale::Metric(4.0F);
@@ -333,15 +322,14 @@ void TableRenderer::renderCellTexture(const std::string& text,
     context.batchManager->addRect({drawX, drawY}, textSize, cellColor);
 }
 
-void TableRenderer::renderHeaderSeparators(const components::TableInfo& info,
-                                           core::RenderContext& context,
+void TableRenderer::renderHeaderSeparators(const components::TableInfo& info, core::RenderContext& context,
                                            const TableRenderState& state) const
 {
     // 表头与表体分隔线：始终覆盖可见宽度
     context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, state.pushConstants);
     const float gridThickness = scale::Metric(1.0F);
-    context.batchManager->addRect(
-        {state.tableX, state.bodyY - (gridThickness * 0.5F)}, {state.totalWidth, gridThickness}, state.gridColor);
+    context.batchManager->addRect({state.tableX, state.bodyY - (gridThickness * 0.5F)},
+                                  {state.totalWidth, gridThickness}, state.gridColor);
 
     // 表头列分隔线：随内容横向滚动
     float columnX = state.tableX - state.scrollOffsetX;
@@ -354,11 +342,10 @@ void TableRenderer::renderHeaderSeparators(const components::TableInfo& info,
             {
                 context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, state.pushConstants);
                 context.batchManager->addRect({columnX - (gridThickness * 0.5F), state.tableY},
-                                              {gridThickness, info.headerHeight},
-                                              state.gridColor);
+                                              {gridThickness, info.headerHeight}, state.gridColor);
             }
         }
     }
 }
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

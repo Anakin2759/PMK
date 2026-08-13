@@ -39,8 +39,10 @@ namespace ui::renderers
  */
 class ShapeRenderer : public core::IRenderer
 {
-public:
-    explicit ShapeRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit ShapeRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
     [[nodiscard]] bool canHandle(entt::entity entity) const override
     {
@@ -64,10 +66,10 @@ public:
 
     [[nodiscard]] int getPriority() const override
     {
-        return 0; // 背景应该最先渲染
+        return 0;  // 背景应该最先渲染
     }
 
-private:
+   private:
     /**
      * @brief 初始化基础推送常量
      *
@@ -78,8 +80,7 @@ private:
      * @param context 渲染上下文
      * @param rectSize 矩形尺寸
      */
-    void initBasicPushConstants(render::UiPushConstants& pushConstants,
-                                const core::RenderContext& context,
+    void initBasicPushConstants(render::UiPushConstants& pushConstants, const core::RenderContext& context,
                                 const Eigen::Vector2f& rectSize) const
     {
         pushConstants.screen_size[0] = context.screenWidth;
@@ -127,8 +128,8 @@ private:
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConstants);
 
         // 添加矩形
-        Eigen::Vector4f color(
-            background->color.red, background->color.green, background->color.blue, background->color.alpha);
+        Eigen::Vector4f color(background->color.red, background->color.green, background->color.blue,
+                              background->color.alpha);
         context.batchManager->addRect(context.position, context.size, color);
     }
 
@@ -169,9 +170,7 @@ private:
         }
     }
 
-    void renderRoundedBorder(entt::entity entity,
-                             core::RenderContext& context,
-                             const Eigen::Vector4f& color,
+    void renderRoundedBorder(entt::entity entity, core::RenderContext& context, const Eigen::Vector4f& color,
                              float thickness)
     {
         render::UiPushConstants pushConstants{};
@@ -207,4 +206,4 @@ private:
     Registry* m_reg = nullptr;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

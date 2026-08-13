@@ -23,7 +23,7 @@ struct QuitRequested;
 
 class Application
 {
-public:
+   public:
     explicit Application(std::span<char*> arg);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
@@ -37,7 +37,7 @@ public:
     [[nodiscard]] UiRuntime& runtime() noexcept;
     [[nodiscard]] const UiRuntime& runtime() const noexcept;
 
-private:
+   private:
     std::unique_ptr<ApplicationImpl> m_impl;
 };
-} // namespace ui
+}  // namespace ui

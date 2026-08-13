@@ -9,7 +9,10 @@ include(CMakePackageConfigHelpers)
 
 option(ENABLE_BUILD_TESTS "Enable building of unit tests" OFF)
 option(BUILD_EXAMPLES "Enable building examples" ON)
-option(ENABLE_LTO "Enable IPO/LTO for Release and RelWithDebInfo builds" ON)
+# IPO/LTO 默认关闭：自包含发行模式下合并后的静态库含第三方对象，开启 LTO 会要求
+# 消费者链接时使用相同 LTO 配置（LTCG / ThinLTO），破坏"即插即用"。需要时显式启用：
+#   cmake -B build -DENABLE_LTO=ON
+option(ENABLE_LTO "Enable IPO/LTO for Release and RelWithDebInfo builds" OFF)
 option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis" OFF)
 
 # clang-cl 编译 EnTT/Eigen 等模板密集型翻译单元时单进程内存占用较高。
@@ -220,8 +223,20 @@ if(Python3_Interpreter_FOUND)
         COMMENT "[UI Architecture] Checking P0 boundary debt does not grow"
         VERBATIM
     )
+
+    # 公共头自包含门禁：include/ui/** 与 include/ui.hpp 不得引入任何第三方库头
+    # （Eigen/entt/SDL3/spdlog/yoga/freetype/harfbuzz/cmrc）或 src/ 内部路径，
+    # 保证自包含发行模式下消费者只需要 ui 头 + 链接 VMPUI 单库。
+    add_custom_target(ui_public_headers_self_contained_check ALL
+        COMMAND ${Python3_EXECUTABLE}
+            "${CMAKE_SOURCE_DIR}/tools/check_public_headers_self_contained.py"
+            --root "${CMAKE_SOURCE_DIR}"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        COMMENT "[UI Distribution] Checking public headers have zero third-party dependencies"
+        VERBATIM
+    )
 else()
-    message(WARNING "Python3 interpreter not found; ui_architecture_boundary_check target is disabled.")
+    message(WARNING "Python3 interpreter not found; ui_architecture_boundary_check / ui_public_headers_self_contained_check targets are disabled.")
 endif()
 
 # ===================== UI 库 ====================

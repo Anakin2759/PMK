@@ -43,15 +43,26 @@ namespace ui::systems
 
 class TweenSystem : public ui::interface::EnableRegister<TweenSystem>
 {
-public:
+   public:
     TweenSystem() = default;
-    explicit TweenSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
+    explicit TweenSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    {
+    }
 
-    void registerHandlersImpl() { m_disp->sink<events::UpdateEvent>().connect<&TweenSystem::update>(*this); }
-    void unregisterHandlersImpl() { m_disp->sink<events::UpdateEvent>().disconnect<&TweenSystem::update>(*this); }
-    ui::interface::SystemPhase getPhase() { return ui::interface::SystemPhase::ANIMATION; }
+    void registerHandlersImpl()
+    {
+        m_disp->sink<events::UpdateEvent>().connect<&TweenSystem::update>(*this);
+    }
+    void unregisterHandlersImpl()
+    {
+        m_disp->sink<events::UpdateEvent>().disconnect<&TweenSystem::update>(*this);
+    }
+    ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::ANIMATION;
+    }
 
-private:
+   private:
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
 
@@ -60,7 +71,7 @@ private:
      */
     void update()
     {
-        float deltaTime = 16.0F; // 默认 16ms
+        float deltaTime = 16.0F;  // 默认 16ms
         if (const auto* ctx = m_reg->ctx().template find<globalcontext::FrameContext>())
         {
             if (ctx->intervalMs > 0)
@@ -88,13 +99,13 @@ private:
 
                 // 5. 应用到具体的动画属性组件
                 bool dirty = false;
-                dirty |= updatePosition(entity, val); // 位置动画通常会影响布局，因此单独标记布局脏
-                dirty |= updateAlpha(entity, val);    // 透明度动画可能影响渲染，但不影响布局
+                dirty |= updatePosition(entity, val);  // 位置动画通常会影响布局，因此单独标记布局脏
+                dirty |= updateAlpha(entity, val);     // 透明度动画可能影响渲染，但不影响布局
                 dirty |= updateScale(
-                    entity, val); // 缩放动画可能影响布局和渲染，但这里假设它只影响渲染（如果需要布局影响，可以在
-                                  // updateScale 内部调用 MarkLayoutDirty）
-                dirty |= updateRenderOffset(entity, val); // 渲染偏移动画通常只影响渲染，不影响布局
-                dirty |= updateColor(entity, val);        // 颜色动画可能影响渲染，但不影响布局
+                    entity, val);  // 缩放动画可能影响布局和渲染，但这里假设它只影响渲染（如果需要布局影响，可以在
+                                   // updateScale 内部调用 MarkLayoutDirty）
+                dirty |= updateRenderOffset(entity, val);  // 渲染偏移动画通常只影响渲染，不影响布局
+                dirty |= updateColor(entity, val);         // 颜色动画可能影响渲染，但不影响布局
 
                 if (dirty)
                 {
@@ -187,7 +198,8 @@ private:
             // Lambda to apply alpha safely
             auto applyAlpha = [currentAlpha](auto* component)
             {
-                if (component) component->color.alpha = currentAlpha;
+                if (component)
+                    component->color.alpha = currentAlpha;
             };
 
             // 应用到常见组件
@@ -309,10 +321,12 @@ private:
 
     void finishAnimation(entt::entity entity)
     {
-        if (!m_reg->valid(entity)) return;
+        if (!m_reg->valid(entity))
+            return;
 
         auto* animTime = m_reg->try_get<components::AnimationTime>(entity);
-        if (animTime == nullptr) return;
+        if (animTime == nullptr)
+            return;
 
         m_reg->remove<components::AnimatingTag>(entity);
 
@@ -336,13 +350,13 @@ private:
     {
         switch (easing)
         {
-            case policies::Easing::LINEAR: // 线性缓动
+            case policies::Easing::LINEAR:  // 线性缓动
                 return time;
-            case policies::Easing::EASE_IN_QUAD: // 二次缓入
+            case policies::Easing::EASE_IN_QUAD:  // 二次缓入
                 return time * time;
-            case policies::Easing::EASE_OUT_QUAD: // 二次缓出
+            case policies::Easing::EASE_OUT_QUAD:  // 二次缓出
                 return time * (2.0F - time);
-            case policies::Easing::EASE_IN_OUT_QUAD: // 二次缓入缓出
+            case policies::Easing::EASE_IN_OUT_QUAD:  // 二次缓入缓出
                 return time < 0.5F ? 2.0F * time * time : -1.0F + ((4.0F - (2.0F * time)) * time);
             case policies::Easing::EASE_IN_SINE:
                 return 1.0F - std::cos((time * 3.1415926F) / 2.0F);
@@ -356,4 +370,4 @@ private:
     }
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

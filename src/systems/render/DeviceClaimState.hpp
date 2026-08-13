@@ -8,9 +8,12 @@ namespace ui::systems::render
  */
 class DeviceClaimState final
 {
-public:
+   public:
     /** @brief 首个窗口成功声明后锁定设备代际。 */
-    void MarkDeviceLocked() noexcept { m_deviceLocked = true; }
+    void MarkDeviceLocked() noexcept
+    {
+        m_deviceLocked = true;
+    }
 
     /** @brief 仅允许在设备锁定后标记设备资源就绪。 */
     [[nodiscard]] bool MarkResourcesReady() noexcept
@@ -23,11 +26,26 @@ public:
         return true;
     }
 
-    [[nodiscard]] bool IsDeviceLocked() const noexcept { return m_deviceLocked; }
-    [[nodiscard]] bool AreResourcesReady() const noexcept { return m_resourcesReady; }
-    [[nodiscard]] bool MayTryAnotherBackend() const noexcept { return !m_deviceLocked; }
-    [[nodiscard]] bool MayCreateDeviceResources() const noexcept { return m_deviceLocked && !m_resourcesReady; }
-    [[nodiscard]] bool MayCreateWhiteTexture() const noexcept { return m_deviceLocked && m_resourcesReady; }
+    [[nodiscard]] bool IsDeviceLocked() const noexcept
+    {
+        return m_deviceLocked;
+    }
+    [[nodiscard]] bool AreResourcesReady() const noexcept
+    {
+        return m_resourcesReady;
+    }
+    [[nodiscard]] bool MayTryAnotherBackend() const noexcept
+    {
+        return !m_deviceLocked;
+    }
+    [[nodiscard]] bool MayCreateDeviceResources() const noexcept
+    {
+        return m_deviceLocked && !m_resourcesReady;
+    }
+    [[nodiscard]] bool MayCreateWhiteTexture() const noexcept
+    {
+        return m_deviceLocked && m_resourcesReady;
+    }
 
     void Reset() noexcept
     {
@@ -35,9 +53,9 @@ public:
         m_deviceLocked = false;
     }
 
-private:
+   private:
     bool m_deviceLocked = false;
     bool m_resourcesReady = false;
 };
 
-} // namespace ui::systems::render
+}  // namespace ui::systems::render

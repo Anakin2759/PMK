@@ -30,4 +30,4 @@ const ThemePalette& CurrentTheme()
     return bridge::CurrentTheme();
 }
 
-} // namespace ui::theme
+}  // namespace ui::theme

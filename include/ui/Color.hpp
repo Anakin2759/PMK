@@ -41,8 +41,7 @@ struct Color
      * 同时避免公共颜色头依赖具体数学库。
      */
     template <typename Vector>
-        requires requires(const Vector& vector)
-        {
+        requires requires(const Vector& vector) {
             { vector.x() } -> std::convertible_to<float>;
             { vector.y() } -> std::convertible_to<float>;
             { vector.z() } -> std::convertible_to<float>;
@@ -59,54 +58,82 @@ struct Color
     [[nodiscard]] constexpr std::uint32_t toSDLColor() const
     {
         auto clamp = [](float value) -> std::uint8_t
-           { return static_cast<std::uint8_t>(std::clamp(value, 0.0F, 1.0F) * MAX_CHANNEL_FLOAT); };
-           return (static_cast<std::uint32_t>(clamp(red)) << RED_SHIFT)
-               | (static_cast<std::uint32_t>(clamp(green)) << GREEN_SHIFT)
-               | (static_cast<std::uint32_t>(clamp(blue)) << BLUE_SHIFT)
-             | static_cast<std::uint32_t>(clamp(alpha));
+        { return static_cast<std::uint8_t>(std::clamp(value, 0.0F, 1.0F) * MAX_CHANNEL_FLOAT); };
+        return (static_cast<std::uint32_t>(clamp(red)) << RED_SHIFT) |
+               (static_cast<std::uint32_t>(clamp(green)) << GREEN_SHIFT) |
+               (static_cast<std::uint32_t>(clamp(blue)) << BLUE_SHIFT) | static_cast<std::uint32_t>(clamp(alpha));
     }
 
     [[nodiscard]] static constexpr Color fromSDLColor(std::uint32_t sdlColor)
     {
         return {static_cast<float>((sdlColor >> RED_SHIFT) & CHANNEL_MASK) / MAX_CHANNEL_FLOAT,
-            static_cast<float>((sdlColor >> GREEN_SHIFT) & CHANNEL_MASK) / MAX_CHANNEL_FLOAT,
-            static_cast<float>((sdlColor >> BLUE_SHIFT) & CHANNEL_MASK) / MAX_CHANNEL_FLOAT,
-            static_cast<float>(sdlColor & CHANNEL_MASK) / MAX_CHANNEL_FLOAT};
+                static_cast<float>((sdlColor >> GREEN_SHIFT) & CHANNEL_MASK) / MAX_CHANNEL_FLOAT,
+                static_cast<float>((sdlColor >> BLUE_SHIFT) & CHANNEL_MASK) / MAX_CHANNEL_FLOAT,
+                static_cast<float>(sdlColor & CHANNEL_MASK) / MAX_CHANNEL_FLOAT};
     }
 
-    [[nodiscard]] static constexpr Color fromRGBA(std::uint8_t red,
-                                                   std::uint8_t green,
-                                                   std::uint8_t blue,
-                                                   std::uint8_t alpha = MAX_CHANNEL_BYTE)
+    [[nodiscard]] static constexpr Color fromRGBA(std::uint8_t red, std::uint8_t green, std::uint8_t blue,
+                                                  std::uint8_t alpha = MAX_CHANNEL_BYTE)
     {
-                            return {static_cast<float>(red) / MAX_CHANNEL_FLOAT,
-                                static_cast<float>(green) / MAX_CHANNEL_FLOAT,
-                                static_cast<float>(blue) / MAX_CHANNEL_FLOAT,
-                                static_cast<float>(alpha) / MAX_CHANNEL_FLOAT};
+        return {static_cast<float>(red) / MAX_CHANNEL_FLOAT, static_cast<float>(green) / MAX_CHANNEL_FLOAT,
+                static_cast<float>(blue) / MAX_CHANNEL_FLOAT, static_cast<float>(alpha) / MAX_CHANNEL_FLOAT};
     }
 
-    [[nodiscard]] constexpr Color withAlpha(float newAlpha) const { return {red, green, blue, newAlpha}; }
-    [[nodiscard]] constexpr Color multiplyAlpha(float factor) const { return {red, green, blue, alpha * factor}; }
+    [[nodiscard]] constexpr Color withAlpha(float newAlpha) const
+    {
+        return {red, green, blue, newAlpha};
+    }
+    [[nodiscard]] constexpr Color multiplyAlpha(float factor) const
+    {
+        return {red, green, blue, alpha * factor};
+    }
 
-    static constexpr Color White() { return {1.0F, 1.0F, 1.0F, 1.0F}; }
-    static constexpr Color Black() { return {0.0F, 0.0F, 0.0F, 1.0F}; }
-    static constexpr Color Red() { return {1.0F, 0.0F, 0.0F, 1.0F}; }
-    static constexpr Color Green() { return {0.0F, 1.0F, 0.0F, 1.0F}; }
-    static constexpr Color Blue() { return {0.0F, 0.0F, 1.0F, 1.0F}; }
-    static constexpr Color Yellow() { return {1.0F, 1.0F, 0.0F, 1.0F}; }
-    static constexpr Color Cyan() { return {0.0F, 1.0F, 1.0F, 1.0F}; }
-    static constexpr Color Magenta() { return {1.0F, 0.0F, 1.0F, 1.0F}; }
-    static constexpr Color Transparent() { return {0.0F, 0.0F, 0.0F, 0.0F}; }
-    static constexpr Color Gray() { return {HALF_CHANNEL, HALF_CHANNEL, HALF_CHANNEL, 1.0F}; }
+    static constexpr Color White()
+    {
+        return {1.0F, 1.0F, 1.0F, 1.0F};
+    }
+    static constexpr Color Black()
+    {
+        return {0.0F, 0.0F, 0.0F, 1.0F};
+    }
+    static constexpr Color Red()
+    {
+        return {1.0F, 0.0F, 0.0F, 1.0F};
+    }
+    static constexpr Color Green()
+    {
+        return {0.0F, 1.0F, 0.0F, 1.0F};
+    }
+    static constexpr Color Blue()
+    {
+        return {0.0F, 0.0F, 1.0F, 1.0F};
+    }
+    static constexpr Color Yellow()
+    {
+        return {1.0F, 1.0F, 0.0F, 1.0F};
+    }
+    static constexpr Color Cyan()
+    {
+        return {0.0F, 1.0F, 1.0F, 1.0F};
+    }
+    static constexpr Color Magenta()
+    {
+        return {1.0F, 0.0F, 1.0F, 1.0F};
+    }
+    static constexpr Color Transparent()
+    {
+        return {0.0F, 0.0F, 0.0F, 0.0F};
+    }
+    static constexpr Color Gray()
+    {
+        return {HALF_CHANNEL, HALF_CHANNEL, HALF_CHANNEL, 1.0F};
+    }
 };
 
 [[nodiscard]] constexpr Color Lerp(const Color& from, const Color& to, float alpha)
 {
     const auto lerp = [alpha](float start, float end) { return start + ((end - start) * alpha); };
-    return {lerp(from.red, to.red),
-            lerp(from.green, to.green),
-            lerp(from.blue, to.blue),
-            lerp(from.alpha, to.alpha)};
+    return {lerp(from.red, to.red), lerp(from.green, to.green), lerp(from.blue, to.blue), lerp(from.alpha, to.alpha)};
 }
 
-} // namespace ui
+}  // namespace ui

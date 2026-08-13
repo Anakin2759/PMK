@@ -27,10 +27,9 @@ void WriteStderr(const char* text) noexcept
         std::clearerr(stderr);
     }
 }
-} // namespace
+}  // namespace
 
-EventLoop::EventLoop()
-    : m_running(false)
+EventLoop::EventLoop() : m_running(false)
 {
 }
 
@@ -123,4 +122,4 @@ void EventLoop::quit()
     m_loop.Quit(0, true);
 }
 
-} // namespace ui
+}  // namespace ui

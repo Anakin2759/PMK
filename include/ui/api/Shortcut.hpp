@@ -32,7 +32,7 @@ ShortcutId Register(KeyCode key, Callback callback);
 ShortcutId Register(KeyCode key, Mod mod, Callback callback);
 void Unregister(ShortcutId shortcutId);
 void ClearAll();
-} // namespace ui::shortcut
+}  // namespace ui::shortcut
 
 namespace ui::chains
 {
@@ -49,4 +49,4 @@ inline auto OnKeyPress(ui::shortcut::KeyCode key, ui::shortcut::Mod mod, ui::sho
     return Chain{[key, mod, sharedCallback](ui::entity /*entity*/) mutable
                  { ui::shortcut::Register(key, mod, [sharedCallback] { (*sharedCallback)(); }); }};
 }
-} // namespace ui::chains
+}  // namespace ui::chains

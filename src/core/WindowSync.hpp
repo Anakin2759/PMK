@@ -37,7 +37,8 @@ namespace ui::window_sync
 
 inline bool SyncWindowDisplayMetrics(components::Window& windowComp, SDL_Window* sdlWindow)
 {
-    if (sdlWindow == nullptr) return false;
+    if (sdlWindow == nullptr)
+        return false;
 
     int logicalWidth = 0;
     int logicalHeight = 0;
@@ -77,12 +78,12 @@ inline bool SyncWindowDisplayMetrics(components::Window& windowComp, SDL_Window*
     }
 
     constexpr float METRIC_EPSILON = 0.01F;
-    const bool changed = std::abs(windowComp.displayScale - displayScale) > METRIC_EPSILON
-                      || std::abs(windowComp.uiScale - uiScale) > METRIC_EPSILON
-                      || std::abs(windowComp.logicalSize.x() - static_cast<float>(logicalWidth)) > METRIC_EPSILON
-                      || std::abs(windowComp.logicalSize.y() - static_cast<float>(logicalHeight)) > METRIC_EPSILON
-                      || std::abs(windowComp.pixelSize.x() - static_cast<float>(pixelWidth)) > METRIC_EPSILON
-                      || std::abs(windowComp.pixelSize.y() - static_cast<float>(pixelHeight)) > METRIC_EPSILON;
+    const bool changed = std::abs(windowComp.displayScale - displayScale) > METRIC_EPSILON ||
+                         std::abs(windowComp.uiScale - uiScale) > METRIC_EPSILON ||
+                         std::abs(windowComp.logicalSize.x() - static_cast<float>(logicalWidth)) > METRIC_EPSILON ||
+                         std::abs(windowComp.logicalSize.y() - static_cast<float>(logicalHeight)) > METRIC_EPSILON ||
+                         std::abs(windowComp.pixelSize.x() - static_cast<float>(pixelWidth)) > METRIC_EPSILON ||
+                         std::abs(windowComp.pixelSize.y() - static_cast<float>(pixelHeight)) > METRIC_EPSILON;
 
     windowComp.displayScale = displayScale;
     windowComp.uiScale = uiScale;
@@ -91,20 +92,15 @@ inline bool SyncWindowDisplayMetrics(components::Window& windowComp, SDL_Window*
 
     if (changed && appConfig.debugScaling())
     {
-        const float derivedScaleX = logicalWidth > 0 ? static_cast<float>(pixelWidth) / static_cast<float>(logicalWidth) : 0.0F;
+        const float derivedScaleX =
+            logicalWidth > 0 ? static_cast<float>(pixelWidth) / static_cast<float>(logicalWidth) : 0.0F;
         const float derivedScaleY =
             logicalHeight > 0 ? static_cast<float>(pixelHeight) / static_cast<float>(logicalHeight) : 0.0F;
-        ui::UiRuntime::current().logger().info("[Scaling][WindowSync] windowId={} logical=({}, {}) pixel=({}, {}) displayScale={:.3f} "
-                     "uiScale={:.3f} derivedScale=({:.3f}, {:.3f})",
-                     windowComp.windowID,
-                     logicalWidth,
-                     logicalHeight,
-                     pixelWidth,
-                     pixelHeight,
-                     displayScale,
-                     uiScale,
-                     derivedScaleX,
-                     derivedScaleY);
+        ui::UiRuntime::current().logger().info(
+            "[Scaling][WindowSync] windowId={} logical=({}, {}) pixel=({}, {}) displayScale={:.3f} "
+            "uiScale={:.3f} derivedScale=({:.3f}, {:.3f})",
+            windowComp.windowID, logicalWidth, logicalHeight, pixelWidth, pixelHeight, displayScale, uiScale,
+            derivedScaleX, derivedScaleY);
     }
 
     return changed;
@@ -139,7 +135,8 @@ inline void SyncWindowPosition(entt::entity entity, SDL_Window* sdlWindow)
 {
     auto& registry = ui::UiRuntime::current().registry();
     auto* posComp = registry.try_get<components::Position>(entity);
-    if (posComp == nullptr) return;
+    if (posComp == nullptr)
+        return;
 
     int currentX = 0;
     int currentY = 0;
@@ -178,7 +175,8 @@ inline void SyncWindowSize(entt::entity entity, SDL_Window* sdlWindow)
 {
     auto& registry = ui::UiRuntime::current().registry();
     auto* sizeComp = registry.try_get<components::Size>(entity);
-    if (sizeComp == nullptr) return;
+    if (sizeComp == nullptr)
+        return;
 
     int currentWidth = 0;
     int currentHeight = 0;
@@ -268,7 +266,8 @@ inline void SyncWindowOpacity(entt::entity entity, SDL_Window* sdlWindow)
 {
     const auto& registry = ui::UiRuntime::current().registry();
     const auto* alphaComp = registry.try_get<components::Alpha>(entity);
-    if (alphaComp == nullptr) return;
+    if (alphaComp == nullptr)
+        return;
 
     const float currentOpacity = SDL_GetWindowOpacity(sdlWindow);
     constexpr float OPACITY_THRESHOLD = 0.01F;
@@ -298,7 +297,8 @@ inline void SyncWindowVisibility(entt::entity entity, SDL_Window* sdlWindow)
 inline void SyncWindowModal(entt::entity entity, const components::Window& windowComp, SDL_Window* sdlWindow)
 {
     const auto& registry = ui::UiRuntime::current().registry();
-    if (!registry.any_of<components::DialogTag>(entity)) return;
+    if (!registry.any_of<components::DialogTag>(entity))
+        return;
 
     const SDL_WindowFlags flags = SDL_GetWindowFlags(sdlWindow);
     const bool currentlyModal = (flags & SDL_WINDOW_MODAL) != 0;
@@ -316,7 +316,8 @@ inline void SyncWindowModal(entt::entity entity, const components::Window& windo
 
 inline void SyncWindowProperties(entt::entity entity, components::Window& windowComp, SDL_Window* sdlWindow)
 {
-    if (sdlWindow == nullptr) return;
+    if (sdlWindow == nullptr)
+        return;
 
     SyncWindowDisplayMetrics(windowComp, sdlWindow);
     SyncWindowTitle(entity, windowComp, sdlWindow);
@@ -331,4 +332,4 @@ inline void SyncWindowProperties(entt::entity entity, components::Window& window
     SyncWindowDisplayMetrics(windowComp, sdlWindow);
 }
 
-} // namespace ui::window_sync
+}  // namespace ui::window_sync

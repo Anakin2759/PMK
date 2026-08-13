@@ -21,18 +21,20 @@ namespace ui::systems
 
 class ThemeSystem : public ui::interface::EnableRegister<ThemeSystem>
 {
-public:
+   public:
     ThemeSystem() = default;
-    explicit ThemeSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
+    explicit ThemeSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    {
+    }
 
     void registerHandlersImpl();
     void unregisterHandlersImpl();
     ui::interface::SystemPhase getPhase();
 
-private:
+   private:
     void update();
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

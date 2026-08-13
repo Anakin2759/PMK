@@ -28,7 +28,7 @@ int MeasureByByteLength(const std::string& text)
     return static_cast<int>(text.size());
 }
 
-} // namespace
+}  // namespace
 
 TEST(TextUtilsTest, PrevAndNextCharRespectUtf8Boundaries)
 {
@@ -102,4 +102,4 @@ TEST(TextUtilsTest, GetTailThatFitsHandlesEmptyAndZeroWidth)
     EXPECT_FLOAT_EQ(measuredWidth, 0.0F);
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

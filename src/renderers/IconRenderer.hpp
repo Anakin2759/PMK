@@ -42,15 +42,20 @@ namespace ui::renderers
  */
 class IconRenderer : public core::IRenderer
 {
-public:
-    IconRenderer(Registry& reg, managers::IconManager* iconManager) : m_reg(&reg), m_iconManager(iconManager) {}
+   public:
+    IconRenderer(Registry& reg, managers::IconManager* iconManager) : m_reg(&reg), m_iconManager(iconManager)
+    {
+    }
     /**
      * @brief 判断能否处理
      * @param entity 控件
      * @return true 控件可处理
      * @return false 控件不可处理
      */
-    [[nodiscard]] bool canHandle(entt::entity entity) const override { return m_reg->any_of<components::Icon>(entity); }
+    [[nodiscard]] bool canHandle(entt::entity entity) const override
+    {
+        return m_reg->any_of<components::Icon>(entity);
+    }
 
     // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
     void collect(entt::entity entity, core::RenderContext& context) override
@@ -61,13 +66,14 @@ public:
         }
 
         const auto* iconComp = m_reg->try_get<components::Icon>(entity);
-        if (iconComp == nullptr) return;
+        if (iconComp == nullptr)
+            return;
 
         // 计算图标的绘制位置和大小
         // 使用组件定义的尺寸和颜色
         Eigen::Vector2f iconDrawSize = detail::eigen::ToEigen(iconComp->size);
-        Eigen::Vector4f tint = Eigen::Vector4f(
-            iconComp->tintColor.red, iconComp->tintColor.green, iconComp->tintColor.blue, iconComp->tintColor.alpha);
+        Eigen::Vector4f tint = Eigen::Vector4f(iconComp->tintColor.red, iconComp->tintColor.green,
+                                               iconComp->tintColor.blue, iconComp->tintColor.alpha);
 
         SDL_GPUTexture* iconTexture = nullptr;
         Eigen::Vector2f uvMin = {0.0F, 0.0F};
@@ -86,7 +92,7 @@ public:
             }
             else
             {
-                return; // 纹理不存在
+                return;  // 纹理不存在
             }
         }
         else if (!HasFlag(iconComp->type, policies::IconFlag::TEXTURE))
@@ -112,7 +118,7 @@ public:
             }
             else
             {
-                return; // 图标渲染失败
+                return;  // 图标渲染失败
             }
         }
 
@@ -160,7 +166,7 @@ public:
             pushConstants.rect_size[0] = actualIconSize.x();
             pushConstants.rect_size[1] = actualIconSize.y();
             pushConstants.opacity = context.alpha;
-            pushConstants.padding = 1.0F; // 标记纹理为预乘 Alpha
+            pushConstants.padding = 1.0F;  // 标记纹理为预乘 Alpha
 
             context.batchManager->beginBatch(iconTexture, context.currentScissor, pushConstants);
             context.batchManager->addRect(drawPos, actualIconSize, tint, uvMin, uvMax);
@@ -172,12 +178,12 @@ public:
      */
     [[nodiscard]] int getPriority() const override
     {
-        return 20; // 图标在文本之后渲染
+        return 20;  // 图标在文本之后渲染
     }
 
-private:
+   private:
     Registry* m_reg = nullptr;
     managers::IconManager* m_iconManager;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

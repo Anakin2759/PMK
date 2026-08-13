@@ -39,7 +39,7 @@ template <typename Context>
     return reg.ctx().template emplace<Context>();
 }
 
-} // namespace
+}  // namespace
 
 void TimerSystem::registerHandlersImpl()
 {
@@ -69,7 +69,8 @@ uint32_t TimerSystem::addTask(uint32_t interval, VoidCallback func, bool singleS
 
     timerCtx.tasks.emplace(taskId, std::move(task));
 
-    UiRuntime::current().logger().info("TimerSystem: Added task {} with interval {}ms (singleShot={})", taskId, interval, singleShot);
+    UiRuntime::current().logger().info("TimerSystem: Added task {} with interval {}ms (singleShot={})", taskId,
+                                       interval, singleShot);
     return taskId;
 }
 
@@ -160,4 +161,4 @@ void TimerSystem::onUpdateTimer([[maybe_unused]] const events::UpdateTimer& even
     }
 }
 
-} // namespace ui::systems
+}  // namespace ui::systems

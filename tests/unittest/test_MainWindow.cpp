@@ -39,11 +39,17 @@ Registry& ActiveRegistry()
 
 class UiIntegrationTest : public ::testing::Test
 {
-protected:
-    void SetUp() override { m_scope = std::make_unique<UiRuntimeScope>(m_runtime); }
-    void TearDown() override { m_scope.reset(); }
+   protected:
+    void SetUp() override
+    {
+        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
+    }
+    void TearDown() override
+    {
+        m_scope.reset();
+    }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
@@ -57,9 +63,9 @@ void ConfigureTextBrowser(ui::entity browser, bool& submitCalled, std::string& c
 {
     using namespace ui::chains;
 
-    browser | TextEditContent("ok") | TextColor(Color::Red()) | PasswordMode(policies::TextFlag::PASSWORD)
-        | OnSubmit([&submitCalled]() { submitCalled = true; })
-        | OnTextChanged([&changedText](const std::string& value) { changedText = value; });
+    browser | TextEditContent("ok") | TextColor(Color::Red()) | PasswordMode(policies::TextFlag::PASSWORD) |
+        OnSubmit([&submitCalled]() { submitCalled = true; }) |
+        OnTextChanged([&changedText](const std::string& value) { changedText = value; });
 }
 
 void ExpectTextBrowserCallbacks(components::TextEdit& textEdit, bool& submitCalled, std::string& changedText)
@@ -105,7 +111,7 @@ void ExpectTextBrowserLayoutState(ui::entity browser)
     EXPECT_EQ(size.sizePolicy, policies::Size::FILL_PARENT);
 }
 
-} // namespace
+}  // namespace
 
 TEST_F(UiIntegrationTest, DslBuildsWidgetTreeWithinUiModule)
 {
@@ -116,9 +122,9 @@ TEST_F(UiIntegrationTest, DslBuildsWidgetTreeWithinUiModule)
     const auto editor = factory::CreateLineEdit("seed", "placeholder", "name_input");
 
     root | Spacing(12.0F) | Padding(8.0F) | AddChild(button) | AddChild(editor);
-    button | FixedSize(180.0F, 44.0F) | BackgroundColor(Color::Blue()) | BorderRadius(6.0F)
-        | BorderColor(Color::White()) | BorderThickness(2.0F) | Text("Ready") | FontSize(18.0F)
-        | TextAlignment(policies::Alignment::CENTER) | Show();
+    button | FixedSize(180.0F, 44.0F) | BackgroundColor(Color::Blue()) | BorderRadius(6.0F) |
+        BorderColor(Color::White()) | BorderThickness(2.0F) | Text("Ready") | FontSize(18.0F) |
+        TextAlignment(policies::Alignment::CENTER) | Show();
 
     auto& registry = ActiveRegistry();
     const auto& rootHierarchy = registry.get<components::Hierarchy>(root);
@@ -227,4 +233,4 @@ TEST_F(UiIntegrationTest, ContainerFactoriesUseSensibleDefaultAlignment)
     EXPECT_EQ(scrollLayout.alignment, policies::Alignment::TOP_LEFT);
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

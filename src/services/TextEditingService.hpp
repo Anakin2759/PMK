@@ -23,9 +23,9 @@ namespace ui::services
 
 class TextEditingService
 {
-public:
+   public:
     static void handleTextInput(Registry& reg, const std::string& rawText);
     static void handleKeyDown(Registry& reg, SDL_Keycode key, SDL_Keymod modState);
 };
 
-} // namespace ui::services
+}  // namespace ui::services

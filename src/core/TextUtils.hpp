@@ -38,7 +38,8 @@ inline bool IsUtf8StartByte(unsigned char c)
  */
 inline size_t PrevCharPos(const std::string& text, size_t pos)
 {
-    if (pos == 0) return 0;
+    if (pos == 0)
+        return 0;
     size_t newPos = pos - 1;
     while (newPos > 0 && !IsUtf8StartByte(static_cast<unsigned char>(text[newPos])))
     {
@@ -52,7 +53,8 @@ inline size_t PrevCharPos(const std::string& text, size_t pos)
  */
 inline size_t NextCharPos(const std::string& text, size_t pos)
 {
-    if (pos >= text.size()) return text.size();
+    if (pos >= text.size())
+        return text.size();
     size_t newPos = pos + 1;
     while (newPos < text.size() && !IsUtf8StartByte(static_cast<unsigned char>(text[newPos])))
     {
@@ -64,8 +66,8 @@ inline size_t NextCharPos(const std::string& text, size_t pos)
  * @brief 换行处理单个段落
  */
 template <typename MeasureFunc>
-inline std::vector<std::string>
-    WrapParagraph(const std::string& paragraph, int maxWidth, policies::TextWrap wrapMode, MeasureFunc&& measureFunc)
+inline std::vector<std::string> WrapParagraph(const std::string& paragraph, int maxWidth, policies::TextWrap wrapMode,
+                                              MeasureFunc&& measureFunc)
 {
     std::vector<std::string> lines;
 
@@ -94,7 +96,8 @@ inline std::vector<std::string>
             }
             i = next;
         }
-        if (!currentLine.empty()) lines.push_back(currentLine);
+        if (!currentLine.empty())
+            lines.push_back(currentLine);
         return lines;
     }
 
@@ -104,7 +107,8 @@ inline std::vector<std::string>
 
     auto pushWord = [&](const std::string& w)
     {
-        if (w.empty()) return;
+        if (w.empty())
+            return;
 
         // 如果单个单词就超过了最大宽度，强制对其进行字符级换行
         if (measureFunc(w) > maxWidth)
@@ -186,8 +190,8 @@ inline std::vector<std::string>
  * @brief 文本换行处理
  */
 template <typename MeasureFunc>
-inline std::vector<std::string>
-    WrapTextLines(const std::string& text, int maxWidth, policies::TextWrap wrapMode, MeasureFunc&& measureFunc)
+inline std::vector<std::string> WrapTextLines(const std::string& text, int maxWidth, policies::TextWrap wrapMode,
+                                              MeasureFunc&& measureFunc)
 {
     std::vector<std::string> lines;
 
@@ -210,7 +214,7 @@ inline std::vector<std::string>
                 lines.insert(lines.end(), wrappedLines.begin(), wrappedLines.end());
                 currentParagraph.clear();
             }
-            lines.push_back(""); // 空行
+            lines.push_back("");  // 空行
         }
         else
         {
@@ -252,7 +256,7 @@ inline std::string GetTailThatFits(const std::string& text, int maxWidth, Measur
             outWidth = width;
             if (i == text.size() - 1)
             {
-                return substr; // 全部都能显示
+                return substr;  // 全部都能显示
             }
         }
         else
@@ -270,4 +274,4 @@ inline std::string GetTailThatFits(const std::string& text, int maxWidth, Measur
     return text;
 }
 
-} // namespace ui::utils
+}  // namespace ui::utils

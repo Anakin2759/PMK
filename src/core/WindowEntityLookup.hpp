@@ -63,14 +63,16 @@ inline void RememberWindowEntity(entt::entity entity)
     }
 
     const auto windowId = registry.get<components::Window>(entity).windowID;
-    if (windowId == 0) return;
+    if (windowId == 0)
+        return;
 
     Cache().entitiesByWindowId[windowId] = entity;
 }
 
 inline void InvalidateWindowId(uint32_t windowId)
 {
-    if (windowId == 0) return;
+    if (windowId == 0)
+        return;
 
     if (auto* cache = UiRuntime::current().tryContext<WindowEntityLookupCache>())
     {
@@ -96,7 +98,8 @@ inline void InvalidateWindowEntity(entt::entity entity)
 
 inline entt::entity FindWindowEntityById(uint32_t windowId)
 {
-    if (windowId == 0) return entt::null;
+    if (windowId == 0)
+        return entt::null;
 
     auto& cache = Cache();
     if (const auto cacheEntry = cache.entitiesByWindowId.find(windowId); cacheEntry != cache.entitiesByWindowId.end())
@@ -123,4 +126,4 @@ inline entt::entity FindWindowEntityById(uint32_t windowId)
     return entt::null;
 }
 
-} // namespace ui::window_lookup
+}  // namespace ui::window_lookup

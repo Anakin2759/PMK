@@ -23,16 +23,22 @@ namespace
 
 class VisibilityTest : public ::testing::Test
 {
-protected:
-    void SetUp() override { m_scope = std::make_unique<UiRuntimeScope>(m_runtime); }
-    void TearDown() override { m_scope.reset(); }
+   protected:
+    void SetUp() override
+    {
+        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
+    }
+    void TearDown() override
+    {
+        m_scope.reset();
+    }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
 
-} // namespace
+}  // namespace
 
 // ===================== Show / Hide =====================
 
@@ -293,4 +299,4 @@ TEST_F(VisibilityTest, SetBorderThicknessStoresValueAndEnablesBorder)
     EXPECT_EQ(border->enabled, policies::Feature::ENABLED);
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

@@ -29,8 +29,10 @@ namespace ui::renderers
  */
 class CanvasRenderer : public core::IRenderer
 {
-public:
-    explicit CanvasRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit CanvasRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
     [[nodiscard]] bool canHandle(entt::entity entity) const override
     {
@@ -81,9 +83,12 @@ public:
         }
     }
 
-    [[nodiscard]] int getPriority() const override { return 20; }
+    [[nodiscard]] int getPriority() const override
+    {
+        return 20;
+    }
 
-private:
+   private:
     Registry* m_reg = nullptr;
 
     static constexpr int CIRCLE_SEGMENTS = 24;
@@ -102,8 +107,7 @@ private:
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConst);
     }
 
-    static void renderLine(const components::CanvasDrawCommand& cmd,
-                           const Eigen::Vector2f& origin,
+    static void renderLine(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                            core::RenderContext& context)
     {
         const float startX = origin.x() + cmd.p1.x();
@@ -113,8 +117,7 @@ private:
         renderSegment(startX, startY, endX, endY, cmd.lineWidth, toVec4(cmd.color, context.alpha), context);
     }
 
-    static void renderFilledRect(const components::CanvasDrawCommand& cmd,
-                                 const Eigen::Vector2f& origin,
+    static void renderFilledRect(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                                  core::RenderContext& context)
     {
         const float posX = origin.x() + cmd.p1.x();
@@ -126,8 +129,7 @@ private:
         context.batchManager->addRect({posX, posY}, {width, height}, toVec4(cmd.color, context.alpha));
     }
 
-    static void renderRectOutline(const components::CanvasDrawCommand& cmd,
-                                  const Eigen::Vector2f& origin,
+    static void renderRectOutline(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                                   core::RenderContext& context)
     {
         const float left = origin.x() + cmd.p1.x();
@@ -144,8 +146,7 @@ private:
         context.batchManager->addRect({right - lineW, top + lineW}, {lineW, bottom - top - (2 * lineW)}, col);
     }
 
-    static void renderFilledCircle(const components::CanvasDrawCommand& cmd,
-                                   const Eigen::Vector2f& origin,
+    static void renderFilledCircle(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                                    core::RenderContext& context)
     {
         const float centerX = origin.x() + cmd.p1.x();
@@ -169,8 +170,7 @@ private:
         context.batchManager->addRect({centerX - radius, centerY - radius}, {2.0F * radius, 2.0F * radius}, col);
     }
 
-    static void renderCircleOutline(const components::CanvasDrawCommand& cmd,
-                                    const Eigen::Vector2f& origin,
+    static void renderCircleOutline(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                                     core::RenderContext& context)
     {
         const float centerX = origin.x() + cmd.p1.x();
@@ -196,11 +196,11 @@ private:
         context.batchManager->addRect({centerX - radius, centerY - radius}, {2.0F * radius, 2.0F * radius}, col);
     }
 
-    static void renderPolyline(const components::CanvasDrawCommand& cmd,
-                               const Eigen::Vector2f& origin,
+    static void renderPolyline(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                                core::RenderContext& context)
     {
-        if (cmd.points.size() < 2) return;
+        if (cmd.points.size() < 2)
+            return;
 
         const Eigen::Vector4f col = toVec4(cmd.color, context.alpha);
         const std::size_t count = cmd.points.size();
@@ -215,8 +215,7 @@ private:
         }
     }
 
-    static void renderCubicBezier(const components::CanvasDrawCommand& cmd,
-                                  const Eigen::Vector2f& origin,
+    static void renderCubicBezier(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                                   core::RenderContext& context)
     {
         const Vec2 startPt{origin.x() + cmd.p1.x(), origin.y() + cmd.p1.y()};
@@ -244,23 +243,19 @@ private:
         pushConst.screen_size[1] = context.screenHeight;
         pushConst.rect_size[0] = totalWidth;
         pushConst.rect_size[1] = totalHeight;
-        pushConst.draw_mode = 2.0F; // capsule SDF
+        pushConst.draw_mode = 2.0F;  // capsule SDF
         pushConst.opacity = context.alpha;
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConst);
     }
 
-    static void renderSegment(float startX,
-                              float startY,
-                              float endX,
-                              float endY,
-                              float lineWidth,
-                              const Eigen::Vector4f& col,
-                              core::RenderContext& context)
+    static void renderSegment(float startX, float startY, float endX, float endY, float lineWidth,
+                              const Eigen::Vector4f& col, core::RenderContext& context)
     {
         const float dirX = endX - startX;
         const float dirY = endY - startY;
         const float len = std::sqrt((dirX * dirX) + (dirY * dirY));
-        if (len < 0.001F) return;
+        if (len < 0.001F)
+            return;
 
         const float tanX = dirX / len;
         const float tanY = dirY / len;
@@ -291,13 +286,13 @@ private:
         const Eigen::Vector2f uvBotLeft{0.0F, 1.0F};
 
         beginCapsuleBatch(totalW, totalH, context);
-        context.batchManager->addOrientedQuad(
-            vertTopLeft, vertTopRight, vertBotRight, vertBotLeft, uvTopLeft, uvTopRight, uvBotRight, uvBotLeft, col);
+        context.batchManager->addOrientedQuad(vertTopLeft, vertTopRight, vertBotRight, vertBotLeft, uvTopLeft,
+                                              uvTopRight, uvBotRight, uvBotLeft, col);
     }
 
     static void tessellateCubic(Vec2 ptA, Vec2 ptB, Vec2 ptC, Vec2 ptD, std::vector<Vec2>& out)
     {
-        constexpr float FLATNESS_SQ = 0.25F; // 0.5px2
+        constexpr float FLATNESS_SQ = 0.25F;  // 0.5px2
         constexpr int MAX_DEPTH = 8;
 
         struct Seg
@@ -345,4 +340,4 @@ private:
     }
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

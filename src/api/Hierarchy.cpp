@@ -24,4 +24,4 @@ std::vector<ui::entity> ChildrenPostOrder(ui::entity parent)
     return children;
 }
 
-} // namespace ui::hierarchy
+}  // namespace ui::hierarchy

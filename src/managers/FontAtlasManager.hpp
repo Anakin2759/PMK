@@ -37,7 +37,7 @@ namespace ui::managers
  */
 class FontAtlasManager
 {
-public:
+   public:
     explicit FontAtlasManager(DeviceManager& deviceManager)
         : m_deviceManager(deviceManager), m_fontManager(std::make_unique<FontManager>())
     {
@@ -57,7 +57,8 @@ public:
      * @param fontData 字体数据指针
      * @param dataSize 字体数据大小
      * @param fontSize 字体大小（像素）
-     * @return 加载成功返回 true
+     * @return 字体及当前设备代际的纹理图集均创建成功时返回成功，否则返回错误
+     * @note 创建新图集前先销毁旧图集，避免旧代际 atlas 被新代际继续使用。
      */
     Result<void> loadFromMemory(const uint8_t* fontData, size_t dataSize, float fontSize)
     {
@@ -67,14 +68,20 @@ public:
         }
 
         // 创建纹理图集
-        SDL_GPUDevice* device = m_deviceManager.getDevice();
-        if (device == nullptr)
+        auto generation = m_deviceManager.getGeneration();
+        if (!generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
         {
             ui::UiRuntime::current().logger().error("[FontAtlasManager] No GPU device available");
             return Err(UiErrc::DEVICE_UNAVAILABLE);
         }
 
-        m_atlas = std::make_unique<TextureAtlas>(device, 2048, 2);
+        m_atlas.reset();
+        auto candidateAtlas = std::make_unique<TextureAtlas>(generation, 2048, 2);
+        if (!candidateAtlas->isValid())
+        {
+            return Err(UiErrc::ASSET_UPLOAD_FAILED, "font texture atlas");
+        }
+        m_atlas = std::move(candidateAtlas);
         ui::UiRuntime::current().logger().info("[FontAtlasManager] Font loaded and atlas created");
         return Ok();
     }
@@ -82,22 +89,34 @@ public:
     /**
      * @brief 检查字体是否已加载
      */
-    [[nodiscard]] bool isLoaded() const { return m_fontManager && m_fontManager->isLoaded() && m_atlas; }
+    [[nodiscard]] bool isLoaded() const
+    {
+        return m_fontManager && m_fontManager->isLoaded() && m_atlas && m_atlas->isValid();
+    }
 
     /**
      * @brief 获取字体高度（行高）
      */
-    [[nodiscard]] int getFontHeight() const { return m_fontManager ? m_fontManager->getFontHeight() : 0; }
+    [[nodiscard]] int getFontHeight() const
+    {
+        return m_fontManager ? m_fontManager->getFontHeight() : 0;
+    }
 
     /**
      * @brief 获取基线位置
      */
-    [[nodiscard]] int getBaseline() const { return m_fontManager ? m_fontManager->getBaseline() : 0; }
+    [[nodiscard]] int getBaseline() const
+    {
+        return m_fontManager ? m_fontManager->getBaseline() : 0;
+    }
 
     /**
      * @brief 测量文本宽度
      */
-    int measureTextWidth(const std::string& text) { return m_fontManager ? m_fontManager->measureTextWidth(text) : 0; }
+    int measureTextWidth(const std::string& text)
+    {
+        return m_fontManager ? m_fontManager->measureTextWidth(text) : 0;
+    }
 
     /**
      * @brief 测量文本（带最大宽度限制）
@@ -125,7 +144,8 @@ public:
      */
     std::optional<AtlasGlyph> getOrAddGlyph(uint32_t codepoint)
     {
-        if (!isLoaded()) return std::nullopt;
+        if (!isLoaded())
+            return std::nullopt;
 
         // 检查图集中是否已存在
         auto existing = m_atlas->getGlyph(codepoint);
@@ -143,8 +163,8 @@ public:
         }
 
         // 添加到图集
-        return m_atlas->addGlyph(
-            codepoint, glyph.bitmap.data(), glyph.width, glyph.height, glyph.bearingX, glyph.bearingY, glyph.advanceX);
+        return m_atlas->addGlyph(codepoint, glyph.bitmap.data(), glyph.width, glyph.height, glyph.bearingX,
+                                 glyph.bearingY, glyph.advanceX);
     }
 
     /**
@@ -154,7 +174,8 @@ public:
      */
     std::optional<AtlasGlyph> getOrAddGlyphByIndex(uint32_t glyphId)
     {
-        if (!isLoaded()) return std::nullopt;
+        if (!isLoaded())
+            return std::nullopt;
 
         // 使用高位标记区分 glyphId 与 codepoint，避免图集缓存冲突
         static constexpr uint32_t GLYPH_ID_FLAG = 0x80000000U;
@@ -175,14 +196,17 @@ public:
         }
 
         // 添加到图集
-        return m_atlas->addGlyph(
-            key, glyph.bitmap.data(), glyph.width, glyph.height, glyph.bearingX, glyph.bearingY, glyph.advanceX);
+        return m_atlas->addGlyph(key, glyph.bitmap.data(), glyph.width, glyph.height, glyph.bearingX, glyph.bearingY,
+                                 glyph.advanceX);
     }
 
     /**
      * @brief 获取图集纹理
      */
-    [[nodiscard]] SDL_GPUTexture* getAtlasTexture() const { return m_atlas ? m_atlas->getTexture() : nullptr; }
+    [[nodiscard]] SDL_GPUTexture* getAtlasTexture() const
+    {
+        return m_atlas && m_atlas->isValid() ? m_atlas->getTexture() : nullptr;
+    }
 
     /**
      * @brief 获取图集统计信息
@@ -216,10 +240,10 @@ public:
         return FontManager::decodeUTF8(text, outCodepoint);
     }
 
-private:
+   private:
     DeviceManager& m_deviceManager;
     std::unique_ptr<FontManager> m_fontManager;
     std::unique_ptr<TextureAtlas> m_atlas;
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

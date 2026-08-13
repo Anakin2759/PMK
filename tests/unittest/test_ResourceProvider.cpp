@@ -60,4 +60,4 @@ TEST(UiCoverageTest, DefaultResourceProviderReportsMissingResource)
     EXPECT_FALSE(resource.error().ToString().empty());
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

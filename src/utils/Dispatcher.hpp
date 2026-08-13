@@ -25,7 +25,6 @@
 
 #pragma once
 
-
 #include <entt/entt.hpp>
 
 #include "traits/EventTraits.hpp"
@@ -39,7 +38,7 @@ class Dispatcher
     friend class UiRuntime;
     friend class UiRuntimeScope;
 
-public:
+   public:
     Dispatcher() = default;
 
     // -------------------------------------------------------------------------
@@ -58,7 +57,10 @@ public:
         dispatcher_.enqueue(std::forward<Event>(event));
     }
 
-    void update() { dispatcher_.update(); }
+    void update()
+    {
+        dispatcher_.update();
+    }
 
     template <traits::Events Event>
     void update()
@@ -72,8 +74,7 @@ public:
         return dispatcher_.sink<Event>();
     }
 
-private:
-
+   private:
     entt::dispatcher dispatcher_;
 };
-} // namespace ui
+}  // namespace ui

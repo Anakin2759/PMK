@@ -20,6 +20,13 @@
 #include <atomic>
 #include <string_view>
 
+// Log.hpp 虽已 #undef ERROR，但其后的 UiRuntime.hpp/Logger.hpp 会经 spdlog 重新引入
+// Windows wingdi.h 的 ERROR 宏，导致下方 `case Level::ERROR:` 被展开为 `case Level::0:`。
+// 因此在对所有头完成包含之后再次消除该宏。
+#ifdef ERROR
+#undef ERROR
+#endif
+
 namespace
 {
 
@@ -35,7 +42,7 @@ std::atomic<ui::log::Level>& LevelStorage()
     return level;
 }
 
-} // namespace
+}  // namespace
 
 namespace ui::log
 {
@@ -57,7 +64,8 @@ void SetFilePath(std::string_view path)
 
 void LogImpl(Level level, std::string_view message)
 {
-    if (level < LevelStorage().load(std::memory_order_relaxed)) return;
+    if (level < LevelStorage().load(std::memory_order_relaxed))
+        return;
 
     // 转发到内部 spdlog Logger
     switch (level)
@@ -88,4 +96,4 @@ void LogImpl(Level level, std::string_view message)
     }
 }
 
-} // namespace ui::log
+}  // namespace ui::log

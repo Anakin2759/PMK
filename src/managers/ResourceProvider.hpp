@@ -33,15 +33,27 @@ struct BinaryResource
     std::span<const std::byte> bytes;
     std::shared_ptr<const void> owner;
 
-    [[nodiscard]] const std::byte* data() const noexcept { return bytes.data(); }
-    [[nodiscard]] size_t size() const noexcept { return bytes.size(); }
-    [[nodiscard]] bool empty() const noexcept { return bytes.empty(); }
-    [[nodiscard]] explicit operator bool() const noexcept { return !bytes.empty(); }
+    [[nodiscard]] const std::byte* data() const noexcept
+    {
+        return bytes.data();
+    }
+    [[nodiscard]] size_t size() const noexcept
+    {
+        return bytes.size();
+    }
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return bytes.empty();
+    }
+    [[nodiscard]] explicit operator bool() const noexcept
+    {
+        return !bytes.empty();
+    }
 };
 
 class IResourceProvider
 {
-public:
+   public:
     virtual ~IResourceProvider() = default;
     IResourceProvider() = default;
     IResourceProvider(const IResourceProvider&) = delete;
@@ -55,4 +67,4 @@ public:
 
 [[nodiscard]] std::shared_ptr<const IResourceProvider> GetDefaultUiResourceProvider();
 
-} // namespace ui::managers
+}  // namespace ui::managers

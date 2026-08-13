@@ -40,16 +40,19 @@ void TriggerUnhover(ui::entity entity)
 
 class UiTweenSystemTest : public ::testing::Test
 {
-protected:
+   protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
         UiRuntime::current().ensureContext<globalcontext::FrameContext>().intervalMs = 16;
     }
 
-    void TearDown() override { m_scope.reset(); }
+    void TearDown() override
+    {
+        m_scope.reset();
+    }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
@@ -149,8 +152,8 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
         defaultTween.registerHandlers();
 
         const auto defaultEntity = factory::CreateLabel("Tween-Default", "tween_default");
-    auto& defaultRegistry = ActiveRegistry();
-    auto& defaultPos = defaultRegistry.get<components::Position>(defaultEntity);
+        auto& defaultRegistry = ActiveRegistry();
+        auto& defaultPos = defaultRegistry.get<components::Position>(defaultEntity);
         defaultPos.value = {0.0F, 0.0F};
 
         animation::TweenOptions opts;
@@ -188,5 +191,5 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
     }
 }
 
-} // namespace
-} // namespace ui::tests
+}  // namespace
+}  // namespace ui::tests

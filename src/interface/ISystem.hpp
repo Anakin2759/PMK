@@ -25,12 +25,12 @@ namespace ui::interface
  */
 enum class SystemPhase : uint8_t
 {
-    INPUT = 0,     ///< 平台/输入层 (PlatformWindow / Interaction / TextInput)
-    LOGIC = 1,     ///< 业务逻辑层 (HitTest / State / Action / Shortcut)
-    ANIMATION = 2, ///< 动画层 (Tween)
-    LAYOUT = 3,    ///< 布局层 (Layout)
-    RENDER = 4,    ///< 渲染层 (Render)
-    FRAME = 5,     ///< 帧尾层 (Timer)
+    INPUT = 0,      ///< 平台/输入层 (PlatformWindow / Interaction / TextInput)
+    LOGIC = 1,      ///< 业务逻辑层 (HitTest / State / Action / Shortcut)
+    ANIMATION = 2,  ///< 动画层 (Tween)
+    LAYOUT = 3,     ///< 布局层 (Layout)
+    RENDER = 4,     ///< 渲染层 (Render)
+    FRAME = 5,      ///< 帧尾层 (Timer)
 };
 
 /**
@@ -41,10 +41,22 @@ struct ISystem : entt::type_list<>
     template <typename Base>
     struct type : Base
     {
-        void registerHandlers() { entt::poly_call<0>(*this); }
-        void unregisterHandlers() { entt::poly_call<1>(*this); }
-        void pollInput() { entt::poly_call<2>(*this); }
-        SystemPhase getPhase() { return entt::poly_call<3>(*this); }
+        void registerHandlers()
+        {
+            entt::poly_call<0>(*this);
+        }
+        void unregisterHandlers()
+        {
+            entt::poly_call<1>(*this);
+        }
+        void pollInput()
+        {
+            entt::poly_call<2>(*this);
+        }
+        SystemPhase getPhase()
+        {
+            return entt::poly_call<3>(*this);
+        }
     };
 
     template <typename T>
@@ -57,13 +69,24 @@ struct ISystem : entt::type_list<>
 template <typename Derived>
 struct EnableRegister
 {
-    void registerHandlers() { static_cast<Derived*>(this)->registerHandlersImpl(); }
-    void unregisterHandlers() { static_cast<Derived*>(this)->unregisterHandlersImpl(); }
+    void registerHandlers()
+    {
+        static_cast<Derived*>(this)->registerHandlersImpl();
+    }
+    void unregisterHandlers()
+    {
+        static_cast<Derived*>(this)->unregisterHandlersImpl();
+    }
 
     /// 默认 no-op：只有需要主动轮询的系统（如 InteractionSystem）才重写
-    void pollInput() {}
+    void pollInput()
+    {
+    }
 
     /// 默认阶段为 Logic；Input/Animation/Layout/Render/Frame 系统应重写
-    SystemPhase getPhase() { return SystemPhase::LOGIC; }
+    SystemPhase getPhase()
+    {
+        return SystemPhase::LOGIC;
+    }
 };
-} // namespace ui::interface
+}  // namespace ui::interface

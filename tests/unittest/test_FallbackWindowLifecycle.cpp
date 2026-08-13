@@ -39,8 +39,8 @@ TEST(FallbackWindowLifecycleTest, CreatesAndClosesOneHundredOffscreenSoftwareWin
     {
         const std::string alias = "fallback_lifecycle_" + std::to_string(iteration);
         auto windowResult = factory::CreateWindow(application->runtime(), "Fallback lifecycle", alias);
-        ASSERT_TRUE(windowResult.has_value()) << "iteration=" << iteration << ", error="
-                                              << windowResult.error().ToString();
+        ASSERT_TRUE(windowResult.has_value())
+            << "iteration=" << iteration << ", error=" << windowResult.error().ToString();
 
         const WindowHandle handle = windowResult.value();
         ASSERT_NE(handle.raw, null_entity) << "iteration=" << iteration;
@@ -68,5 +68,5 @@ TEST(FallbackWindowLifecycleTest, CreatesAndClosesOneHundredOffscreenSoftwareWin
     EXPECT_EQ(SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO, 0U);
 }
 
-} // namespace
-} // namespace ui::tests
+}  // namespace
+}  // namespace ui::tests

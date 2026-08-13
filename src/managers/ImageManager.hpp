@@ -29,15 +29,17 @@ class DeviceManager;
 /**
  * @brief 图像纹理管理器（多实例，按渲染上下文持有）
  *
- * - 持有一个 DeviceManager* 句柄，所有纹理与该 device 绑定
- * - 缓存 `path -> UniqueGPUTexture`，纹理始终绑定创建它的 device
+ * - 持有一个 DeviceManager* 句柄，所有 GPU owner 绑定创建时的共享设备代际
+ * - 缓存 `path -> UniqueGPUTexture`，设备代际变化时先清空旧代缓存
  * - 析构时自动释放所有缓存纹理，无需调用方显式 releaseAll
  * - 支持 bmp（SDL_LoadBMP）和 png/jpeg（stb_image）格式
  */
 class ImageManager
 {
-public:
-    explicit ImageManager(DeviceManager* deviceManager) : m_deviceManager(deviceManager) {}
+   public:
+    explicit ImageManager(DeviceManager* deviceManager) : m_deviceManager(deviceManager)
+    {
+    }
     ~ImageManager() noexcept;
 
     ImageManager(const ImageManager&) = delete;
@@ -60,26 +62,31 @@ public:
      */
     void releaseAll();
 
-private:
+   private:
     /**
      * @brief 通过 stb_image 加载 png/jpeg 并上传
      */
-    wrappers::UniqueGPUTexture loadWithStb(const std::string& path, SDL_GPUDevice* device);
+    wrappers::UniqueGPUTexture loadWithStb(const std::string& path,
+                                           const detail::GpuDeviceGenerationHandle& generation);
 
     /**
      * @brief 通过 SDL_LoadBMP 加载 bmp 并上传
      */
-    wrappers::UniqueGPUTexture loadWithSdlBmp(const std::string& path, SDL_GPUDevice* device);
+    wrappers::UniqueGPUTexture loadWithSdlBmp(const std::string& path,
+                                              const detail::GpuDeviceGenerationHandle& generation);
 
     /**
-     * @brief 将 RGBA 像素数据上传到 GPU 并返回纹理
+     * @brief 在指定设备代际创建纹理并提交 RGBA 像素上传
+     * @return 上传命令提交成功时返回同代际纹理 owner；任一阶段失败时返回空 owner
+     * @note 成功仅表示非阻塞提交已被 SDL 接受，不表示 GPU 已执行完成。
      */
-    wrappers::UniqueGPUTexture
-        uploadToGpu(SDL_GPUDevice* device, const unsigned char* pixels, uint32_t width, uint32_t height);
+    wrappers::UniqueGPUTexture uploadToGpu(const detail::GpuDeviceGenerationHandle& generation,
+                                           const unsigned char* pixels, uint32_t width, uint32_t height);
 
     DeviceManager* m_deviceManager = nullptr;
     // 路径 -> 已上传的 GPU 纹理 owner；公开调用方仅借用 `.get()`。
     std::unordered_map<std::string, wrappers::UniqueGPUTexture> m_cache;
+    std::uint64_t m_cacheGenerationId = 0;
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

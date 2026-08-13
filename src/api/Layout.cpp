@@ -30,4 +30,4 @@ void CenterInParent(ui::entity entity)
     ui::detail::layout::CenterInParent(ui::detail::ToInternal(entity));
 }
 
-} // namespace ui::layout
+}  // namespace ui::layout

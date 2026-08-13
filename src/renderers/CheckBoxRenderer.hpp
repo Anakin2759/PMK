@@ -27,21 +27,28 @@ namespace ui::renderers
 
 class CheckBoxRenderer : public core::IRenderer
 {
-public:
-    explicit CheckBoxRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit CheckBoxRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
-    bool canHandle(entt::entity entity) const override { return m_reg->any_of<components::CheckBoxTag>(entity); }
+    bool canHandle(entt::entity entity) const override
+    {
+        return m_reg->any_of<components::CheckBoxTag>(entity);
+    }
 
     void collect(entt::entity entity, core::RenderContext& context) override
     {
-        if (context.batchManager == nullptr || context.whiteTexture == nullptr) return;
+        if (context.batchManager == nullptr || context.whiteTexture == nullptr)
+            return;
 
         const auto* checkBox = m_reg->try_get<components::CheckBox>(entity);
-        if (checkBox == nullptr) return;
+        if (checkBox == nullptr)
+            return;
 
         constexpr float BOX_SIZE = 16.0F;
         constexpr float BOX_RADIUS = 3.0F;
-        constexpr float BOX_MARGIN = 4.0F; // box 与左边缘距离
+        constexpr float BOX_MARGIN = 4.0F;  // box 与左边缘距离
 
         render::UiPushConstants pushConst{};
         pushConst.screen_size[0] = context.screenWidth;
@@ -57,8 +64,8 @@ public:
         pushConst.rect_size[0] = boxSize.x();
         pushConst.rect_size[1] = boxSize.y();
 
-        const Eigen::Vector4f boxColor{
-            checkBox->boxColor.red, checkBox->boxColor.green, checkBox->boxColor.blue, checkBox->boxColor.alpha};
+        const Eigen::Vector4f boxColor{checkBox->boxColor.red, checkBox->boxColor.green, checkBox->boxColor.blue,
+                                       checkBox->boxColor.alpha};
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConst);
         context.batchManager->addRect(boxPos, boxSize, boxColor);
 
@@ -74,19 +81,20 @@ public:
             fillPc.rect_size[1] = fillSize.y();
             fillPc.radius[0] = fillPc.radius[1] = fillPc.radius[2] = fillPc.radius[3] = 2.0F;
 
-            const Eigen::Vector4f checkColor{checkBox->checkColor.red,
-                                             checkBox->checkColor.green,
-                                             checkBox->checkColor.blue,
-                                             checkBox->checkColor.alpha};
+            const Eigen::Vector4f checkColor{checkBox->checkColor.red, checkBox->checkColor.green,
+                                             checkBox->checkColor.blue, checkBox->checkColor.alpha};
             context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, fillPc);
             context.batchManager->addRect(fillPos, fillSize, checkColor);
         }
     }
 
-    int getPriority() const override { return 7; }
+    int getPriority() const override
+    {
+        return 7;
+    }
 
-private:
+   private:
     Registry* m_reg = nullptr;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

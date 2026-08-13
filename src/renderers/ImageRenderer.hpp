@@ -34,8 +34,10 @@ namespace ui::renderers
  */
 class ImageRenderer : public core::IRenderer
 {
-public:
-    explicit ImageRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit ImageRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
     [[nodiscard]] bool canHandle(entt::entity entity) const override
     {
@@ -94,17 +96,18 @@ public:
 
         const Eigen::Vector4f tint{img->tintColor.red, img->tintColor.green, img->tintColor.blue, img->tintColor.alpha};
 
-        context.batchManager->addRect(context.position,
-                                      context.size,
-                                      tint,
+        context.batchManager->addRect(context.position, context.size, tint,
                                       Eigen::Vector2f{img->uvMin.x(), img->uvMin.y()},
                                       Eigen::Vector2f{img->uvMax.x(), img->uvMax.y()});
     }
 
-    [[nodiscard]] int getPriority() const override { return 5; }
+    [[nodiscard]] int getPriority() const override
+    {
+        return 5;
+    }
 
-private:
+   private:
     Registry* m_reg = nullptr;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

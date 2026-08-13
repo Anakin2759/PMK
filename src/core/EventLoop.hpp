@@ -6,12 +6,12 @@
  * @date 2025-12-19
  * @version 0.1
  * @brief ui事件循环管理类
-    基于ASIO实现的跨平台事件循环
+    基于自研无锁 MPSC 队列（utils/EventLoop.hpp）的跨平台事件循环
     维持ui线程的持续运行
     提供启动和停止事件循环的接口
     ui实体的渲染和输入处理对应的系统被提交到该事件循环中执行
     事件循环本身不管理线程
-    1ms间隔轮询事件
+    16ms 节流投递帧回调（自研帧调度器，不使用 ASIO）
 
     先处理SDL的事件，然后驱动ECS系统更新UI状态，然后处理渲染，
  *
@@ -37,7 +37,7 @@ namespace ui
 {
 class EventLoop
 {
-public:
+   public:
     EventLoop();
 
     ~EventLoop() noexcept;
@@ -56,8 +56,7 @@ public:
         requires std::invocable<std::decay_t<Func>>
     void invoke(Func&& func)
     {
-        m_loop.PostOrThrow(
-            [callable = std::forward<Func>(func)]() mutable { std::invoke(std::move(callable)); });
+        m_loop.PostOrThrow([callable = std::forward<Func>(func)]() mutable { std::invoke(std::move(callable)); });
     }
 
     template <typename Func, typename... Args>
@@ -85,7 +84,7 @@ public:
         { std::invoke(std::move(callable), std::move(capturedArgs)...); };
     }
 
-private:
+   private:
     void startFrameScheduler();
     void stopFrameScheduler() noexcept;
     void postDefaultHandler();
@@ -95,4 +94,4 @@ private:
     std::atomic<bool> m_running;
     std::move_only_function<void()> m_defaultHandler;
 };
-} // namespace ui
+}  // namespace ui

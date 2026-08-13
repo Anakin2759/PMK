@@ -25,7 +25,7 @@ void SetLayoutSpacing(ui::entity entity, float spacing);
 void SetPadding(ui::entity entity, float left, float top, float right, float bottom);
 void SetPadding(ui::entity entity, float padding);
 void CenterInParent(ui::entity entity);
-} // namespace ui::layout
+}  // namespace ui::layout
 
 namespace ui::actions::layout
 {
@@ -36,7 +36,7 @@ inline constexpr EntityAction<static_cast<void (*)(ui::entity, float, float, flo
 inline constexpr EntityAction<static_cast<void (*)(ui::entity, float)>(ui::layout::SetPadding)>
     SET_PADDING_ALL_ACTION{};
 inline constexpr EntityAction<&ui::layout::CenterInParent> CENTER_IN_PARENT_ACTION{};
-} // namespace ui::actions::layout
+}  // namespace ui::actions::layout
 
 namespace ui::chains
 {
@@ -64,4 +64,4 @@ inline auto Center()
 {
     return ui::actions::layout::CENTER_IN_PARENT_ACTION.bind();
 }
-} // namespace ui::chains
+}  // namespace ui::chains

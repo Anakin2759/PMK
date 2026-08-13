@@ -34,21 +34,23 @@ namespace ui::systems
 
 class StateSystem : public ui::interface::EnableRegister<StateSystem>
 {
-public:
+   public:
     StateSystem() = default;
-    explicit StateSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
+    explicit StateSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    {
+    }
 
     enum class ScrollbarHitType : std::uint8_t
     {
         NONE,
-        THUMB, // 命中滑块
-        TRACK  // 命中轨道
+        THUMB,  // 命中滑块
+        TRACK   // 命中轨道
     };
 
     void registerHandlersImpl();
     void unregisterHandlersImpl();
 
-private:
+   private:
     struct SliderStateHelpers
     {
         static bool tryHandlePress(StateSystem& system, const events::HitPointerButton& event);
@@ -62,16 +64,14 @@ private:
         static entt::entity findScrollTargetFromHit(StateSystem& system, entt::entity hitEntity);
         static entt::entity findScrollTargetAtPosition(StateSystem& system, const Vec2& pointerPosition);
         static void applyScrollWheelDelta(StateSystem& system, entt::entity target, const Vec2& scrollDelta);
-        static void updateHoverStates(StateSystem& system,
-                                      const events::HitPointerMove& event,
+        static void updateHoverStates(StateSystem& system, const events::HitPointerMove& event,
                                       const globalcontext::StateContext& state);
-        static void
-            handleDrag(StateSystem& system, const events::HitPointerMove& event, globalcontext::StateContext& state);
-        static bool tryHandlePress(StateSystem& system,
-                                   const events::HitPointerButton& event,
+        static void handleDrag(StateSystem& system, const events::HitPointerMove& event,
+                               globalcontext::StateContext& state);
+        static bool tryHandlePress(StateSystem& system, const events::HitPointerButton& event,
                                    globalcontext::StateContext& state);
-        static ScrollbarHitType
-            checkHit(StateSystem& system, entt::entity entity, const Vec2& mousePos, bool& outIsVertical);
+        static ScrollbarHitType checkHit(StateSystem& system, entt::entity entity, const Vec2& mousePos,
+                                         bool& outIsVertical);
         static void calculateGeometry(entt::entity entity, bool isVertical, float& outTrackLen, float& outThumbSize);
         static void handleTrackClick(StateSystem& system, entt::entity entity, const Vec2& mousePos, bool isVertical);
     };
@@ -89,8 +89,7 @@ private:
 
         static void queueActiveClear(StateSystem& system, globalcontext::StateContext& state, entt::entity entity);
 
-        static void handleHoverUpdate(StateSystem& system,
-                                      const events::HitPointerMove& event,
+        static void handleHoverUpdate(StateSystem& system, const events::HitPointerMove& event,
                                       const globalcontext::StateContext& state);
 
         static void setFocus(StateSystem& system, entt::entity entity, SDL_Window* sdlWindow = nullptr);
@@ -99,12 +98,10 @@ private:
 
         static void handleEntityPress(StateSystem& system, const events::HitPointerButton& event);
 
-        static bool finishScrollbarDragRelease(StateSystem& system,
-                                               globalcontext::StateContext& state,
+        static bool finishScrollbarDragRelease(StateSystem& system, globalcontext::StateContext& state,
                                                entt::entity releasedEntity);
 
-        static void handleEntityRelease(StateSystem& system,
-                                        const events::HitPointerButton& event,
+        static void handleEntityRelease(StateSystem& system, const events::HitPointerButton& event,
                                         globalcontext::StateContext& state);
 
         static void tryEmitTableCellClicked(StateSystem& system, entt::entity hitEntity, const Vec2& pointerPosition);
@@ -273,4 +270,4 @@ private:
     void destroyWidget(entt::entity entity);
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

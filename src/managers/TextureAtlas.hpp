@@ -27,6 +27,7 @@
 #include <optional>
 #include <unordered_map>
 #include <vector>
+#include "common/GpuFailureInjection.hpp"
 #include "common/GPUWrappers.hpp"
 #include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
@@ -57,9 +58,9 @@ struct AtlasGlyph
     int32_t height = 0;
 
     // 渲染偏移量
-    int32_t bearingX = 0;  // 水平偏移
-    int32_t bearingY = 0;  // 垂直偏移（基线到字形顶部）
-    float advanceX = 0.0F; // 水平前进量
+    int32_t bearingX = 0;   // 水平偏移
+    int32_t bearingY = 0;   // 垂直偏移（基线到字形顶部）
+    float advanceX = 0.0F;  // 水平前进量
 };
 
 /**
@@ -67,18 +68,16 @@ struct AtlasGlyph
  */
 class TextureAtlas
 {
-public:
+   public:
     /**
      * @brief 构造纹理图集
-     * @param device GPU 设备
+     * @param generation 图集纹理及上传资源共同绑定的 GPU 设备代际
      * @param initialSize 初始尺寸（宽高相同）
      * @param padding 字形之间的内边距（像素）
      */
-    explicit TextureAtlas(SDL_GPUDevice* device, uint32_t initialSize = 2048, uint32_t padding = 2)
-                : m_device(device),
-                    m_texture(nullptr, wrappers::GPUTexturePtr::deleter_type(device)),
-                    m_size(initialSize),
-                    m_padding(padding)
+    explicit TextureAtlas(detail::GpuDeviceGenerationHandle generation, uint32_t initialSize = 2048,
+                          uint32_t padding = 2)
+        : m_generation(std::move(generation)), m_size(initialSize), m_padding(padding)
     {
         if (!createTexture())
         {
@@ -97,12 +96,23 @@ public:
     /**
      * @brief 获取图集纹理
      */
-    [[nodiscard]] SDL_GPUTexture* getTexture() const { return m_texture.get(); }
+    [[nodiscard]] SDL_GPUTexture* getTexture() const
+    {
+        return m_texture.get();
+    }
+
+    [[nodiscard]] bool isValid() const noexcept
+    {
+        return m_texture != nullptr && m_generation.Status() == detail::GpuDeviceGenerationStatus::ACTIVE;
+    }
 
     /**
      * @brief 获取图集尺寸
      */
-    [[nodiscard]] uint32_t getSize() const { return m_size; }
+    [[nodiscard]] uint32_t getSize() const
+    {
+        return m_size;
+    }
 
     /**
      * @brief 添加字形到图集
@@ -114,17 +124,12 @@ public:
      * @param bearingY 垂直偏移
      * @param advanceX 水平前进量
      * @return 字形信息，失败返回 nullopt
-    * @note 新字形仅在上传命令提交成功后写入缓存；成功不表示 GPU 已执行完成。
+     * @note 新字形仅在上传命令提交成功后写入缓存；成功不表示 GPU 已执行完成。
      */
-    std::optional<AtlasGlyph> addGlyph(uint32_t codepoint,
-                                       const uint8_t* bitmap,
-                                       int32_t width,
-                                       int32_t height,
-                                       int32_t bearingX,
-                                       int32_t bearingY,
-                                       float advanceX)
+    std::optional<AtlasGlyph> addGlyph(uint32_t codepoint, const uint8_t* bitmap, int32_t width, int32_t height,
+                                       int32_t bearingX, int32_t bearingY, float advanceX)
     {
-        if (bitmap == nullptr || width <= 0 || height <= 0)
+        if (!isValid() || bitmap == nullptr || width <= 0 || height <= 0)
         {
             return std::nullopt;
         }
@@ -145,7 +150,8 @@ public:
             // 尝试扩展图集
             if (!expand())
             {
-                ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to expand atlas for codepoint {}", codepoint);
+                ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to expand atlas for codepoint {}",
+                                                        codepoint);
                 return std::nullopt;
             }
             shelvesBeforeAllocation = m_shelves;
@@ -160,8 +166,8 @@ public:
             {
                 m_shelves = std::move(shelvesBeforeAllocation);
                 m_currentShelfY = expandedShelfY;
-                ui::UiRuntime::current().logger().error(
-                    "[TextureAtlas] Failed to upload bitmap for codepoint {}", codepoint);
+                ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to upload bitmap for codepoint {}",
+                                                        codepoint);
                 return std::nullopt;
             }
         }
@@ -169,7 +175,8 @@ public:
         {
             m_shelves = std::move(shelvesBeforeAllocation);
             m_currentShelfY = shelfYBeforeAllocation;
-            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to upload bitmap for codepoint {}", codepoint);
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to upload bitmap for codepoint {}",
+                                                    codepoint);
             return std::nullopt;
         }
 
@@ -202,6 +209,10 @@ public:
      */
     [[nodiscard]] std::optional<AtlasGlyph> getGlyph(uint32_t codepoint) const
     {
+        if (!isValid())
+        {
+            return std::nullopt;
+        }
         auto iter = m_glyphMap.find(codepoint);
         if (iter != m_glyphMap.end())
         {
@@ -211,8 +222,8 @@ public:
     }
 
     /**
-        * @brief 清空字形缓存和 shelf 分配状态
-        * @note 不清除 GPU 纹理中的既有像素；后续有效区域由新上传覆盖。
+     * @brief 清空字形缓存和 shelf 分配状态
+     * @note 不清除 GPU 纹理中的既有像素；后续有效区域由新上传覆盖。
      */
     void clear()
     {
@@ -254,15 +265,15 @@ public:
         return stats;
     }
 
-private:
+   private:
     /**
      * @brief Shelf 结构（一行）
      */
     struct Shelf
     {
-        uint32_t y = 0;      // Shelf 起始 Y 坐标
-        uint32_t height = 0; // Shelf 高度
-        uint32_t x = 0;      // 当前行的 X 游标
+        uint32_t y = 0;       // Shelf 起始 Y 坐标
+        uint32_t height = 0;  // Shelf 高度
+        uint32_t x = 0;       // 当前行的 X 游标
     };
 
     /**
@@ -270,7 +281,7 @@ private:
      */
     bool createTexture()
     {
-        if (m_device == nullptr || m_size == 0)
+        if (!m_generation || m_generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE || m_size == 0)
         {
             ui::UiRuntime::current().logger().error("[TextureAtlas] Cannot create texture with invalid device or size");
             return false;
@@ -278,7 +289,7 @@ private:
 
         SDL_GPUTextureCreateInfo textureInfo{};
         textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
-        textureInfo.format = SDL_GPU_TEXTUREFORMAT_R8_UNORM; // 单通道灰度
+        textureInfo.format = SDL_GPU_TEXTUREFORMAT_R8_UNORM;  // 单通道灰度
         textureInfo.width = m_size;
         textureInfo.height = m_size;
         textureInfo.layer_count_or_depth = 1;
@@ -286,14 +297,19 @@ private:
         textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
         textureInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
 
-        SDL_GPUTexture* texture = SDL_CreateGPUTexture(m_device, &textureInfo);
-        if (texture == nullptr)
+        if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::RESOURCE_CREATE))
+        {
+            return false;
+        }
+        auto texture =
+            wrappers::MakeGpuResource<wrappers::GPUTexturePtr>(m_generation, SDL_CreateGPUTexture, &textureInfo);
+        if (!texture)
         {
             ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to create texture: {}", SDL_GetError());
             return false;
         }
 
-        m_texture.reset(texture);
+        m_texture = std::move(texture);
         ui::UiRuntime::current().logger().info("[TextureAtlas] Created texture atlas {}x{}", m_size, m_size);
         return true;
     }
@@ -311,8 +327,8 @@ private:
 
         const auto unsignedWidth = static_cast<uint32_t>(width);
         const auto unsignedHeight = static_cast<uint32_t>(height);
-        if (unsignedWidth > std::numeric_limits<uint32_t>::max() - m_padding
-            || unsignedHeight > std::numeric_limits<uint32_t>::max() - m_padding)
+        if (unsignedWidth > std::numeric_limits<uint32_t>::max() - m_padding ||
+            unsignedHeight > std::numeric_limits<uint32_t>::max() - m_padding)
         {
             return std::nullopt;
         }
@@ -368,7 +384,8 @@ private:
 
         const uint32_t oldSize = m_size;
         const uint32_t newSize = oldSize * 2;
-        ui::UiRuntime::current().logger().info("[TextureAtlas] Expanding atlas from {}x{} to {}x{}", m_size, m_size, newSize, newSize);
+        ui::UiRuntime::current().logger().info("[TextureAtlas] Expanding atlas from {}x{} to {}x{}", m_size, m_size,
+                                               newSize, newSize);
 
         // 创建新纹理
         SDL_GPUTextureCreateInfo textureInfo{};
@@ -381,46 +398,75 @@ private:
         textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
         textureInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
 
-        auto newTexture = wrappers::MakeGpuResource<wrappers::GPUTexturePtr>(
-            m_device, SDL_CreateGPUTexture, &textureInfo);
+        if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::RESOURCE_CREATE))
+        {
+            return false;
+        }
+        auto newTexture =
+            wrappers::MakeGpuResource<wrappers::GPUTexturePtr>(m_generation, SDL_CreateGPUTexture, &textureInfo);
         if (!newTexture)
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to create expanded texture: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to create expanded texture: {}",
+                                                    SDL_GetError());
             return false;
         }
 
-        SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(m_device);
+        const auto activeDevice = m_generation.InvokeIfActive([](SDL_GPUDevice* device) { return device; });
+        SDL_GPUDevice* const device = activeDevice.value_or(nullptr);
+        if (device == nullptr)
+        {
+            return false;
+        }
+
+        SDL_GPUCommandBuffer* commandBuffer = nullptr;
+        if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::COMMAND_ACQUIRE))
+        {
+            commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+        }
         if (commandBuffer == nullptr)
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to acquire expansion command buffer: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to acquire expansion command buffer: {}",
+                                                    SDL_GetError());
             return false;
         }
 
-        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        SDL_GPUCopyPass* copyPass = nullptr;
+        if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::COPY_PASS_BEGIN))
+        {
+            copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        }
         if (copyPass == nullptr)
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to begin expansion copy pass: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to begin expansion copy pass: {}",
+                                                    SDL_GetError());
             if (!SDL_CancelGPUCommandBuffer(commandBuffer))
             {
-                ui::UiRuntime::current().logger().error(
-                    "[TextureAtlas] Failed to cancel expansion command buffer: {}", SDL_GetError());
+                ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to cancel expansion command buffer: {}",
+                                                        SDL_GetError());
             }
             return false;
         }
 
-        const SDL_GPUTextureLocation source{.texture = m_texture.get(), .mip_level = 0, .layer = 0, .x = 0, .y = 0, .z = 0};
+        const SDL_GPUTextureLocation source{
+            .texture = m_texture.get(), .mip_level = 0, .layer = 0, .x = 0, .y = 0, .z = 0};
         const SDL_GPUTextureLocation destination{
             .texture = newTexture.get(), .mip_level = 0, .layer = 0, .x = 0, .y = 0, .z = 0};
         SDL_CopyGPUTextureToTexture(copyPass, &source, &destination, oldSize, oldSize, 1, false);
         SDL_EndGPUCopyPass(copyPass);
 
+        if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::SUBMIT))
+        {
+            if (!SDL_CancelGPUCommandBuffer(commandBuffer))
+            {
+                ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to cancel expansion command buffer: {}",
+                                                        SDL_GetError());
+            }
+            return false;
+        }
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to submit expansion copy: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to submit expansion copy: {}",
+                                                    SDL_GetError());
             return false;
         }
 
@@ -437,8 +483,8 @@ private:
             glyph.v1 = static_cast<float>(glyph.y + glyph.height) / atlasSize;
         }
 
-        ui::UiRuntime::current().logger().info(
-            "[TextureAtlas] Migrated atlas content from {}x{} to {}x{}", oldSize, oldSize, newSize, newSize);
+        ui::UiRuntime::current().logger().info("[TextureAtlas] Migrated atlas content from {}x{} to {}x{}", oldSize,
+                                               oldSize, newSize, newSize);
         return true;
     }
 
@@ -454,15 +500,17 @@ private:
      */
     bool uploadBitmap(const uint8_t* bitmap, uint32_t xPos, uint32_t yPos, int32_t width, int32_t height)
     {
-        if (m_device == nullptr || m_texture == nullptr || bitmap == nullptr || width <= 0 || height <= 0)
+        const auto activeDevice = m_generation.InvokeIfActive([](SDL_GPUDevice* device) { return device; });
+        SDL_GPUDevice* const device = activeDevice.value_or(nullptr);
+        if (device == nullptr || m_texture == nullptr || bitmap == nullptr || width <= 0 || height <= 0)
         {
             return false;
         }
 
         const auto uploadWidth = static_cast<uint32_t>(width);
         const auto uploadHeight = static_cast<uint32_t>(height);
-        if (xPos > m_size || yPos > m_size || uploadWidth > m_size - xPos || uploadHeight > m_size - yPos
-            || uploadWidth > std::numeric_limits<uint32_t>::max() / uploadHeight)
+        if (xPos > m_size || yPos > m_size || uploadWidth > m_size - xPos || uploadHeight > m_size - yPos ||
+            uploadWidth > std::numeric_limits<uint32_t>::max() / uploadHeight)
         {
             return false;
         }
@@ -470,42 +518,58 @@ private:
         const uint32_t uploadSize = uploadWidth * uploadHeight;
         const SDL_GPUTransferBufferCreateInfo transferInfo{
             .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, .size = uploadSize, .props = 0};
+        if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::TRANSFER_CREATE))
+        {
+            return false;
+        }
         auto transferBuffer = wrappers::MakeGpuResource<wrappers::UniqueGPUTransferBuffer>(
-            m_device, SDL_CreateGPUTransferBuffer, &transferInfo);
+            m_generation, SDL_CreateGPUTransferBuffer, &transferInfo);
         if (!transferBuffer)
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to create upload transfer buffer: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to create upload transfer buffer: {}",
+                                                    SDL_GetError());
             return false;
         }
 
-        void* mappedData = SDL_MapGPUTransferBuffer(m_device, transferBuffer.get(), false);
+        void* mappedData = nullptr;
+        if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::MAP))
+        {
+            mappedData = SDL_MapGPUTransferBuffer(device, transferBuffer.get(), false);
+        }
         if (mappedData == nullptr)
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to map upload transfer buffer: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to map upload transfer buffer: {}",
+                                                    SDL_GetError());
             return false;
         }
         std::memcpy(mappedData, bitmap, uploadSize);
-        SDL_UnmapGPUTransferBuffer(m_device, transferBuffer.get());
+        SDL_UnmapGPUTransferBuffer(device, transferBuffer.get());
 
-        SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(m_device);
+        SDL_GPUCommandBuffer* commandBuffer = nullptr;
+        if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::COMMAND_ACQUIRE))
+        {
+            commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+        }
         if (commandBuffer == nullptr)
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to acquire upload command buffer: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to acquire upload command buffer: {}",
+                                                    SDL_GetError());
             return false;
         }
 
-        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        SDL_GPUCopyPass* copyPass = nullptr;
+        if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::COPY_PASS_BEGIN))
+        {
+            copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        }
         if (copyPass == nullptr)
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to begin upload copy pass: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to begin upload copy pass: {}",
+                                                    SDL_GetError());
             if (!SDL_CancelGPUCommandBuffer(commandBuffer))
             {
-                ui::UiRuntime::current().logger().error(
-                    "[TextureAtlas] Failed to cancel upload command buffer: {}", SDL_GetError());
+                ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to cancel upload command buffer: {}",
+                                                        SDL_GetError());
             }
             return false;
         }
@@ -526,16 +590,25 @@ private:
         SDL_UploadToGPUTexture(copyPass, &source, &destination, false);
         SDL_EndGPUCopyPass(copyPass);
 
+        if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::SUBMIT))
+        {
+            if (!SDL_CancelGPUCommandBuffer(commandBuffer))
+            {
+                ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to cancel upload command buffer: {}",
+                                                        SDL_GetError());
+            }
+            return false;
+        }
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
-            ui::UiRuntime::current().logger().error(
-                "[TextureAtlas] Failed to submit bitmap upload: {}", SDL_GetError());
+            ui::UiRuntime::current().logger().error("[TextureAtlas] Failed to submit bitmap upload: {}",
+                                                    SDL_GetError());
             return false;
         }
         return true;
     }
 
-    SDL_GPUDevice* m_device = nullptr;
+    detail::GpuDeviceGenerationHandle m_generation;
     wrappers::GPUTexturePtr m_texture;
 
     uint32_t m_size = 2048;
@@ -547,4 +620,4 @@ private:
     std::unordered_map<uint32_t, AtlasGlyph> m_glyphMap;
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

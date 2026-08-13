@@ -44,4 +44,4 @@ TEST_F(ThemeSystemTest, WindowGeometryReappliesThemeOwnedRadius)
     }
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

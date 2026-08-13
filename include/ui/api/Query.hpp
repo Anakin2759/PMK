@@ -25,4 +25,4 @@ namespace ui::query
 [[nodiscard]] bool IsValid(entity ent) noexcept;
 [[nodiscard]] Result<entity> FindByAlias(std::string_view alias);
 [[nodiscard]] std::string GetAlias(entity ent);
-} // namespace ui::query
+}  // namespace ui::query

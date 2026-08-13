@@ -50,8 +50,8 @@ void HitTestSystem::unregisterHandlersImpl()
 
 bool HitTestSystem::isPointInRect(const Vec2& point, const Vec2& pos, const Vec2& size)
 {
-    return point.x() >= pos.x() && point.x() < (pos.x() + size.x()) && point.y() >= pos.y()
-        && point.y() < (pos.y() + size.y());
+    return point.x() >= pos.x() && point.x() < (pos.x() + size.x()) && point.y() >= pos.y() &&
+           point.y() < (pos.y() + size.y());
 }
 
 Vec2 HitTestSystem::getAbsolutePosition(entt::entity entity)
@@ -107,8 +107,7 @@ std::vector<entt::entity> HitTestSystem::getZOrderedInteractables(entt::entity t
         interactables.emplace_back(calculateZOrder(entity), entity);
     }
 
-    std::ranges::sort(interactables,
-                      [](const auto& interactable1, const auto& interactable2)
+    std::ranges::sort(interactables, [](const auto& interactable1, const auto& interactable2)
                       { return interactable1.first > interactable2.first; });
 
     std::vector<entt::entity> result;
@@ -220,7 +219,8 @@ entt::entity HitTestSystem::resolveHitEntity(const Vec2& pos, uint32_t windowID)
         }
     }
 
-    if (topWindow == entt::null) return entt::null;
+    if (topWindow == entt::null)
+        return entt::null;
     return findHitEntity(pos, topWindow);
 }
 
@@ -242,4 +242,4 @@ void HitTestSystem::onRawPointerWheel(const events::RawPointerWheel& event)
     m_disp->enqueue<events::HitPointerWheel>(events::HitPointerWheel{.raw = event, .hitEntity = hit});
 }
 
-} // namespace ui::systems
+}  // namespace ui::systems

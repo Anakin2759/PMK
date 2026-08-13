@@ -48,7 +48,7 @@ namespace ui::systems
  */
 class LayoutSystem : public ui::interface::EnableRegister<LayoutSystem>
 {
-public:
+   public:
     explicit LayoutSystem(UiRuntime& runtime);
     ~LayoutSystem();
 
@@ -61,9 +61,12 @@ public:
     void unregisterHandlersImpl();
     void update();
 
-    interface::SystemPhase getPhase() { return interface::SystemPhase::LAYOUT; }
+    interface::SystemPhase getPhase()
+    {
+        return interface::SystemPhase::LAYOUT;
+    }
 
-private:
+   private:
     [[nodiscard]] entt::entity findRoot(entt::entity entity) const;
     void clearYogaNodes();
     void cleanupInvalidNodes();
@@ -87,4 +90,4 @@ private:
     entt::connection m_onDestroyConnection;
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

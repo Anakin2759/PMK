@@ -53,9 +53,9 @@ struct TextVertex
  */
 struct TextRenderData
 {
-    std::vector<TextVertex> vertices; // 顶点数据（6个顶点/字符，两个三角形）
-    int width = 0;                    // 文本总宽度
-    int height = 0;                   // 文本总高度
+    std::vector<TextVertex> vertices;  // 顶点数据（6个顶点/字符，两个三角形）
+    int width = 0;                     // 文本总宽度
+    int height = 0;                    // 文本总高度
 };
 
 /**
@@ -63,8 +63,10 @@ struct TextRenderData
  */
 class TextRenderHelper
 {
-public:
-    explicit TextRenderHelper(FontAtlasManager& fontAtlasManager) : m_fontAtlasManager(fontAtlasManager) {}
+   public:
+    explicit TextRenderHelper(FontAtlasManager& fontAtlasManager) : m_fontAtlasManager(fontAtlasManager)
+    {
+    }
 
     /**
      * @brief 准备文本渲染数据
@@ -142,10 +144,13 @@ public:
     /**
      * @brief 测量文本宽度
      */
-    int measureTextWidth(const std::string& text) { return m_fontAtlasManager.measureTextWidth(text); }
+    int measureTextWidth(const std::string& text)
+    {
+        return m_fontAtlasManager.measureTextWidth(text);
+    }
 
-private:
+   private:
     FontAtlasManager& m_fontAtlasManager;
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

@@ -32,10 +32,15 @@ namespace ui::renderers
  */
 class ScrollBarRenderer : public core::IRenderer
 {
-public:
-    explicit ScrollBarRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit ScrollBarRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
-    bool canHandle(entt::entity entity) const override { return m_reg->any_of<components::ScrollArea>(entity); }
+    bool canHandle(entt::entity entity) const override
+    {
+        return m_reg->any_of<components::ScrollArea>(entity);
+    }
 
     void collect(entt::entity entity, core::RenderContext& context) override
     {
@@ -54,12 +59,11 @@ public:
 
     int getPriority() const override
     {
-        return 30; // 滚动条在所有内容渲染之后，裁剪区域弹出之前渲染
+        return 30;  // 滚动条在所有内容渲染之后，裁剪区域弹出之前渲染
     }
 
-private:
-    [[nodiscard]] static render::UiPushConstants makeRoundedRectConstants(const Eigen::Vector2f& size,
-                                                                          float radius,
+   private:
+    [[nodiscard]] static render::UiPushConstants makeRoundedRectConstants(const Eigen::Vector2f& size, float radius,
                                                                           float alpha,
                                                                           const core::RenderContext& context)
     {
@@ -79,12 +83,8 @@ private:
         return pushConstants;
     }
 
-    static void drawRoundedRect(const Eigen::Vector2f& pos,
-                                const Eigen::Vector2f& size,
-                                const Eigen::Vector4f& color,
-                                float radius,
-                                float alpha,
-                                core::RenderContext& context)
+    static void drawRoundedRect(const Eigen::Vector2f& pos, const Eigen::Vector2f& size, const Eigen::Vector4f& color,
+                                float radius, float alpha, core::RenderContext& context)
     {
         const auto pushConstants = makeRoundedRectConstants(size, radius, alpha, context);
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConstants);
@@ -121,12 +121,8 @@ private:
         return thumbColor;
     }
 
-    void drawVerticalScrollBar(entt::entity entity,
-                               const Eigen::Vector2f& pos,
-                               const Eigen::Vector2f& size,
-                               const components::ScrollArea& scrollArea,
-                               float viewportHeight,
-                               float alpha,
+    void drawVerticalScrollBar(entt::entity entity, const Eigen::Vector2f& pos, const Eigen::Vector2f& size,
+                               const components::ScrollArea& scrollArea, float viewportHeight, float alpha,
                                core::RenderContext& context)
     {
         const bool hasVerticalScroll =
@@ -158,11 +154,8 @@ private:
         drawRoundedRect(barPos, barSize, verticalThumbColor(entity), 5.0F, alpha, context);
     }
 
-    void drawHorizontalScrollBar(const Eigen::Vector2f& pos,
-                                 const Eigen::Vector2f& size,
-                                 const components::ScrollArea& scrollArea,
-                                 float alpha,
-                                 core::RenderContext& context)
+    void drawHorizontalScrollBar(const Eigen::Vector2f& pos, const Eigen::Vector2f& size,
+                                 const components::ScrollArea& scrollArea, float alpha, core::RenderContext& context)
     {
         const bool hasHorizontalScroll =
             (scrollArea.scroll == policies::Scroll::HORIZONTAL || scrollArea.scroll == policies::Scroll::BOTH);
@@ -192,12 +185,8 @@ private:
         drawRoundedRect(barPos, barSize, {0.6F, 0.6F, 0.6F, 0.7F}, 5.0F, alpha, context);
     }
 
-    void drawScrollBars(entt::entity entity,
-                        const Eigen::Vector2f& pos,
-                        const Eigen::Vector2f& size,
-                        const components::ScrollArea& scrollArea,
-                        float alpha,
-                        core::RenderContext& context)
+    void drawScrollBars(entt::entity entity, const Eigen::Vector2f& pos, const Eigen::Vector2f& size,
+                        const components::ScrollArea& scrollArea, float alpha, core::RenderContext& context)
     {
         float viewportHeight = size.y();
         if (const auto* padding = m_reg->try_get<components::Padding>(entity))
@@ -212,4 +201,4 @@ private:
     Registry* m_reg = nullptr;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

@@ -36,8 +36,10 @@ namespace ui::renderers
  */
 class TableRenderer : public core::IRenderer
 {
-public:
-    explicit TableRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit TableRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
     [[nodiscard]] bool canHandle(entt::entity entity) const override
     {
@@ -46,9 +48,12 @@ public:
 
     void collect(entt::entity entity, core::RenderContext& context) override;
 
-    [[nodiscard]] int getPriority() const override { return 5; }
+    [[nodiscard]] int getPriority() const override
+    {
+        return 5;
+    }
 
-private:
+   private:
     struct TableRenderState
     {
         float tableX = 0.0F;
@@ -59,9 +64,9 @@ private:
         float bodyHeight = 0.0F;
         int rowCount = 0;
         float scrollOffsetY = 0.0F;
-        float scrollOffsetX = 0.0F;      ///< 水平滚动偏移
-        float contentWidth = 0.0F;       ///< 所有列宽之和
-        float effectiveRowHeight = 0.0F; ///< max(rowHeight, minRowHeight)
+        float scrollOffsetX = 0.0F;       ///< 水平滚动偏移
+        float contentWidth = 0.0F;        ///< 所有列宽之和
+        float effectiveRowHeight = 0.0F;  ///< max(rowHeight, minRowHeight)
         std::vector<float> colWidths;
         render::UiPushConstants pushConstants{};
         Eigen::Vector4f gridColor{};
@@ -76,32 +81,22 @@ private:
     static std::vector<float> computeColWidths(const components::TableInfo& info, float totalWidth);
     static const Color& rowBackgroundColor(const components::TableInfo& info, int row);
     void updateScrollArea(entt::entity entity, TableRenderState& state) const;
-    void renderHeaderBackground(const components::TableInfo& info,
-                                core::RenderContext& context,
+    void renderHeaderBackground(const components::TableInfo& info, core::RenderContext& context,
                                 const TableRenderState& state) const;
-    void renderHeaderText(const components::TableInfo& info,
-                          core::RenderContext& context,
+    void renderHeaderText(const components::TableInfo& info, core::RenderContext& context,
                           const TableRenderState& state) const;
-    void renderRowBackgrounds(const components::TableInfo& info,
-                              core::RenderContext& context,
+    void renderRowBackgrounds(const components::TableInfo& info, core::RenderContext& context,
                               const TableRenderState& state) const;
-    void renderBodyGrid(const components::TableInfo& info,
-                        core::RenderContext& context,
+    void renderBodyGrid(const components::TableInfo& info, core::RenderContext& context,
                         const TableRenderState& state) const;
-    void renderCellText(const components::TableInfo& info,
-                        core::RenderContext& context,
+    void renderCellText(const components::TableInfo& info, core::RenderContext& context,
                         const TableRenderState& state) const;
-    void renderCellTexture(const std::string& text,
-                           float cellX,
-                           float rowY,
-                           float rowHeight,
-                           const Eigen::Vector4f& cellColor,
-                           core::RenderContext& context) const;
-    void renderHeaderSeparators(const components::TableInfo& info,
-                                core::RenderContext& context,
+    void renderCellTexture(const std::string& text, float cellX, float rowY, float rowHeight,
+                           const Eigen::Vector4f& cellColor, core::RenderContext& context) const;
+    void renderHeaderSeparators(const components::TableInfo& info, core::RenderContext& context,
                                 const TableRenderState& state) const;
 
     Registry* m_reg = nullptr;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

@@ -25,4 +25,4 @@ void SetPosition(ui::entity entity, float positionX, float positionY)
     ui::detail::size::SetPosition(ui::detail::ToInternal(entity), positionX, positionY);
 }
 
-} // namespace ui::size
+}  // namespace ui::size

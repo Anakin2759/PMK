@@ -88,4 +88,4 @@ void SetFontSize(ui::entity entity, float size)
     detail::text::SetFontSize(detail::ToInternal(entity), size);
 }
 
-} // namespace ui::text
+}  // namespace ui::text

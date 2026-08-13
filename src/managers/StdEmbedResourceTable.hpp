@@ -35,4 +35,4 @@ struct StdEmbedResourceEntry
 [[nodiscard]] std::span<const StdEmbedResourceEntry> GetStdEmbedResourceTable();
 [[nodiscard]] const StdEmbedResourceEntry* FindStdEmbedResource(std::string_view logicalPath);
 
-} // namespace ui::managers
+}  // namespace ui::managers

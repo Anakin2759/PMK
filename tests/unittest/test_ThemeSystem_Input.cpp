@@ -122,4 +122,4 @@ TEST_F(ThemeSystemTest, CheckBoxHoverActiveAndDisabledUseThemeStateColors)
     }
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

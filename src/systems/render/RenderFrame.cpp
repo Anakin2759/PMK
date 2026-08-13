@@ -67,7 +67,8 @@ struct ScalingSnapshot
     [[nodiscard]] bool operator==(const ScalingSnapshot& other) const = default;
 };
 
-[[nodiscard]] float ComputeRenderScale(int pixelWidth, int pixelHeight, int logicalWidth, int logicalHeight, float fallback)
+[[nodiscard]] float ComputeRenderScale(int pixelWidth, int pixelHeight, int logicalWidth, int logicalHeight,
+                                       float fallback)
 {
     const bool hasLogicalWidth = logicalWidth > 0;
     const bool hasLogicalHeight = logicalHeight > 0;
@@ -76,8 +77,9 @@ struct ScalingSnapshot
 
     const float scaleX =
         (hasPixelWidth && hasLogicalWidth) ? static_cast<float>(pixelWidth) / static_cast<float>(logicalWidth) : 0.0F;
-    const float scaleY =
-        (hasPixelHeight && hasLogicalHeight) ? static_cast<float>(pixelHeight) / static_cast<float>(logicalHeight) : 0.0F;
+    const float scaleY = (hasPixelHeight && hasLogicalHeight)
+                             ? static_cast<float>(pixelHeight) / static_cast<float>(logicalHeight)
+                             : 0.0F;
 
     if (std::isfinite(scaleX) && scaleX > 0.0F && std::isfinite(scaleY) && scaleY > 0.0F)
     {
@@ -116,17 +118,9 @@ struct ScalingSnapshot
 }
 
 // NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)
-void LogScalingSnapshotIfNeeded(Registry& registry,
-                                entt::entity windowEntity,
-                                const components::Window& windowComp,
-                                SDL_Window* sdlWindow,
-                                int logicalWidth,
-                                int logicalHeight,
-                                int pixelWidth,
-                                int pixelHeight,
-                                float dpiScale,
-                                const SDL_FColor& clearColor,
-                                int batchCount)
+void LogScalingSnapshotIfNeeded(Registry& registry, entt::entity windowEntity, const components::Window& windowComp,
+                                SDL_Window* sdlWindow, int logicalWidth, int logicalHeight, int pixelWidth,
+                                int pixelHeight, float dpiScale, const SDL_FColor& clearColor, int batchCount)
 {
     if (!config::AppConfig::instance().debugScaling())
     {
@@ -160,40 +154,28 @@ void LogScalingSnapshotIfNeeded(Registry& registry,
     }
     snapshots[entityKey] = snapshot;
 
-    ui::UiRuntime::current().logger().info("[Scaling][RenderFrame] entity={} windowId={} logical=({}, {}) pixel=({}, {}) rootSize=({}, {}) "
-                 "displayScale={:.3f} uiScale={:.3f} renderScale={:.3f} clear=({:.2f}, {:.2f}, {:.2f}, {:.2f}) "
-                 "batches={} nativeClient=({}, {}) nativeWindow=({}, {}) nativeBorderTB=({}, {})",
-                 entityKey,
-                 windowComp.windowID,
-                 logicalWidth,
-                 logicalHeight,
-                 pixelWidth,
-                 pixelHeight,
-                 snapshot.rootWidth,
-                 snapshot.rootHeight,
-                 windowComp.displayScale,
-                 windowComp.uiScale,
-                 dpiScale,
-                 clearColor.r,
-                 clearColor.g,
-                 clearColor.b,
-                 clearColor.a,
-                 batchCount,
-                 nativeMetrics.clientWidth,
-                 nativeMetrics.clientHeight,
-                 nativeMetrics.windowWidth,
-                 nativeMetrics.windowHeight,
-                 nativeMetrics.borderTop,
-                 nativeMetrics.borderBottom);
+    ui::UiRuntime::current().logger().info(
+        "[Scaling][RenderFrame] entity={} windowId={} logical=({}, {}) pixel=({}, {}) rootSize=({}, {}) "
+        "displayScale={:.3f} uiScale={:.3f} renderScale={:.3f} clear=({:.2f}, {:.2f}, {:.2f}, {:.2f}) "
+        "batches={} nativeClient=({}, {}) nativeWindow=({}, {}) nativeBorderTB=({}, {})",
+        entityKey, windowComp.windowID, logicalWidth, logicalHeight, pixelWidth, pixelHeight, snapshot.rootWidth,
+        snapshot.rootHeight, windowComp.displayScale, windowComp.uiScale, dpiScale, clearColor.r, clearColor.g,
+        clearColor.b, clearColor.a, batchCount, nativeMetrics.clientWidth, nativeMetrics.clientHeight,
+        nativeMetrics.windowWidth, nativeMetrics.windowHeight, nativeMetrics.borderTop, nativeMetrics.borderBottom);
 }
 
-} // namespace
+}  // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 void RenderSystem::update()
 {
     // 统计事件处理入口次数而非实际 present 数；无脏窗口的调用同样属于帧调度指标。
-    ++m_reg->getOrEmplaceInCtx<globalcontext::FrameContext>().renderUpdateCount;
+    auto& frameContext = m_reg->getOrEmplaceInCtx<globalcontext::FrameContext>();
+    ++frameContext.renderUpdateCount;
+    if (frameContext.stage != globalcontext::FrameStage::RENDER || frameContext.renderUpdateCount != 1U)
+    {
+        return;
+    }
     auto windowView = m_reg->view<components::Window, components::RenderDirtyTag>();
 
     if (windowView.begin() == windowView.end())
@@ -265,7 +247,8 @@ void RenderSystem::update()
         {
             if (auto claimResult = m_impl->m_deviceManager->claimWindow(sdlWindow); !claimResult.has_value())
             {
-                ui::UiRuntime::current().logger().warn("[RenderSystem] claimWindow failed: {}", claimResult.error().ToString());
+                ui::UiRuntime::current().logger().warn("[RenderSystem] claimWindow failed: {}",
+                                                       claimResult.error().ToString());
                 continue;
             }
             m_impl->m_deviceClaimState.MarkDeviceLocked();
@@ -280,17 +263,20 @@ void RenderSystem::update()
         {
             if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
             {
-                ui::UiRuntime::current().logger().warn("[RenderSystem] pipeline creation failed: {}", pipeResult.error().ToString());
+                ui::UiRuntime::current().logger().warn("[RenderSystem] pipeline creation failed: {}",
+                                                       pipeResult.error().ToString());
             }
 
             if (m_impl->m_pipelineCache->getPipeline() == nullptr)
             {
-                ui::UiRuntime::current().logger().warn("[RenderSystem] GPU pipeline unavailable; switching to fallback renderer. "
-                             "Rebuild shaders with compile.bat to restore GPU rendering.");
+                ui::UiRuntime::current().logger().warn(
+                    "[RenderSystem] GPU pipeline unavailable; switching to fallback renderer. "
+                    "Rebuild shaders with compile.bat to restore GPU rendering.");
                 m_impl->m_useFallback = true;
                 if (!tryInitializeFallback(sdlWindow))
                 {
-                    ui::UiRuntime::current().logger().error("[RenderSystem] fallback initialization failed; skipping this frame");
+                    ui::UiRuntime::current().logger().error(
+                        "[RenderSystem] fallback initialization failed; skipping this frame");
                 }
                 continue;
             }
@@ -384,17 +370,8 @@ void RenderSystem::update()
         m_impl->m_batchManager->optimize();
 
         const auto& batches = m_impl->m_batchManager->getBatches();
-    LogScalingSnapshotIfNeeded(*m_reg,
-                   windowEntity,
-                   windowComp,
-                   sdlWindow,
-                   logicalWidth,
-                   logicalHeight,
-                   width,
-                   height,
-                   dpiScale,
-                   clearColor,
-                   static_cast<int>(batches.size()));
+        LogScalingSnapshotIfNeeded(*m_reg, windowEntity, windowComp, sdlWindow, logicalWidth, logicalHeight, width,
+                                   height, dpiScale, clearColor, static_cast<int>(batches.size()));
         if (m_impl->m_useFallback)
         {
             if (tryInitializeFallback(sdlWindow) && m_impl->m_backendRenderer->beginFrame(clearColor))
@@ -442,8 +419,10 @@ void RenderSystem::collectRenderData(entt::entity entity, core::RenderContext& c
         auto [currentEntity, currentContext] = std::move(stack.top());
         stack.pop();
 
-        if (!m_reg->any_of<components::VisibleTag>(currentEntity)) continue;
-        if (m_reg->any_of<components::SpacerTag>(currentEntity)) continue;
+        if (!m_reg->any_of<components::VisibleTag>(currentEntity))
+            continue;
+        if (m_reg->any_of<components::SpacerTag>(currentEntity))
+            continue;
 
         const auto& pos = m_reg->get<components::Position>(currentEntity);
         const auto& size = m_reg->get<components::Size>(currentEntity);
@@ -540,4 +519,4 @@ void RenderSystem::collectRenderData(entt::entity entity, core::RenderContext& c
     }
 }
 
-} // namespace ui::systems
+}  // namespace ui::systems

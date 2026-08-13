@@ -14,11 +14,11 @@
  */
 #pragma once
 
-
-#include "utils/ThreadPool.hpp"
 #include "utils/Dispatcher.hpp"
 #include "utils/Logger.hpp"
 #include "utils/Registry.hpp"
+#include <cassert>
+#include <exception>
 #include <memory>
 
 namespace ui
@@ -26,12 +26,13 @@ namespace ui
 
 class UiRuntime
 {
-public:
-    UiRuntime(): m_threadPool(std::make_unique<utils::ThreadPool>()),
-                 m_registry(std::make_unique<Registry>()),
-                 m_dispatcher(std::make_unique<Dispatcher>()),
-                 m_logger(std::make_unique<utils::Logger>())
-    {}
+   public:
+    UiRuntime()
+        : m_registry(std::make_unique<Registry>()),
+          m_dispatcher(std::make_unique<Dispatcher>()),
+          m_logger(std::make_unique<utils::Logger>())
+    {
+    }
 
     ~UiRuntime() noexcept
     {
@@ -49,25 +50,57 @@ public:
     UiRuntime& operator=(UiRuntime&&) = delete;
 
     /// 尝试获取当前线程活跃的 UiRuntime 实例；无活动 scope 时返回 nullptr。
-    [[nodiscard]] static UiRuntime* tryCurrent() noexcept { return s_current; }
+    [[nodiscard]] static UiRuntime* tryCurrent() noexcept
+    {
+        return s_current;
+    }
 
     /// 获取当前线程活跃的 UiRuntime 实例（由 UiRuntimeScope 设定）。
-    /// 调用方必须保证当前线程存在活动 scope；兼容旧 API 使用。
-    [[nodiscard]] static UiRuntime& current() { return *s_current; }
+    /// 调用方必须保证当前线程存在活动 scope；违反契约时终止进程。
+    [[nodiscard]] static UiRuntime& current() noexcept
+    {
+        assert(s_current != nullptr && "UiRuntime::current() requires an active UiRuntimeScope");
+        if (s_current == nullptr)
+        {
+            std::terminate();
+        }
+        return *s_current;
+    }
 
-    [[nodiscard]] Registry& registry() noexcept { return *m_registry; }
+    [[nodiscard]] Registry& registry() noexcept
+    {
+        return *m_registry;
+    }
 
-    [[nodiscard]] const Registry& registry() const noexcept { return *m_registry; }
+    [[nodiscard]] const Registry& registry() const noexcept
+    {
+        return *m_registry;
+    }
 
-    [[nodiscard]] Dispatcher& dispatcher() noexcept { return *m_dispatcher; }
+    [[nodiscard]] Dispatcher& dispatcher() noexcept
+    {
+        return *m_dispatcher;
+    }
 
-    [[nodiscard]] const Dispatcher& dispatcher() const noexcept { return *m_dispatcher; }
+    [[nodiscard]] const Dispatcher& dispatcher() const noexcept
+    {
+        return *m_dispatcher;
+    }
 
-    [[nodiscard]] utils::Logger& logger() noexcept { return *m_logger; }
+    [[nodiscard]] utils::Logger& logger() noexcept
+    {
+        return *m_logger;
+    }
 
-    [[nodiscard]] const utils::Logger& logger() const noexcept { return *m_logger; }
+    [[nodiscard]] const utils::Logger& logger() const noexcept
+    {
+        return *m_logger;
+    }
 
-    [[nodiscard]] std::uintptr_t token() const noexcept { return reinterpret_cast<std::uintptr_t>(this); }
+    [[nodiscard]] std::uintptr_t token() const noexcept
+    {
+        return reinterpret_cast<std::uintptr_t>(this);
+    }
 
     /// 获取或创建类型化 context（委托 Registry::getOrEmplaceInCtx）
     template <typename T>
@@ -89,16 +122,14 @@ public:
         return m_registry->findInCtx<T>();
     }
 
-
     inline static thread_local UiRuntime* s_current = nullptr;
 
-private:
+   private:
     friend class UiRuntimeScope;
 
-    std::unique_ptr<utils::ThreadPool> m_threadPool;
     std::unique_ptr<Registry> m_registry;
     std::unique_ptr<Dispatcher> m_dispatcher;
     std::unique_ptr<utils::Logger> m_logger;
 };
 
-} // namespace ui
+}  // namespace ui

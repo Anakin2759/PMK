@@ -30,7 +30,7 @@ using EventCallback = std::move_only_function<void(const EventPayload&)>;
 
 class EventConnection
 {
-public:
+   public:
     EventConnection() noexcept = default;
     explicit EventConnection(std::uint64_t token) noexcept;
     EventConnection(const EventConnection&) = delete;
@@ -42,7 +42,7 @@ public:
     void Disconnect() noexcept;
     [[nodiscard]] bool Connected() const noexcept;
 
-private:
+   private:
     std::uint64_t m_token = 0;
 };
 
@@ -59,4 +59,4 @@ void Enqueue(EventId eventId, EventPayload payload = {});
 void Enqueue(std::string_view name, EventPayload payload = {});
 /// 立即清空当前 Runtime 的公开事件队列；保留供测试和显式调度使用。
 void DispatchQueued();
-} // namespace ui::event
+}  // namespace ui::event

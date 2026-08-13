@@ -35,11 +35,9 @@ namespace ui::config
  */
 class AppConfig
 {
-private:
-    static std::optional<std::string_view> readLongOptionValue(std::string_view token,
-                                                               std::string_view option,
-                                                               std::span<char* const> argv,
-                                                               std::size_t& index)
+   private:
+    static std::optional<std::string_view> readLongOptionValue(std::string_view token, std::string_view option,
+                                                               std::span<char* const> argv, std::size_t& index)
     {
         if (!token.starts_with(option))
         {
@@ -81,7 +79,7 @@ private:
         }
     }
 
-public:
+   public:
     [[nodiscard]] static AppConfig& instance() noexcept
     {
         static AppConfig instance;
@@ -89,19 +87,37 @@ public:
     }
 
     /// 设置优先后端（小写名称，例如 "direct3d12" / "vulkan" / "cpu"）
-    void setPreferredBackend(std::string name) { m_preferredBackend = std::move(name); }
+    void setPreferredBackend(std::string name)
+    {
+        m_preferredBackend = std::move(name);
+    }
 
-    [[nodiscard]] std::string_view preferredBackend() const noexcept { return m_preferredBackend; }
+    [[nodiscard]] std::string_view preferredBackend() const noexcept
+    {
+        return m_preferredBackend;
+    }
 
     /// 设置应用程序窗口图标路径（支持 BMP / PNG / JPG，空字符串表示不设置）
-    void setAppIconPath(std::string path) { m_appIconPath = std::move(path); }
+    void setAppIconPath(std::string path)
+    {
+        m_appIconPath = std::move(path);
+    }
 
-    [[nodiscard]] std::string_view appIconPath() const noexcept { return m_appIconPath; }
+    [[nodiscard]] std::string_view appIconPath() const noexcept
+    {
+        return m_appIconPath;
+    }
 
     /// 设置日志文件路径（空字符串表示使用默认路径 logs/pestmankill.log）
-    void setLogFilePath(std::string path) { m_logFilePath = std::move(path); }
+    void setLogFilePath(std::string path)
+    {
+        m_logFilePath = std::move(path);
+    }
 
-    [[nodiscard]] std::string_view logFilePath() const noexcept { return m_logFilePath; }
+    [[nodiscard]] std::string_view logFilePath() const noexcept
+    {
+        return m_logFilePath;
+    }
 
     void setPlatformScalingEnabled(bool enabled) noexcept
     {
@@ -112,7 +128,10 @@ public:
         }
     }
 
-    [[nodiscard]] bool platformScalingEnabled() const noexcept { return m_platformScalingEnabled; }
+    [[nodiscard]] bool platformScalingEnabled() const noexcept
+    {
+        return m_platformScalingEnabled;
+    }
 
     void setForcedPlatformScale(float scale) noexcept
     {
@@ -123,17 +142,30 @@ public:
         }
     }
 
-    [[nodiscard]] float forcedPlatformScale() const noexcept { return m_forcedPlatformScale; }
+    [[nodiscard]] float forcedPlatformScale() const noexcept
+    {
+        return m_forcedPlatformScale;
+    }
 
-    void setPlatformUiScale(float scale) noexcept { m_platformUiScale = scale > 0.0F ? scale : 1.0F; }
+    void setPlatformUiScale(float scale) noexcept
+    {
+        m_platformUiScale = scale > 0.0F ? scale : 1.0F;
+    }
 
-    void setDebugScaling(bool enabled) noexcept { m_debugScaling = enabled; }
+    void setDebugScaling(bool enabled) noexcept
+    {
+        m_debugScaling = enabled;
+    }
 
-    [[nodiscard]] bool debugScaling() const noexcept { return m_debugScaling; }
+    [[nodiscard]] bool debugScaling() const noexcept
+    {
+        return m_debugScaling;
+    }
 
     [[nodiscard]] float platformUiScale() const noexcept
     {
-        if (!m_platformScalingEnabled) return 1.0F;
+        if (!m_platformScalingEnabled)
+            return 1.0F;
         return m_forcedPlatformScale > 0.0F ? m_forcedPlatformScale : m_platformUiScale;
     }
 
@@ -151,7 +183,7 @@ public:
      *   -b <name>
      *   --ui-platform-scaling=auto|on|off
      *   --ui-platform-scale=<scale>
-    *   --ui-debug-scaling[=true|false]
+     *   --ui-debug-scaling[=true|false]
      *
      * 未识别的参数会被忽略，避免影响调用方自身的解析逻辑。
      * 后端名称按小写约定传入。
@@ -167,7 +199,8 @@ public:
         for (std::size_t index = 0; index < argv.size(); ++index)
         {
             const char* raw = argv[index];
-            if (raw == nullptr) continue;
+            if (raw == nullptr)
+                continue;
             std::string_view token(raw);
 
             if (auto value = readLongOptionValue(token, BACKEND_LONG, argv, index))
@@ -198,7 +231,7 @@ public:
         }
     }
 
-private:
+   private:
     AppConfig() = default;
     std::string m_preferredBackend;
     std::string m_appIconPath;
@@ -209,4 +242,4 @@ private:
     bool m_debugScaling = false;
 };
 
-} // namespace ui::config
+}  // namespace ui::config

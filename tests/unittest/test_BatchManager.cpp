@@ -24,9 +24,7 @@ namespace ui::tests
 namespace
 {
 
-ui::render::UiPushConstants MakePushConstants(float rectWidth = 100.0F,
-                                              float rectHeight = 40.0F,
-                                              float opacity = 1.0F,
+ui::render::UiPushConstants MakePushConstants(float rectWidth = 100.0F, float rectHeight = 40.0F, float opacity = 1.0F,
                                               float strokeWidth = 0.0F)
 {
     ui::render::UiPushConstants pushConstants{};
@@ -45,7 +43,7 @@ Eigen::Vector4f White()
     return {1.0F, 1.0F, 1.0F, 1.0F};
 }
 
-} // namespace
+}  // namespace
 
 TEST(BatchManagerTest, AddRectProducesSingleBatchAfterOptimize)
 {
@@ -137,4 +135,4 @@ TEST(BatchManagerTest, ClearResetsAllBatchesAndSupportsReuse)
     EXPECT_FLOAT_EQ(batchManager.getBatches().at(0).pushConstants.opacity, 0.75F);
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

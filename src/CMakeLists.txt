@@ -6,16 +6,12 @@ OPTION(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 OPTION(BUILD_STATIC_LIBS "Build using static libraries" ON)
 # 代码覆盖率选项
 option(ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
-# 资源后端选项
-option(UI_ENABLE_STD_EMBED_EXPERIMENTAL "Enable the experimental std::embed resource backend skeleton" ON)
 # 调试选项
 option(UI_ENABLE_ASAN "Enable AddressSanitizer for UI module" OFF)
 # CPU 渲染选项：跳过所有 GPU 后端，直接使用 SDL_Renderer software 后端（用于无 GPU 环境或调试）
 option(UI_FORCE_CPU_RENDER "Force CPU-only software rendering (skip all GPU backends)" OFF)
 # 平台显示缩放：默认跟随系统 DPI / Wayland scale / X11 scale
 option(UI_ENABLE_PLATFORM_SCALING "Enable platform display scaling by default" ON)
-# 线程池：默认单线程，开启后启用 worker 线程做异步任务（图片解码等 CPU 热点）
-option(UI_ENABLE_MULTITHREAD "Enable worker threads in ui::utils::ThreadPool (default OFF, runs all tasks inline)" OFF)
 # Linux 窗口系统后端：AUTO 自动探测、X11、WAYLAND（仅 Linux 生效）
 set(UI_LINUX_WINDOW_SYSTEM "AUTO" CACHE STRING
     "Linux window system backend: AUTO (detect X11 first, fallback Wayland), X11, WAYLAND")
@@ -29,8 +25,10 @@ set(UI_ENABLE_SHADER_COMPILATION "AUTO" CACHE STRING
 set_property(CACHE UI_ENABLE_SHADER_COMPILATION PROPERTY STRINGS AUTO ON OFF)
 
 
-# 资源后端选项（CMRC 或 STD_EMBED）
-set(UI_RESOURCE_BACKEND "CMRC" CACHE STRING "UI resource backend (CMRC or STD_EMBED)")
+# 资源后端选项
+# STD_EMBED：将资源表生成为 .cpp 直接编译进 ui（无 cmrc 依赖）——自包含发行默认后端。
+# CMRC    ：基于 cmrc 的嵌入资源库（开发/测试用；发行 install 会额外暴露 cmrc 目标）。
+set(UI_RESOURCE_BACKEND "STD_EMBED" CACHE STRING "UI resource backend (CMRC or STD_EMBED)")
 # 资源后端选项字符串列表（用于 CMake GUI 和命令行提示）
 set_property(CACHE UI_RESOURCE_BACKEND PROPERTY STRINGS CMRC STD_EMBED)
 
@@ -38,7 +36,9 @@ if(NOT UI_RESOURCE_BACKEND STREQUAL "CMRC" AND NOT UI_RESOURCE_BACKEND STREQUAL 
     message(FATAL_ERROR "Unsupported UI_RESOURCE_BACKEND='${UI_RESOURCE_BACKEND}'. Expected CMRC or STD_EMBED.")
 endif()
 
-if(UI_RESOURCE_BACKEND STREQUAL "STD_EMBED" AND NOT UI_ENABLE_STD_EMBED_EXPERIMENTAL)
+# STD_EMBED 已转正为自包含发行默认后端；不再要求 experimental 开关。
+# 旧变量 UI_ENABLE_STD_EMBED_EXPERIMENTAL 已废弃，仅对历史命令行参数做兼容忽略。
+if(UI_RESOURCE_BACKEND STREQUAL "STD_EMBED" AND NOT UI_ENABLE_STD_EMBED_EXPERIMENTAL AND DEFINED UI_ENABLE_STD_EMBED_EXPERIMENTAL)
     message(FATAL_ERROR "UI_RESOURCE_BACKEND=STD_EMBED requires UI_ENABLE_STD_EMBED_EXPERIMENTAL=ON.")
 endif()
 # 资源定义
@@ -139,25 +139,49 @@ if(NOT _UI_DO_SHADER_COMPILE)
 endif()
 
 
-set(UI_SOURCES 
+# ==================== 按模块拆分的 Object 库源列表（编译优化） ====================
+# 将 ui 拆分为多个 OBJECT 库，每个库拥有独立的编译配置与可选的 JOB_POOL：
+#   - 模块级并行度控制：重型模板模块（systems/render/managers）可限制并发，轻量模块（api）可放开；
+#   - 增量构建边界清晰：仅依赖某模块的改动不会触发整库重新编译语义混乱；
+#   - 聚合静态库 ui 由这些 object 库拼装，对外行为（VMPUI::ui / 合并 / install）完全不变。
+
+set(UI_OBJECT_CORE_SOURCES
     core/Application.cpp
     core/EventLoop.cpp
     core/SystemManager.cpp
+    core/PlatformWindow.cpp
     services/TextEditingService.cpp
+    common/ErrorCodes.cpp
+)
+
+set(UI_OBJECT_SYSTEMS_SOURCES
     systems/LayoutSystem.cpp
     systems/HitTestSystem.cpp
     systems/StateSystem.cpp
     systems/ThemeSystem.cpp
+    systems/TimerSystem.cpp
+    systems/ShortcutSystem.cpp
+)
+
+set(UI_OBJECT_RENDER_SOURCES
     systems/render/RenderBackend.cpp
     systems/render/RenderResources.cpp
     systems/render/RenderFrame.cpp
-    systems/TimerSystem.cpp
-    systems/ShortcutSystem.cpp
+)
+
+set(UI_OBJECT_MANAGERS_SOURCES
     managers/FontManager.cpp
     managers/IconManager.cpp
     managers/ResourceProvider.cpp
     managers/TextTextureCache.cpp
-    ${UI_STD_EMBED_RESOURCE_TABLE_SOURCE}
+    managers/ImageManager.cpp
+)
+
+set(UI_OBJECT_RENDERERS_SOURCES
+    renderers/TableRenderer.cpp
+)
+
+set(UI_OBJECT_API_SOURCES
     api/Size.cpp
     api/Scale.cpp
     api/Visibility.cpp
@@ -178,11 +202,21 @@ set(UI_SOURCES
     api/Shortcut.cpp
     api/Log.cpp
     api/Timer.cpp
-    managers/ImageManager.cpp
-    core/PlatformWindow.cpp
-    renderers/TableRenderer.cpp
-    common/ErrorCodes.cpp
-    common/CustomEvent.hpp
+)
+
+set(UI_OBJECT_RESOURCES_SOURCES
+    ${UI_STD_EMBED_RESOURCE_TABLE_SOURCE}
+)
+
+# 汇总（供诊断/工具使用；聚合库通过 $<TARGET_OBJECTS> 引用各 object 库）
+set(UI_SOURCES
+    ${UI_OBJECT_CORE_SOURCES}
+    ${UI_OBJECT_SYSTEMS_SOURCES}
+    ${UI_OBJECT_RENDER_SOURCES}
+    ${UI_OBJECT_MANAGERS_SOURCES}
+    ${UI_OBJECT_RENDERERS_SOURCES}
+    ${UI_OBJECT_API_SOURCES}
+    ${UI_OBJECT_RESOURCES_SOURCES}
 )
 set(UI_HEADERS
     # Public foundations
@@ -208,7 +242,6 @@ set(UI_HEADERS
     common/RenderTypes.hpp
     common/Result.hpp
     common/ErrorCodes.hpp
-    utils/ThreadPool.hpp
 
     # Internal helpers
     helper/Helper.hpp
@@ -298,24 +331,10 @@ set(UI_HEADERS
     managers/ImageManager.hpp
     systems/ShortcutSystem.hpp
 )
-# UI 模块库定义
-add_library(ui STATIC ${UI_SOURCES} ${UI_HEADERS})
-add_library(VMPUI::ui ALIAS ui)
-
-target_precompile_headers(ui PRIVATE
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp>"
-)
-
-# 头文件目录
-target_include_directories(ui
-    PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/third_party/stb
-    PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
+# ---------------------------------------------------------------------------
+# 注：聚合库 ui 与各 Object 库的定义已移至 CMRC 资源库（ui_fonts）之后，
+#     以保证 configure 阶段引用到全部第三方/资源 target（见下文 Object 库拆分段）。
+# ---------------------------------------------------------------------------
 
 if(_UI_DO_SHADER_COMPILE)
     # ===========================
@@ -479,92 +498,13 @@ if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
     )
 endif()
 
-if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
-    target_compile_definitions(ui PRIVATE
-        UI_RESOURCE_BACKEND_CMRC=1
-        UI_RESOURCE_BACKEND_NAME="CMRC"
-    )
-elseif(UI_RESOURCE_BACKEND STREQUAL "STD_EMBED")
-    target_compile_definitions(ui PRIVATE
-        UI_RESOURCE_BACKEND_STD_EMBED=1
-        UI_RESOURCE_BACKEND_NAME="STD_EMBED"
-    )
-endif()
-
-# 依赖项
-target_link_libraries(ui PRIVATE
-    SDL3::SDL3
-    yogacore
-    freetype
-    harfbuzz
-    EnTT::EnTT
-    Eigen3::Eigen
-    spdlog::spdlog_header_only
-)
-
-if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
-    target_link_libraries(ui PRIVATE ui_fonts)
-endif()
-
-target_compile_definitions(ui PRIVATE UI_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
-
-if(UI_FORCE_CPU_RENDER)
-    target_compile_definitions(ui PRIVATE UI_FORCE_CPU_RENDER=1)
-    message(STATUS "[UI] UI_FORCE_CPU_RENDER=ON: GPU backends disabled, using SDL_Renderer software fallback.")
-endif()
-
-target_compile_definitions(ui PUBLIC UI_ENABLE_PLATFORM_SCALING=$<BOOL:${UI_ENABLE_PLATFORM_SCALING}>)
-
-if(UI_ENABLE_MULTITHREAD)
-    target_compile_definitions(ui PUBLIC UI_ENABLE_MULTITHREAD=1)
-    message(STATUS "[UI] UI_ENABLE_MULTITHREAD=ON: ThreadPool will spawn worker threads.")
-else()
-    target_compile_definitions(ui PUBLIC UI_ENABLE_MULTITHREAD=0)
-    message(STATUS "[UI] UI_ENABLE_MULTITHREAD=OFF: ThreadPool runs all tasks inline (default).")
-endif()
-
-# ==================== 平台链接 ====================
-# Windows: DWM 透明合成 + 窗口子类化
-if(WIN32)
-    target_link_libraries(ui PRIVATE dwmapi comctl32)
-    # MinGW/GCC 会忽略 #pragma comment(lib, ...)，uxtheme 需在此显式链接。
-    if(MINGW)
-        target_link_libraries(ui PRIVATE uxtheme)
-    endif()
-endif()
-
-# Linux: X11 / Wayland 后端
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(_ui_linux_need_x11
-        $<OR:$<STREQUAL:${UI_LINUX_WINDOW_SYSTEM},AUTO>,$<STREQUAL:${UI_LINUX_WINDOW_SYSTEM},X11>>)
-
-    if(UI_LINUX_WINDOW_SYSTEM STREQUAL "AUTO" OR UI_LINUX_WINDOW_SYSTEM STREQUAL "X11")
-        find_package(X11 QUIET)
-        if(X11_FOUND)
-            target_link_libraries(ui PRIVATE X11::X11)
-            target_compile_definitions(ui PRIVATE UI_LINUX_X11=1)
-            message(STATUS "[UI] Linux: X11 backend enabled")
-        elseif(UI_LINUX_WINDOW_SYSTEM STREQUAL "X11")
-            message(FATAL_ERROR "[UI] UI_LINUX_WINDOW_SYSTEM=X11 but libX11 not found.\n"
-                "  Ubuntu/Debian : sudo apt install libx11-dev\n"
-                "  Fedora/RHEL   : dnf install libX11-devel\n"
-                "  Arch          : pacman -S libx11")
-        else()
-            message(STATUS "[UI] Linux: X11 not found; falling back to Wayland-only")
-        endif()
-    endif()
-
-    if(UI_LINUX_WINDOW_SYSTEM STREQUAL "AUTO" OR UI_LINUX_WINDOW_SYSTEM STREQUAL "WAYLAND")
-        # SDL3 已内建 Wayland 支持，无需额外链接 wayland-client
-        # xdg-decoration / libdecor 等装饰协议可在此追加（P6 扩展）
-        target_compile_definitions(ui PRIVATE UI_LINUX_WAYLAND=1)
-        message(STATUS "[UI] Linux: Wayland backend enabled (via SDL3)")
-    endif()
-endif()
-target_compile_features(ui PUBLIC cxx_std_23)
-
-target_compile_options(ui PRIVATE
-     
+# ==================== Object 库拆分（编译优化） ====================
+# 将 ui 拆分为多个 OBJECT 库，每个库拥有独立的编译配置与可选的 JOB_POOL：
+#   - 模块级并行度控制：重型模板模块（systems/render/managers）可限制并发，轻量模块（api）可放开；
+#   - 增量构建边界清晰，各模块可独立重编译；
+#   - 聚合静态库 ui 由这些 object 库拼装，对外行为（VMPUI::ui / 合并 / install）完全不变。
+# 共享编译选项（提取为变量，供每个 object 库应用）
+set(_UI_COMMON_COMPILE_OPTIONS
     # GCC
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Debug>>:-Wall -Wextra -Wpedantic -O0 -g >
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Release>>:-Wall -O3 -DNDEBUG >
@@ -583,17 +523,290 @@ target_compile_options(ui PRIVATE
     # Clang-cl (MSVC frontend)
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>,$<CONFIG:Debug>>:/EHsc /Zi /W4>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>,$<CONFIG:Release>>:/EHsc /O2 /DNDEBUG >
-
 )
 
+option(UI_ENABLE_PCH "Enable precompiled headers in UI object libraries" ON)
+
+# 可选：按模块覆盖全局编译并行度（空 = 继承全局 JOB_POOL_COMPILE）
+set(UI_POOL_CORE "" CACHE STRING "Compile job pool for ui_core_objects (empty = global)")
+set(UI_POOL_SYSTEMS "" CACHE STRING "Compile job pool for ui_systems_objects (empty = global)")
+set(UI_POOL_RENDER "" CACHE STRING "Compile job pool for ui_render_objects (empty = global)")
+set(UI_POOL_MANAGERS "" CACHE STRING "Compile job pool for ui_managers_objects (empty = global)")
+set(UI_POOL_RENDERERS "" CACHE STRING "Compile job pool for ui_renderers_objects (empty = global)")
+set(UI_POOL_API "" CACHE STRING "Compile job pool for ui_api_objects (empty = global)")
+set(UI_POOL_RESOURCES "" CACHE STRING "Compile job pool for ui_resources_objects (empty = global)")
+
+function(ui_configure_object_library target_name pool_value use_pch)
+    target_compile_features(${target_name} PRIVATE cxx_std_23)
+    target_include_directories(${target_name} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/third_party/stb
+    )
+    if(UI_ENABLE_PCH AND use_pch)
+        target_precompile_headers(${target_name} PRIVATE
+            "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp>"
+        )
+    endif()
+
+    if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
+        target_compile_definitions(${target_name} PRIVATE
+            UI_RESOURCE_BACKEND_CMRC=1
+            UI_RESOURCE_BACKEND_NAME="CMRC")
+    elseif(UI_RESOURCE_BACKEND STREQUAL "STD_EMBED")
+        target_compile_definitions(${target_name} PRIVATE
+            UI_RESOURCE_BACKEND_STD_EMBED=1
+            UI_RESOURCE_BACKEND_NAME="STD_EMBED")
+    endif()
+    target_compile_definitions(${target_name} PRIVATE UI_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
+    if(UI_FORCE_CPU_RENDER)
+        target_compile_definitions(${target_name} PRIVATE UI_FORCE_CPU_RENDER=1)
+    endif()
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        if(UI_LINUX_WINDOW_SYSTEM STREQUAL "AUTO" OR UI_LINUX_WINDOW_SYSTEM STREQUAL "X11")
+            if(X11_FOUND)
+                target_compile_definitions(${target_name} PRIVATE UI_LINUX_X11=1)
+            endif()
+        endif()
+        if(UI_LINUX_WINDOW_SYSTEM STREQUAL "AUTO" OR UI_LINUX_WINDOW_SYSTEM STREQUAL "WAYLAND")
+            target_compile_definitions(${target_name} PRIVATE UI_LINUX_WAYLAND=1)
+        endif()
+    endif()
+
+    # header-only / 编译期依赖的 include path（OBJECT 库不归档，PRIVATE 不污染消费者）
+    target_link_libraries(${target_name} PRIVATE
+        SDL3::SDL3
+        yogacore
+        freetype
+        harfbuzz
+        EnTT::EnTT
+        Eigen3::Eigen
+        spdlog::spdlog_header_only
+    )
+    if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
+        target_link_libraries(${target_name} PRIVATE ui_fonts)
+    endif()
+
+    target_compile_options(${target_name} PRIVATE ${_UI_COMMON_COMPILE_OPTIONS})
+    if(ENABLE_COVERAGE AND MSVC)
+        target_compile_options(${target_name} PRIVATE /Zi /Od)
+    endif()
+
+    # 可选模块级 JOB_POOL：空值继承全局 JOB_POOL_COMPILE
+    if(NOT "${pool_value}" STREQUAL "")
+        if(NOT "${pool_value}" MATCHES "^[1-9][0-9]*$")
+            message(FATAL_ERROR "${target_name} pool must be a positive integer or empty: '${pool_value}'")
+        endif()
+        set_property(GLOBAL APPEND PROPERTY JOB_POOLS "ui_pool_${target_name}=${pool_value}")
+        set_property(TARGET ${target_name} PROPERTY JOB_POOL_COMPILE "ui_pool_${target_name}")
+        message(STATUS "[UI Build] ${target_name} compile pool = ${pool_value}")
+    endif()
+endfunction()
+
+# 各模块 Object 库
+# PCH 策略：重型模板模块（core/systems/render/managers）开启 PCH 摊薄模板解析；
+# api/renderers/resources 为薄转发/巨型数据，不开 PCH，避免重复生成成本。
+add_library(ui_core_objects OBJECT ${UI_OBJECT_CORE_SOURCES})
+ui_configure_object_library(ui_core_objects "${UI_POOL_CORE}" ON)
+
+add_library(ui_systems_objects OBJECT ${UI_OBJECT_SYSTEMS_SOURCES})
+ui_configure_object_library(ui_systems_objects "${UI_POOL_SYSTEMS}" ON)
+
+add_library(ui_render_objects OBJECT ${UI_OBJECT_RENDER_SOURCES})
+ui_configure_object_library(ui_render_objects "${UI_POOL_RENDER}" ON)
+
+add_library(ui_managers_objects OBJECT ${UI_OBJECT_MANAGERS_SOURCES})
+ui_configure_object_library(ui_managers_objects "${UI_POOL_MANAGERS}" ON)
+
+add_library(ui_renderers_objects OBJECT ${UI_OBJECT_RENDERERS_SOURCES})
+ui_configure_object_library(ui_renderers_objects "${UI_POOL_RENDERERS}" OFF)
+
+add_library(ui_api_objects OBJECT ${UI_OBJECT_API_SOURCES})
+ui_configure_object_library(ui_api_objects "${UI_POOL_API}" OFF)
+
+add_library(ui_resources_objects OBJECT ${UI_OBJECT_RESOURCES_SOURCES})
+ui_configure_object_library(ui_resources_objects "${UI_POOL_RESOURCES}" OFF)
+
+# ==================== 聚合库 ====================
+# BUILD_SHARED_LIBS=ON 时产出单 DLL（VMPUI.dll，P1 补齐导出宏）；默认静态单库（VMPUI.lib，含合并的第三方对象）。
+set(_UI_OBJECT_REF_LIST
+    $<TARGET_OBJECTS:ui_core_objects>
+    $<TARGET_OBJECTS:ui_systems_objects>
+    $<TARGET_OBJECTS:ui_render_objects>
+    $<TARGET_OBJECTS:ui_managers_objects>
+    $<TARGET_OBJECTS:ui_renderers_objects>
+    $<TARGET_OBJECTS:ui_api_objects>
+    $<TARGET_OBJECTS:ui_resources_objects>
+)
+if(BUILD_SHARED_LIBS)
+    add_library(ui SHARED ${_UI_OBJECT_REF_LIST} ${UI_HEADERS} common/CustomEvent.hpp)
+    message(WARNING "BUILD_SHARED_LIBS=ON 为实验性：公共 API 的 VMP_UI_API 导出宏尚未全覆盖（P1），
+                    生成的 VMPUI.dll 可能缺少导出符号，示例/消费者暂无法链接。")
+else()
+    add_library(ui STATIC ${_UI_OBJECT_REF_LIST} ${UI_HEADERS} common/CustomEvent.hpp)
+endif()
+add_library(VMPUI::ui ALIAS ui)
+
+# 发行产物统一命名为 VMPUI（静态: VMPUI.lib / 动态: VMPUI.dll + VMPUI.lib 导入库）
+set_target_properties(ui PROPERTIES OUTPUT_NAME VMPUI)
+
+# 聚合库只向消费者暴露公共 include（PRIVATE 编译目录已由各 object 库持有）
+target_include_directories(ui
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# 依赖项（静态库的 PRIVATE 依赖会以 $<LINK_ONLY:...> 形式带到最终链接；
+# 合并后的 VMPUI.lib 已含第三方对象，此处仍保留以保证动态模式与未合并场景正确）
+target_link_libraries(ui PRIVATE
+    SDL3::SDL3
+    yogacore
+    freetype
+    harfbuzz
+    EnTT::EnTT
+    Eigen3::Eigen
+    spdlog::spdlog_header_only
+)
+
+if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
+    target_link_libraries(ui PRIVATE ui_fonts)
+endif()
+
+# ==================== 自包含发行：系统库需求收集 ====================
+# 合并后的 VMPUI 单库不再携带任何第三方 CMake 目标，消费者只需链接 VMPUI::ui。
+# 但 SDL3 静态库在 Windows 上还依赖一组操作系统库（winmm/dxgi/d3d11/d3d12/...）。
+# 这些属于系统平台 API（非第三方），通过 PUBLIC $<LINK_ONLY:...> 随 VMPUITargets 导出，
+# 消费者无需知道也不需安装任何第三方包。
+set(_ui_export_system_libs "")
+if(WIN32)
+    get_target_property(_ui_sdl_interface SDL3::SDL3 INTERFACE_LINK_LIBRARIES)
+    if(_ui_sdl_interface)
+        foreach(_lib IN LISTS _ui_sdl_interface)
+            # 静态库的 PRIVATE 依赖会以 $<LINK_ONLY:xxx> 形式出现在 INTERFACE
+            if(_lib MATCHES "^\\$<LINK_ONLY:([A-Za-z0-9_.+-]+)>$")
+                set(_lib "${CMAKE_MATCH_1}")
+            endif()
+            # 只收集裸系统库名：排除 CMake 目标（含 ::）与嵌套生成器表达式
+            if(_lib MATCHES "^[A-Za-z0-9_.+-]+$")
+                list(APPEND _ui_export_system_libs "$<LINK_ONLY:${_lib}>")
+            endif()
+        endforeach()
+    endif()
+    # SDL3-static 的 GPU（d3d11/d3d12）后端依赖以嵌套生成器表达式形式存在，
+    # 自动收集不可靠，显式补齐这些 Windows 系统库（OS/SDK 自带，非第三方）：
+    list(APPEND _ui_export_system_libs
+        "$<LINK_ONLY:dxgi>" "$<LINK_ONLY:d3d11>" "$<LINK_ONLY:d3d12>" "$<LINK_ONLY:dxguid>")
+    # Windows 平台 API（UI 自身需要的，位于下方平台链接段之前先声明）
+    list(APPEND _ui_export_system_libs "$<LINK_ONLY:dwmapi>" "$<LINK_ONLY:comctl32>")
+    list(REMOVE_DUPLICATES _ui_export_system_libs)
+endif()
+if(_ui_export_system_libs)
+    target_link_libraries(ui PUBLIC ${_ui_export_system_libs})
+    message(STATUS "[UI Distribution] Exporting system link libs to consumers: ${_ui_export_system_libs}")
+endif()
+
+# ==================== 自包含发行：静态库合并（单文件） ====================
+# 将 ui 的对象与全部编译型第三方（SDL3/yogacore/freetype/harfbuzz；CMRC 模式含 ui_fonts）
+# 合并为单个 VMPUI.lib，使消费者只链接 VMPUI::ui，无需任何第三方库。
+# 注意：合并只在静态模式执行；动态模式第三方直接链接进 VMPUI.dll。
+if(NOT BUILD_SHARED_LIBS)
+    set(_ui_merge_tmp "${CMAKE_CURRENT_BINARY_DIR}/VMPUI-merged.lib")
+    set(_ui_merge_extra_inputs "")
+    if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
+        list(APPEND _ui_merge_extra_inputs "$<TARGET_FILE:ui_fonts>")
+    endif()
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"))
+        # MSVC lib.exe / LLVM llvm-lib.exe：直接支持 COFF 库合并
+        add_custom_command(TARGET ui POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E rm -f "${_ui_merge_tmp}"
+            COMMAND "${CMAKE_AR}" /NOLOGO /OUT:${_ui_merge_tmp}
+                "$<TARGET_FILE:ui>"
+                "$<TARGET_FILE:SDL3::SDL3>"
+                "$<TARGET_FILE:yogacore>"
+                "$<TARGET_FILE:freetype>"
+                "$<TARGET_FILE:harfbuzz>"
+                ${_ui_merge_extra_inputs}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_ui_merge_tmp}" "$<TARGET_FILE:ui>"
+            COMMAND ${CMAKE_COMMAND} -E rm -f "${_ui_merge_tmp}"
+            COMMENT "[UI Distribution] Merging third-party static libraries into VMPUI.lib"
+            VERBATIM)
+    else()
+        # GNU ar：MRI 脚本展开合并
+        set(_ui_merge_mri "${CMAKE_CURRENT_BINARY_DIR}/VMPUI-merge.mri")
+        file(GENERATE OUTPUT "${_ui_merge_mri}" CONTENT
+            "create \"${_ui_merge_tmp}\"\n"
+            "addlib \"$<TARGET_FILE:ui>\"\n"
+            "addlib \"$<TARGET_FILE:SDL3::SDL3>\"\n"
+            "addlib \"$<TARGET_FILE:yogacore>\"\n"
+            "addlib \"$<TARGET_FILE:freetype>\"\n"
+            "addlib \"$<TARGET_FILE:harfbuzz>\"\n"
+            "addlib \"${_ui_merge_extra_inputs}\"\n"
+            "save\n"
+            "end\n")
+        add_custom_command(TARGET ui POST_BUILD
+            COMMAND "${CMAKE_AR}" -M < "${_ui_merge_mri}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_ui_merge_tmp}" "$<TARGET_FILE:ui>"
+            COMMENT "[UI Distribution] Merging third-party static libraries into VMPUI.lib"
+            VERBATIM)
+    endif()
+endif()
+
+if(UI_FORCE_CPU_RENDER)
+    message(STATUS "[UI] UI_FORCE_CPU_RENDER=ON: GPU backends disabled, using SDL_Renderer software fallback.")
+endif()
+
+target_compile_definitions(ui PUBLIC UI_ENABLE_PLATFORM_SCALING=$<BOOL:${UI_ENABLE_PLATFORM_SCALING}>)
+
+# ==================== 平台链接 ====================
+# Windows: DWM 透明合成 + 窗口子类化
+# dwmapi/comctl32 已由上方 _ui_export_system_libs 以 PUBLIC $<LINK_ONLY:...> 导出给消费者，
+# 这里不再重复链接。
+if(WIN32)
+    # MinGW/GCC 会忽略 #pragma comment(lib, ...)，uxtheme 需在此显式链接。
+    if(MINGW)
+        target_link_libraries(ui PRIVATE uxtheme)
+    endif()
+endif()
+
+# Linux: X11 / Wayland 后端
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(_ui_linux_need_x11
+        $<OR:$<STREQUAL:${UI_LINUX_WINDOW_SYSTEM},AUTO>,$<STREQUAL:${UI_LINUX_WINDOW_SYSTEM},X11>>)
+
+    if(UI_LINUX_WINDOW_SYSTEM STREQUAL "AUTO" OR UI_LINUX_WINDOW_SYSTEM STREQUAL "X11")
+        find_package(X11 QUIET)
+        if(X11_FOUND)
+            target_link_libraries(ui PRIVATE X11::X11)
+            message(STATUS "[UI] Linux: X11 backend enabled")
+        elseif(UI_LINUX_WINDOW_SYSTEM STREQUAL "X11")
+            message(FATAL_ERROR "[UI] UI_LINUX_WINDOW_SYSTEM=X11 but libX11 not found.\n"
+                "  Ubuntu/Debian : sudo apt install libx11-dev\n"
+                "  Fedora/RHEL   : dnf install libX11-devel\n"
+                "  Arch          : pacman -S libx11")
+        else()
+            message(STATUS "[UI] Linux: X11 not found; falling back to Wayland-only")
+        endif()
+    endif()
+
+    if(UI_LINUX_WINDOW_SYSTEM STREQUAL "AUTO" OR UI_LINUX_WINDOW_SYSTEM STREQUAL "WAYLAND")
+        # SDL3 已内建 Wayland 支持，无需额外链接 wayland-client
+        # xdg-decoration / libdecor 等装饰协议可在此追加（P6 扩展）
+        message(STATUS "[UI] Linux: Wayland backend enabled (via SDL3)")
+    endif()
+endif()
+target_compile_features(ui PUBLIC cxx_std_23)
 
 if(ENABLE_COVERAGE AND MSVC)
-    # MSVC 需要生成完整的调试信息以便 OpenCppCoverage 关联源码
-    target_compile_options(ui PRIVATE /Zi /Od)
+    # 编译期调试信息已由 ui_configure_object_library 应用到各 object 库；这里只保留链接期选项。
     target_link_options(ui PRIVATE /DEBUG)
 endif()
 
-# ==================== SDK install ====================
+# ==================== SDK install（自包含发行） ====================
+# 发行包只包含：VMPUI 库（静态模式为合并后的单库 VMPUI.lib，动态模式为 VMPUI.dll + 导入库）、
+# 公共头 include/ui/**、CMake config。不安装任何第三方库目标或头文件。
 install(TARGETS ui
     EXPORT VMPUITargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -601,22 +814,6 @@ install(TARGETS ui
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
-
-if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
-    set_property(TARGET cmrc-base APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    )
-    install(TARGETS ui_fonts cmrc-base
-        EXPORT VMPUITargets
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-    install(FILES "${CMRC_INCLUDE_DIR}/cmrc/cmrc.hpp"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/cmrc"
-    )
-endif()
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/include/"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"

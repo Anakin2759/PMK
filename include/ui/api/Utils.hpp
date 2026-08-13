@@ -45,40 +45,40 @@ void CloseWindow(ui::entity entity);
 void QuitUiEventLoop();
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 void MarkLayoutChanged(EntityLike entity)
 {
     MarkLayoutChanged(static_cast<ui::entity>(entity));
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 void MarkVisualChanged(EntityLike entity)
 {
     MarkVisualChanged(static_cast<ui::entity>(entity));
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 void MarkLayoutAndVisualChanged(EntityLike entity)
 {
     MarkLayoutAndVisualChanged(static_cast<ui::entity>(entity));
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 void MarkLayoutDirty(EntityLike entity)
 {
     MarkLayoutDirty(static_cast<ui::entity>(entity));
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 void MarkRenderDirty(EntityLike entity)
 {
     MarkRenderDirty(static_cast<ui::entity>(entity));
@@ -93,48 +93,48 @@ void MarkRenderDirty(EntityLike entity)
 [[nodiscard]] VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity);
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 [[nodiscard]] Vec2 GetAbsolutePosition(EntityLike entity)
 {
     return GetAbsolutePosition(static_cast<ui::entity>(entity));
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 [[nodiscard]] Rect GetEntityRect(EntityLike entity)
 {
     return GetEntityRect(static_cast<ui::entity>(entity));
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 [[nodiscard]] Rect GetScrollViewportRect(EntityLike entity)
 {
     return GetScrollViewportRect(static_cast<ui::entity>(entity));
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 [[nodiscard]] float GetScrollViewportLength(EntityLike entity, bool isVertical)
 {
     return GetScrollViewportLength(static_cast<ui::entity>(entity), isVertical);
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 [[nodiscard]] float GetScrollContentLength(EntityLike entity, bool isVertical)
 {
     return GetScrollContentLength(static_cast<ui::entity>(entity), isVertical);
 }
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 [[nodiscard]] float GetScrollMaxOffset(EntityLike entity, bool isVertical)
 {
     return GetScrollMaxOffset(static_cast<ui::entity>(entity), isVertical);
@@ -146,12 +146,12 @@ TaskHandle TimerCallback(UiRuntime& runtime, std::uint32_t interval, std::functi
 void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle);
 bool IsEntityExist(const std::string& alias);
 
-} // namespace ui::utils
+}  // namespace ui::utils
 
 namespace ui::actions::utils
 {
 inline constexpr EntityAction<&ui::utils::SetWindowFlag> SET_WINDOW_FLAG_ACTION{};
-} // namespace ui::actions::utils
+}  // namespace ui::actions::utils
 
 namespace ui::chains
 {
@@ -159,4 +159,4 @@ inline auto WindowFlag(policies::WindowFlag flag)
 {
     return ui::actions::utils::SET_WINDOW_FLAG_ACTION.bind(flag);
 }
-} // namespace ui::chains
+}  // namespace ui::chains

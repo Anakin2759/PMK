@@ -38,6 +38,9 @@ namespace ui::systems
  *
  * 持有所有私有状态：9 个 manager unique_ptr、渲染队列和运行时标志。
  * GPU 白色纹理由 DeviceManager 唯一持有；此结构仅保留 fallback 后端使用的哨兵标签。
+ * 正常关闭按资源 DAG 逆序销毁 renderer/batch、CommandBuffer、TextTextureCache、
+ * PipelineCache、Icon/Image 等外部 owner，最后进入 DeviceManager 的
+ * white/claim -> token invalidate -> device 顺序；设备销毁后才允许 SDL video/session 退出。
  * 仅通过 RenderSystem::m_impl 访问，外部 TU 不可见此头文件。
  */
 struct RenderSystemImpl
@@ -53,17 +56,20 @@ struct RenderSystemImpl
         core::IRenderer* renderer = nullptr;
         core::RenderContext context;
 
-        bool operator<(const RenderItem& other) const { return sortKey < other.sortKey; }
+        bool operator<(const RenderItem& other) const
+        {
+            return sortKey < other.sortKey;
+        }
     };
 
     explicit RenderSystemImpl(bool forceFallback);
 
-    std::unique_ptr<managers::DeviceManager> m_deviceManager; // 负责 GPU 设备和上下文管理
-    std::unique_ptr<managers::FontManager> m_fontManager;     // 负责字体管理
-    std::unique_ptr<managers::IconManager> m_iconManager;     // 负责图标管理
-    std::unique_ptr<managers::ImageManager> m_imageManager;   // 负责图像管理
-    std::unique_ptr<managers::PipelineCache> m_pipelineCache; // 负责管线缓存管理
-    std::unique_ptr<managers::TextTextureCache> m_textTextureCache; // 负责文本纹理缓存管理
+    std::unique_ptr<managers::DeviceManager> m_deviceManager;        // 负责 GPU 设备和上下文管理
+    std::unique_ptr<managers::FontManager> m_fontManager;            // 负责字体管理
+    std::unique_ptr<managers::IconManager> m_iconManager;            // 负责图标管理
+    std::unique_ptr<managers::ImageManager> m_imageManager;          // 负责图像管理
+    std::unique_ptr<managers::PipelineCache> m_pipelineCache;        // 负责管线缓存管理
+    std::unique_ptr<managers::TextTextureCache> m_textTextureCache;  // 负责文本纹理缓存管理
     std::unique_ptr<managers::BatchManager> m_batchManager;
     std::unique_ptr<managers::CommandBuffer> m_commandBuffer;
     std::unique_ptr<interface::IBackendRenderer> m_backendRenderer;
@@ -75,7 +81,7 @@ struct RenderSystemImpl
     RenderSystem::RenderStats m_stats;
 
     std::byte m_fallbackWhiteTextureCookie{};
-    SDL_GPUTexture* m_fallbackWhiteTextureTag = nullptr; ///< fallback 专用非 GPU 哨兵，不拥有 DeviceManager 白色纹理
+    SDL_GPUTexture* m_fallbackWhiteTextureTag = nullptr;  ///< fallback 专用非 GPU 哨兵，不拥有 DeviceManager 白色纹理
 
     bool m_useFallback = false;
     bool m_forceFallback = false;
@@ -89,4 +95,4 @@ struct RenderSystemImpl
     float m_screenHeight = 0.0F;
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

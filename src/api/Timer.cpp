@@ -29,7 +29,7 @@ namespace
     runtime.registry().getOrEmplaceInCtx<globalcontext::FrameContext>();
     return systems::TimerSystem{runtime};
 }
-} // namespace
+}  // namespace
 
 Handle SetTimeout(UiRuntime& runtime, std::function<void()> callback, std::uint32_t delayMs)
 {
@@ -60,4 +60,4 @@ void Clear(UiRuntime& runtime, Handle handle) noexcept
     }
 }
 
-} // namespace ui::timer
+}  // namespace ui::timer

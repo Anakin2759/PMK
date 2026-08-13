@@ -66,19 +66,31 @@ namespace ui::systems
 
 class InteractionSystem : public ui::interface::EnableRegister<InteractionSystem>
 {
-public:
+   public:
     InteractionSystem() = default;
-    explicit InteractionSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
+    explicit InteractionSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    {
+    }
 
-    void registerHandlersImpl() {}
+    void registerHandlersImpl()
+    {
+    }
 
-    void unregisterHandlersImpl() {}
+    void unregisterHandlersImpl()
+    {
+    }
 
     /// OP-21: 由 SystemManager::pollInput() 调用，替代原来在 TaskChain 中的静态调用
-    void pollInput() { pollSdlEvents(); }
+    void pollInput()
+    {
+        pollSdlEvents();
+    }
 
     /// OP-22: Input 阶段
-    ui::interface::SystemPhase getPhase() { return ui::interface::SystemPhase::INPUT; }
+    ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::INPUT;
+    }
 
     /**
      * @brief 处理 SDL每tick事件
@@ -97,7 +109,7 @@ public:
         }
     }
 
-private:
+   private:
     /**
      * @brief 分发 SDL 轮询事件到相应处理函数
      * @param event SDL 事件对象
@@ -162,7 +174,8 @@ private:
                 break;
             }
         }
-        if (!m_reg->valid(targetWindow)) return;
+        if (!m_reg->valid(targetWindow))
+            return;
 
         m_disp->enqueue<ui::events::CloseWindow>(ui::events::CloseWindow{targetWindow});
     }
@@ -173,11 +186,12 @@ private:
     void dispatchRawTextInput(const char* text)
     {
         std::string input = text != nullptr ? std::string(text) : std::string();
-        if (input.empty()) return;
+        if (input.empty())
+            return;
 
         m_disp->trigger<ui::events::RawTextInput>(ui::events::RawTextInput{std::move(input)});
     }
-    
+
     void enqueueRawPointerMove(const SDL_MouseMotionEvent& motionEvent)
     {
         const auto pointerX = motionEvent.x;
@@ -216,4 +230,4 @@ private:
     Dispatcher* m_disp = nullptr;
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

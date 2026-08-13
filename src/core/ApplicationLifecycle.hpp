@@ -14,7 +14,7 @@ namespace ui::detail
  */
 class ApplicationLifecycle final
 {
-public:
+   public:
     using Cleanup = std::move_only_function<void()>;
 
     ApplicationLifecycle() = default;
@@ -23,12 +23,18 @@ public:
     ApplicationLifecycle(ApplicationLifecycle&&) = delete;
     ApplicationLifecycle& operator=(ApplicationLifecycle&&) = delete;
 
-    ~ApplicationLifecycle() noexcept { Shutdown([] {}); }
+    ~ApplicationLifecycle() noexcept
+    {
+        Shutdown([] {});
+    }
 
     /**
      * @brief 在 SDL 初始化成功后接管对应的退出操作。
      */
-    void ArmSdl(Cleanup quit) { m_quit = std::move(quit); }
+    void ArmSdl(Cleanup quit)
+    {
+        m_quit = std::move(quit);
+    }
 
     /**
      * @brief 幂等关闭：先销毁系统资源，再释放 SDL 会话。
@@ -49,7 +55,7 @@ public:
         {
             std::forward<DestroySystems>(destroySystems)();
         }
-        catch (...) // NOLINT(bugprone-empty-catch)
+        catch (...)  // NOLINT(bugprone-empty-catch)
         {
             // noexcept 关闭边界：继续执行 SDL 退出，具体清理错误由调用方记录。
         }
@@ -62,16 +68,16 @@ public:
             {
                 quit();
             }
-            catch (...) // NOLINT(bugprone-empty-catch)
+            catch (...)  // NOLINT(bugprone-empty-catch)
             {
                 // 析构期间不能传播 SDL 退出回调抛出的异常。
             }
         }
     }
 
-private:
+   private:
     Cleanup m_quit;
     bool m_shutdown = false;
 };
 
-} // namespace ui::detail
+}  // namespace ui::detail

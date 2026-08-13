@@ -35,7 +35,8 @@ struct TextEditSelectionOps
 
     static void eraseSelection(components::TextEdit& edit)
     {
-        if (!edit.hasSelection) return;
+        if (!edit.hasSelection)
+            return;
 
         size_t start = edit.selectionStart;
         size_t end = edit.selectionEnd;
@@ -46,7 +47,8 @@ struct TextEditSelectionOps
 
     static void selectAll(components::TextEdit& edit)
     {
-        if (edit.buffer.empty()) return;
+        if (edit.buffer.empty())
+            return;
 
         edit.hasSelection = true;
         edit.selectionStart = 0;
@@ -66,7 +68,8 @@ struct TextEditModeOps
 
     static void normalizeInputForMode(std::string& input, const components::TextEdit& edit)
     {
-        if (isMultiline(edit)) return;
+        if (isMultiline(edit))
+            return;
 
         input.erase(std::remove(input.begin(), input.end(), '\n'), input.end());
         input.erase(std::remove(input.begin(), input.end(), '\r'), input.end());
@@ -95,13 +98,15 @@ struct TextEditContentOps
         notifyTextChanged(edit);
     }
 
-    static bool
-        insertText(entt::entity entity, components::TextEdit& edit, components::Text& textComp, std::string input)
+    static bool insertText(entt::entity entity, components::TextEdit& edit, components::Text& textComp,
+                           std::string input)
     {
-        if (input.empty()) return false;
+        if (input.empty())
+            return false;
 
         TextEditModeOps::normalizeInputForMode(input, edit);
-        if (input.empty()) return false;
+        if (input.empty())
+            return false;
 
         if (edit.hasSelection)
         {
@@ -111,7 +116,8 @@ struct TextEditContentOps
         if (edit.buffer.size() + input.size() > edit.maxLength)
         {
             size_t available = edit.maxLength - edit.buffer.size();
-            if (available == 0) return false;
+            if (available == 0)
+                return false;
             input = input.substr(0, available);
         }
 
@@ -121,8 +127,8 @@ struct TextEditContentOps
         return true;
     }
 
-    static bool
-        handleDeletionKey(entt::entity entity, components::TextEdit& edit, components::Text& textComp, SDL_Keycode key)
+    static bool handleDeletionKey(entt::entity entity, components::TextEdit& edit, components::Text& textComp,
+                                  SDL_Keycode key)
     {
         if (key == SDLK_BACKSPACE)
         {
@@ -172,7 +178,8 @@ struct TextEditContentOps
             edit.onSubmit();
         }
 
-        if (!edit.hasSelection) return true;
+        if (!edit.hasSelection)
+            return true;
 
         TextEditSelectionOps::eraseSelection(edit);
         applyContentChange(entity, edit, textComp);
@@ -184,7 +191,8 @@ struct TextEditClipboardOps
 {
     static void copySelection(const components::TextEdit& edit)
     {
-        if (!edit.hasSelection) return;
+        if (!edit.hasSelection)
+            return;
 
         std::string selectedText = edit.buffer.substr(edit.selectionStart, edit.selectionEnd - edit.selectionStart);
         SDL_SetClipboardText(selectedText.c_str());
@@ -192,17 +200,21 @@ struct TextEditClipboardOps
 
     static bool pasteText(components::TextEdit& edit)
     {
-        if (!SDL_HasClipboardText()) return false;
+        if (!SDL_HasClipboardText())
+            return false;
 
         char* clipboardText = SDL_GetClipboardText();
-        if (clipboardText == nullptr) return false;
+        if (clipboardText == nullptr)
+            return false;
 
         std::string text(clipboardText);
         SDL_free(clipboardText);
-        if (text.empty()) return false;
+        if (text.empty())
+            return false;
 
         TextEditModeOps::normalizeInputForMode(text, edit);
-        if (text.empty()) return false;
+        if (text.empty())
+            return false;
 
         if (edit.hasSelection)
         {
@@ -212,7 +224,8 @@ struct TextEditClipboardOps
         if (edit.buffer.size() + text.size() > edit.maxLength)
         {
             size_t available = edit.maxLength - edit.buffer.size();
-            if (available == 0) return false;
+            if (available == 0)
+                return false;
             text = text.substr(0, available);
         }
 
@@ -226,7 +239,8 @@ struct TextEditNavigationOps
 {
     static void moveCursorLeft(components::TextEdit& edit, bool extend)
     {
-        if (edit.cursorPosition <= 0) return;
+        if (edit.cursorPosition <= 0)
+            return;
 
         size_t newPos = utils::PrevCharPos(edit.buffer, edit.cursorPosition);
         if (extend)
@@ -255,7 +269,8 @@ struct TextEditNavigationOps
 
     static void moveCursorRight(components::TextEdit& edit, bool extend)
     {
-        if (edit.cursorPosition >= edit.buffer.size()) return;
+        if (edit.cursorPosition >= edit.buffer.size())
+            return;
 
         size_t newPos = utils::NextCharPos(edit.buffer, edit.cursorPosition);
         if (extend)
@@ -408,7 +423,8 @@ struct TextEditNavigationOps
 
     static bool handleVertical(entt::entity entity, components::TextEdit& edit, SDL_Keycode key, bool shift)
     {
-        if (!TextEditModeOps::isMultiline(edit)) return false;
+        if (!TextEditModeOps::isMultiline(edit))
+            return false;
 
         if (key == SDLK_UP)
         {
@@ -467,12 +483,13 @@ bool HandleReadOnlyShortcut(entt::entity entity, components::TextEdit& edit, SDL
     return false;
 }
 
-bool HandleClipboardShortcut(
-    entt::entity entity, components::TextEdit& edit, components::Text& textComp, SDL_Keycode key, bool ctrl)
+bool HandleClipboardShortcut(entt::entity entity, components::TextEdit& edit, components::Text& textComp,
+                             SDL_Keycode key, bool ctrl)
 {
     if (ctrl && key == SDLK_X)
     {
-        if (!edit.hasSelection) return true;
+        if (!edit.hasSelection)
+            return true;
 
         TextEditClipboardOps::copySelection(edit);
         TextEditSelectionOps::eraseSelection(edit);
@@ -482,7 +499,8 @@ bool HandleClipboardShortcut(
 
     if (ctrl && key == SDLK_V)
     {
-        if (!TextEditClipboardOps::pasteText(edit)) return true;
+        if (!TextEditClipboardOps::pasteText(edit))
+            return true;
         TextEditContentOps::applyContentChange(entity, edit, textComp);
         return true;
     }
@@ -490,17 +508,19 @@ bool HandleClipboardShortcut(
     return false;
 }
 
-} // namespace
+}  // namespace
 
 void TextEditingService::handleTextInput(Registry& reg, const std::string& rawText)
 {
     auto view = reg.view<components::FocusedTag, components::TextEdit, components::Text>();
     for (auto entity : view)
     {
-        if (!reg.any_of<components::TextEditTag>(entity)) continue;
+        if (!reg.any_of<components::TextEditTag>(entity))
+            continue;
 
         auto& edit = view.get<components::TextEdit>(entity);
-        if (policies::HasFlag(edit.inputMode, policies::TextFlag::READ_ONLY)) continue;
+        if (policies::HasFlag(edit.inputMode, policies::TextFlag::READ_ONLY))
+            continue;
 
         auto& textComp = view.get<components::Text>(entity);
         TextEditContentOps::insertText(entity, edit, textComp, rawText);
@@ -512,21 +532,29 @@ void TextEditingService::handleKeyDown(Registry& reg, SDL_Keycode key, SDL_Keymo
     auto view = reg.view<components::FocusedTag, components::TextEdit, components::Text>();
     for (auto entity : view)
     {
-        if (!reg.any_of<components::TextEditTag>(entity)) continue;
+        if (!reg.any_of<components::TextEditTag>(entity))
+            continue;
 
         auto& edit = view.get<components::TextEdit>(entity);
         const bool ctrl = (modState & SDL_KMOD_CTRL) != 0;
         const bool shift = (modState & SDL_KMOD_SHIFT) != 0;
 
-        if (HandleReadOnlyShortcut(entity, edit, key, ctrl)) continue;
-        if (policies::HasFlag(edit.inputMode, policies::TextFlag::READ_ONLY)) continue;
+        if (HandleReadOnlyShortcut(entity, edit, key, ctrl))
+            continue;
+        if (policies::HasFlag(edit.inputMode, policies::TextFlag::READ_ONLY))
+            continue;
 
         auto& textComp = view.get<components::Text>(entity);
-        if (HandleClipboardShortcut(entity, edit, textComp, key, ctrl)) continue;
-        if (TextEditContentOps::handleDeletionKey(entity, edit, textComp, key)) continue;
-        if (TextEditNavigationOps::handleHorizontal(entity, edit, key, shift)) continue;
-        if (TextEditNavigationOps::handleBoundary(entity, edit, key, shift)) continue;
-        if (TextEditNavigationOps::handleVertical(entity, edit, key, shift)) continue;
+        if (HandleClipboardShortcut(entity, edit, textComp, key, ctrl))
+            continue;
+        if (TextEditContentOps::handleDeletionKey(entity, edit, textComp, key))
+            continue;
+        if (TextEditNavigationOps::handleHorizontal(entity, edit, key, shift))
+            continue;
+        if (TextEditNavigationOps::handleBoundary(entity, edit, key, shift))
+            continue;
+        if (TextEditNavigationOps::handleVertical(entity, edit, key, shift))
+            continue;
         if (key == SDLK_RETURN)
         {
             TextEditContentOps::handleReturnKey(entity, edit, textComp);
@@ -534,4 +562,4 @@ void TextEditingService::handleKeyDown(Registry& reg, SDL_Keycode key, SDL_Keymo
     }
 }
 
-} // namespace ui::services
+}  // namespace ui::services

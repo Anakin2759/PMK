@@ -20,7 +20,7 @@
 
 #include <gtest/gtest.h>
 
-#include "src/common/Animation.hpp" // IWYU pragma: keep -- compatibility include path
+#include "src/common/Animation.hpp"  // IWYU pragma: keep -- compatibility include path
 #include "src/common/components/Interaction.hpp"
 
 #include <type_traits>
@@ -41,10 +41,8 @@ TEST(PublicCanvasPainterTest, KeepsFluentContractWithoutAccessingRuntime)
     static_assert(std::is_constructible_v<Painter, ui::entity>);
     static_assert(std::is_same_v<decltype(&Painter::moveTo), Painter& (Painter::*)(ui::Vec2)>);
     static_assert(std::is_same_v<decltype(&Painter::lineTo), Painter& (Painter::*)(ui::Vec2)>);
-    static_assert(
-        std::is_same_v<decltype(&Painter::cubicTo), Painter& (Painter::*)(ui::Vec2, ui::Vec2, ui::Vec2)>);
-    static_assert(
-        std::is_same_v<decltype(&Painter::polyline), Painter& (Painter::*)(std::vector<ui::Vec2>)>);
+    static_assert(std::is_same_v<decltype(&Painter::cubicTo), Painter& (Painter::*)(ui::Vec2, ui::Vec2, ui::Vec2)>);
+    static_assert(std::is_same_v<decltype(&Painter::polyline), Painter& (Painter::*)(std::vector<ui::Vec2>)>);
     static_assert(std::is_same_v<decltype(&Painter::commit), Painter& (Painter::*)(ui::Color, float)>);
 
     Painter painter{ui::entity{}};
@@ -63,12 +61,11 @@ TEST(PublicCallbackTest, InternalCompatibilityAliasKeepsMoveOnlyCallbackType)
 
 TEST(PublicControlsTest, OwnershipBearingFunctionSignaturesRemainStable)
 {
-    static_assert(std::is_same_v<decltype(&ui::controls::SetSliderOnValueChanged),
-                                 void (*)(ui::entity, ui::Callback<float>)>);
-    static_assert(std::is_same_v<decltype(&ui::controls::SetDropDownOptions),
-                                 void (*)(ui::entity, std::vector<std::string>)>);
-    static_assert(std::is_same_v<decltype(&ui::controls::SetOnDragMove),
-                                 void (*)(ui::entity, ui::Callback<ui::Vec2>)>);
+    static_assert(
+        std::is_same_v<decltype(&ui::controls::SetSliderOnValueChanged), void (*)(ui::entity, ui::Callback<float>)>);
+    static_assert(
+        std::is_same_v<decltype(&ui::controls::SetDropDownOptions), void (*)(ui::entity, std::vector<std::string>)>);
+    static_assert(std::is_same_v<decltype(&ui::controls::SetOnDragMove), void (*)(ui::entity, ui::Callback<ui::Vec2>)>);
     SUCCEED();
 }
 
@@ -201,5 +198,5 @@ TEST(PublicTweenOptionsTest, DefaultsAndValueSemanticsRemainStable)
     SUCCEED();
 }
 
-} // namespace
-} // namespace ui::tests
+}  // namespace
+}  // namespace ui::tests

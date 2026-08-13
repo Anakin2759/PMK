@@ -27,4 +27,4 @@ concept UiTag = requires { typename T::is_tags_tag; };
 template <typename T>
 concept ComponentOrUiTag = Component<T> || UiTag<T>;
 
-} // namespace ui::traits
+}  // namespace ui::traits

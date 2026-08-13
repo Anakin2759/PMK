@@ -12,7 +12,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <Windows.h> // IWYU pragma: keep
+#include <Windows.h>  // IWYU pragma: keep
 #include <consoleapi2.h>
 #include <winnls.h>
 #endif
@@ -44,7 +44,7 @@ void WriteStderr(const char* text) noexcept
         std::clearerr(stderr);
     }
 }
-} // namespace
+}  // namespace
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) noexcept
 {

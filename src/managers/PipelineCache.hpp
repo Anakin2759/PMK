@@ -22,6 +22,7 @@
 #include "common/CustomizationPoints.hpp"
 #include "common/RenderTypes.hpp"
 #include "common/GPUWrappers.hpp"
+#include "common/GpuFailureInjection.hpp"
 #include "DeviceManager.hpp"
 #include "ResourceProvider.hpp"
 #include "ui/Result.hpp"
@@ -30,15 +31,24 @@
 namespace ui::managers
 {
 
+/**
+ * @brief 按 GPU 设备代际构建着色器、图形管线和采样器
+ *
+ * 所有 GPU owner 绑定同一 generation id；发现代际变化时清理旧资源。管线与采样器
+ * 作为候选完整创建后才提交到正式成员，避免缓存跨代混装或留下半初始化组合。
+ */
 class PipelineCache
 {
-public:
+   public:
     explicit PipelineCache(DeviceManager& deviceManager,
                            std::shared_ptr<const IResourceProvider> resourceProvider = GetDefaultUiResourceProvider())
         : m_deviceManager(&deviceManager), m_resourceProvider(std::move(resourceProvider))
     {
     }
-    ~PipelineCache() { cleanup(); }
+    ~PipelineCache()
+    {
+        cleanup();
+    }
     PipelineCache(const PipelineCache&) = delete;
     PipelineCache& operator=(const PipelineCache&) = delete;
     PipelineCache(PipelineCache&&) = default;
@@ -47,37 +57,49 @@ public:
     Result<void> loadShaders()
     {
         SDL_GPUDevice* device = m_deviceManager->getDevice();
-        if (device == nullptr)
+        const auto generation = m_deviceManager->getGeneration();
+        if (device == nullptr || !generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
         {
             return Err(UiErrc::DEVICE_UNAVAILABLE);
+        }
+        if (m_generationId != 0 && m_generationId != generation.Id())
+        {
+            cleanup();
         }
 
         // 根据驱动类型选择着色器格式
         const std::string& driver = m_deviceManager->getDriverName();
         bool isVulkan = (driver == "vulkan");
 
+        wrappers::UniqueGPUShader candidateVertexShader;
+        wrappers::UniqueGPUShader candidateFragmentShader;
         if (isVulkan)
         {
-            m_vertexShader = loadShaderFromResource(
-                "assets/shader/vert.spv", SDL_GPU_SHADERSTAGE_VERTEX, SDL_GPU_SHADERFORMAT_SPIRV);
-            m_fragmentShader = loadShaderFromResource(
-                "assets/shader/frag.spv", SDL_GPU_SHADERSTAGE_FRAGMENT, SDL_GPU_SHADERFORMAT_SPIRV);
+            candidateVertexShader = loadShaderFromResource(generation, "assets/shader/vert.spv",
+                                                           SDL_GPU_SHADERSTAGE_VERTEX, SDL_GPU_SHADERFORMAT_SPIRV);
+            candidateFragmentShader = loadShaderFromResource(generation, "assets/shader/frag.spv",
+                                                             SDL_GPU_SHADERSTAGE_FRAGMENT, SDL_GPU_SHADERFORMAT_SPIRV);
         }
         else
         {
-            m_vertexShader = loadShaderFromResource(
-                "assets/shader/vert.dxil", SDL_GPU_SHADERSTAGE_VERTEX, SDL_GPU_SHADERFORMAT_DXIL);
-            m_fragmentShader = loadShaderFromResource(
-                "assets/shader/frag.dxil", SDL_GPU_SHADERSTAGE_FRAGMENT, SDL_GPU_SHADERFORMAT_DXIL);
+            candidateVertexShader = loadShaderFromResource(generation, "assets/shader/vert.dxil",
+                                                           SDL_GPU_SHADERSTAGE_VERTEX, SDL_GPU_SHADERFORMAT_DXIL);
+            candidateFragmentShader = loadShaderFromResource(generation, "assets/shader/frag.dxil",
+                                                             SDL_GPU_SHADERSTAGE_FRAGMENT, SDL_GPU_SHADERFORMAT_DXIL);
         }
 
-        if (m_vertexShader == nullptr || m_fragmentShader == nullptr)
+        if (candidateVertexShader == nullptr || candidateFragmentShader == nullptr)
         {
             ui::UiRuntime::current().logger().error("着色器加载失败 (驱动: {})", driver);
-            m_vertexShader.reset();
-            m_fragmentShader.reset();
             return Err(UiErrc::SHADER_COMPILE_FAILED, driver);
         }
+        if (generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
+        {
+            return Err(UiErrc::DEVICE_UNAVAILABLE);
+        }
+        m_vertexShader = std::move(candidateVertexShader);
+        m_fragmentShader = std::move(candidateFragmentShader);
+        m_generationId = generation.Id();
         ui::UiRuntime::current().logger().info("着色器加载成功 (驱动: {})", driver);
         return Ok();
     }
@@ -85,7 +107,10 @@ public:
     Result<void> createPipeline(SDL_Window* sdlWindow)
     {
         SDL_GPUDevice* device = m_deviceManager->getDevice();
-        if (device == nullptr || m_vertexShader == nullptr || m_fragmentShader == nullptr)
+        const auto generation = m_deviceManager->getGeneration();
+        if (device == nullptr || !generation || generation.Id() != m_generationId ||
+            generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE || m_vertexShader == nullptr ||
+            m_fragmentShader == nullptr)
         {
             return Err(UiErrc::DEVICE_UNAVAILABLE);
         }
@@ -139,14 +164,20 @@ public:
         pipelineInfo.target_info.num_color_targets = 1;
         pipelineInfo.target_info.color_target_descriptions = &colorTargetDesc;
 
-        m_pipeline = wrappers::MakeGpuResource<wrappers::UniqueGPUGraphicsPipeline>(
-            device, SDL_CreateGPUGraphicsPipeline, &pipelineInfo);
+        if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::RESOURCE_CREATE))
+        {
+            m_creationFailed = true;
+            return Err(UiErrc::PIPELINE_UNAVAILABLE, "injected pipeline creation failure");
+        }
+        auto candidatePipeline = wrappers::MakeGpuResource<wrappers::UniqueGPUGraphicsPipeline>(
+            generation, SDL_CreateGPUGraphicsPipeline, &pipelineInfo);
 
-        if (m_pipeline == nullptr)
+        if (candidatePipeline == nullptr)
         {
             ui::UiRuntime::current().logger().error("图形管线创建失败: {}", SDL_GetError());
-            m_creationFailed = true;                                  // 标记失败，阻止后续重试
-            return Err(UiErrc::PIPELINE_UNAVAILABLE, SDL_GetError()); // 管线失败则不创建采样器，避免下次 guard 失效导致重复重试
+            m_creationFailed = true;  // 标记失败，阻止后续重试
+            return Err(UiErrc::PIPELINE_UNAVAILABLE,
+                       SDL_GetError());  // 管线失败则不创建采样器，避免下次 guard 失效导致重复重试
         }
 
         // 创建采样器
@@ -157,7 +188,25 @@ public:
         samplerInfo.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
         samplerInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 
-        m_sampler = wrappers::MakeGpuResource<wrappers::UniqueGPUSampler>(device, SDL_CreateGPUSampler, &samplerInfo);
+        if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::RESOURCE_CREATE))
+        {
+            m_creationFailed = true;
+            return Err(UiErrc::PIPELINE_UNAVAILABLE, "injected sampler creation failure");
+        }
+        auto candidateSampler =
+            wrappers::MakeGpuResource<wrappers::UniqueGPUSampler>(generation, SDL_CreateGPUSampler, &samplerInfo);
+        if (candidateSampler == nullptr)
+        {
+            ui::UiRuntime::current().logger().error("采样器创建失败: {}", SDL_GetError());
+            m_creationFailed = true;
+            return Err(UiErrc::PIPELINE_UNAVAILABLE, SDL_GetError());
+        }
+        if (generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
+        {
+            return Err(UiErrc::DEVICE_UNAVAILABLE);
+        }
+        m_pipeline = std::move(candidatePipeline);
+        m_sampler = std::move(candidateSampler);
         return Ok();
     }
 
@@ -167,14 +216,24 @@ public:
         m_pipeline.reset();
         m_vertexShader.reset();
         m_fragmentShader.reset();
+        m_generationId = 0;
         m_creationFailed = false;
     }
 
-    [[nodiscard]] SDL_GPUGraphicsPipeline* getPipeline() const { return m_pipeline.get(); }
-    [[nodiscard]] SDL_GPUSampler* getSampler() const { return m_sampler.get(); }
-    [[nodiscard]] bool hasCreationFailed() const { return m_creationFailed; }
+    [[nodiscard]] SDL_GPUGraphicsPipeline* getPipeline() const
+    {
+        return m_pipeline.get();
+    }
+    [[nodiscard]] SDL_GPUSampler* getSampler() const
+    {
+        return m_sampler.get();
+    }
+    [[nodiscard]] bool hasCreationFailed() const
+    {
+        return m_creationFailed;
+    }
 
-private:
+   private:
     [[nodiscard]] static std::array<SDL_GPUVertexAttribute, 7> buildVertexAttributes()
     {
         std::array<SDL_GPUVertexAttribute, 7> vertexAttributes{};
@@ -210,9 +269,8 @@ private:
         return vertexAttributes;
     }
 
-    [[nodiscard]] static SDL_GPUVertexInputState
-        buildVertexInputState(SDL_GPUVertexBufferDescription& vertexBufferDesc,
-                              const std::array<SDL_GPUVertexAttribute, 7>& vertexAttributes)
+    [[nodiscard]] static SDL_GPUVertexInputState buildVertexInputState(
+        SDL_GPUVertexBufferDescription& vertexBufferDesc, const std::array<SDL_GPUVertexAttribute, 7>& vertexAttributes)
     {
         SDL_GPUVertexInputState vertexInputState = {};
         vertexInputState.vertex_buffer_descriptions = &vertexBufferDesc;
@@ -265,8 +323,9 @@ private:
         return depthStencilState;
     }
 
-    wrappers::UniqueGPUShader
-        loadShaderFromResource(const char* resourcePath, SDL_GPUShaderStage stage, SDL_GPUShaderFormat format)
+    wrappers::UniqueGPUShader loadShaderFromResource(const detail::GpuDeviceGenerationHandle& generation,
+                                                     const char* resourcePath, SDL_GPUShaderStage stage,
+                                                     SDL_GPUShaderFormat format)
     {
         if (m_resourceProvider == nullptr)
         {
@@ -277,7 +336,8 @@ private:
         auto resourceResult = ui::cpo::load_binary_resource(*m_resourceProvider, resourcePath);
         if (!resourceResult.has_value())
         {
-            ui::UiRuntime::current().logger().error("着色器资源加载失败: {} ({})", resourcePath, resourceResult.error().ToString());
+            ui::UiRuntime::current().logger().error("着色器资源加载失败: {} ({})", resourcePath,
+                                                    resourceResult.error().ToString());
             return nullptr;
         }
 
@@ -291,8 +351,11 @@ private:
         shaderInfo.num_samplers = (stage == SDL_GPU_SHADERSTAGE_FRAGMENT) ? 1U : 0U;
         shaderInfo.num_uniform_buffers = 1U;
 
-        return wrappers::MakeGpuResource<wrappers::UniqueGPUShader>(
-            m_deviceManager->getDevice(), SDL_CreateGPUShader, &shaderInfo);
+        if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::RESOURCE_CREATE))
+        {
+            return nullptr;
+        }
+        return wrappers::MakeGpuResource<wrappers::UniqueGPUShader>(generation, SDL_CreateGPUShader, &shaderInfo);
     }
 
     DeviceManager* m_deviceManager;
@@ -301,7 +364,8 @@ private:
     wrappers::UniqueGPUShader m_vertexShader;
     wrappers::UniqueGPUShader m_fragmentShader;
     wrappers::UniqueGPUSampler m_sampler;
+    std::uint64_t m_generationId = 0;
     bool m_creationFailed = false;
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

@@ -1,12 +1,12 @@
 /**
  * ************************************************************************
- * 
+ *
  * @file Contains.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-06-16
  * @version 0.1
- * @brief 
- * 
+ * @brief
+ *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
  * For study and research only, no reprinting.
@@ -38,4 +38,4 @@ inline constexpr bool contains_v = false;
 template <typename T, typename... Ts>
 inline constexpr bool contains_v<T, TypeList<Ts...>> = (std::is_same_v<T, Ts> || ...);
 
-} // namespace ui::traits
+}  // namespace ui::traits

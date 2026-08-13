@@ -170,4 +170,4 @@ TEST_F(ThemeSystemTest, DropDownPopupGeometryReappliesThemeOwnedRadii)
     }
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

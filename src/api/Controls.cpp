@@ -155,4 +155,4 @@ void SetDroppable(ui::entity entity, bool enabled)
     bridge::SetDroppable(detail::ToInternal(entity), enabled);
 }
 
-} // namespace ui::controls
+}  // namespace ui::controls

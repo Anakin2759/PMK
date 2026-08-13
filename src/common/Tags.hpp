@@ -290,4 +290,4 @@ struct ThemedTag
     using is_tags_tag = void;
 };
 
-} // namespace ui::components
+}  // namespace ui::components

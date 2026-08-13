@@ -14,12 +14,26 @@ struct Vec2
 {
     constexpr Vec2() noexcept = default;
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters) -- x/y 顺序是稳定公共契约。
-    constexpr Vec2(float xValue, float yValue) noexcept : m_x(xValue), m_y(yValue) {}
+    constexpr Vec2(float xValue, float yValue) noexcept : m_x(xValue), m_y(yValue)
+    {
+    }
 
-    [[nodiscard]] constexpr float& x() noexcept { return m_x; }
-    [[nodiscard]] constexpr float x() const noexcept { return m_x; }
-    [[nodiscard]] constexpr float& y() noexcept { return m_y; }
-    [[nodiscard]] constexpr float y() const noexcept { return m_y; }
+    [[nodiscard]] constexpr float& x() noexcept
+    {
+        return m_x;
+    }
+    [[nodiscard]] constexpr float x() const noexcept
+    {
+        return m_x;
+    }
+    [[nodiscard]] constexpr float& y() noexcept
+    {
+        return m_y;
+    }
+    [[nodiscard]] constexpr float y() const noexcept
+    {
+        return m_y;
+    }
 
     constexpr Vec2& operator+=(const Vec2& other) noexcept
     {
@@ -44,7 +58,7 @@ struct Vec2
 
     [[nodiscard]] constexpr bool operator==(const Vec2&) const noexcept = default;
 
-private:
+   private:
     float m_x = 0.0F;
     float m_y = 0.0F;
 };
@@ -62,18 +76,42 @@ struct Vec4
     {
     }
 
-    [[nodiscard]] constexpr float& x() noexcept { return m_x; }
-    [[nodiscard]] constexpr float x() const noexcept { return m_x; }
-    [[nodiscard]] constexpr float& y() noexcept { return m_y; }
-    [[nodiscard]] constexpr float y() const noexcept { return m_y; }
-    [[nodiscard]] constexpr float& z() noexcept { return m_z; }
-    [[nodiscard]] constexpr float z() const noexcept { return m_z; }
-    [[nodiscard]] constexpr float& w() noexcept { return m_w; }
-    [[nodiscard]] constexpr float w() const noexcept { return m_w; }
+    [[nodiscard]] constexpr float& x() noexcept
+    {
+        return m_x;
+    }
+    [[nodiscard]] constexpr float x() const noexcept
+    {
+        return m_x;
+    }
+    [[nodiscard]] constexpr float& y() noexcept
+    {
+        return m_y;
+    }
+    [[nodiscard]] constexpr float y() const noexcept
+    {
+        return m_y;
+    }
+    [[nodiscard]] constexpr float& z() noexcept
+    {
+        return m_z;
+    }
+    [[nodiscard]] constexpr float z() const noexcept
+    {
+        return m_z;
+    }
+    [[nodiscard]] constexpr float& w() noexcept
+    {
+        return m_w;
+    }
+    [[nodiscard]] constexpr float w() const noexcept
+    {
+        return m_w;
+    }
 
     [[nodiscard]] constexpr bool operator==(const Vec4&) const noexcept = default;
 
-private:
+   private:
     float m_x = 0.0F;
     float m_y = 0.0F;
     float m_z = 0.0F;
@@ -129,17 +167,43 @@ struct Rect
     {
     }
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters) -- position/size 顺序是稳定公共契约。
-    constexpr Rect(Vec2 positionValue, Vec2 sizeValue) noexcept : position(positionValue), size(sizeValue) {}
+    constexpr Rect(Vec2 positionValue, Vec2 sizeValue) noexcept : position(positionValue), size(sizeValue)
+    {
+    }
 
-    [[nodiscard]] constexpr float x() const noexcept { return position.x(); }
-    [[nodiscard]] constexpr float y() const noexcept { return position.y(); }
-    [[nodiscard]] constexpr float width() const noexcept { return size.x(); }
-    [[nodiscard]] constexpr float height() const noexcept { return size.y(); }
+    [[nodiscard]] constexpr float x() const noexcept
+    {
+        return position.x();
+    }
+    [[nodiscard]] constexpr float y() const noexcept
+    {
+        return position.y();
+    }
+    [[nodiscard]] constexpr float width() const noexcept
+    {
+        return size.x();
+    }
+    [[nodiscard]] constexpr float height() const noexcept
+    {
+        return size.y();
+    }
 
-    [[nodiscard]] constexpr float left() const noexcept { return position.x(); }
-    [[nodiscard]] constexpr float top() const noexcept { return position.y(); }
-    [[nodiscard]] constexpr float right() const noexcept { return position.x() + size.x(); }
-    [[nodiscard]] constexpr float bottom() const noexcept { return position.y() + size.y(); }
+    [[nodiscard]] constexpr float left() const noexcept
+    {
+        return position.x();
+    }
+    [[nodiscard]] constexpr float top() const noexcept
+    {
+        return position.y();
+    }
+    [[nodiscard]] constexpr float right() const noexcept
+    {
+        return position.x() + size.x();
+    }
+    [[nodiscard]] constexpr float bottom() const noexcept
+    {
+        return position.y() + size.y();
+    }
 
     [[nodiscard]] constexpr bool contains(Vec2 point) const noexcept
     {
@@ -160,4 +224,4 @@ static_assert(std::is_trivially_copyable_v<Rect>);
 static_assert(sizeof(Rect) == 4U * sizeof(float));
 static_assert(alignof(Rect) == alignof(float));
 
-} // namespace ui
+}  // namespace ui

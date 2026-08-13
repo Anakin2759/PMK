@@ -35,4 +35,4 @@ inline void ExpectColorRgbEq(const Color& actual, const Color& expected)
     EXPECT_FLOAT_EQ(actual.blue, expected.blue);
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

@@ -20,4 +20,4 @@ std::string GetAlias(entity ent)
     return bridge::GetAlias(detail::ToInternal(ent));
 }
 
-} // namespace ui::query
+}  // namespace ui::query

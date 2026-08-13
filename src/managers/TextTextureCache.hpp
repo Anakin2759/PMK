@@ -27,9 +27,15 @@
 namespace ui::managers
 {
 
+/**
+ * @brief 按设备代际缓存文本 alpha 纹理
+ *
+ * 缓存纹理及上传资源绑定创建时的设备代际；代际变化时清空纹理缓存，并按新 generation id
+ * 重新探测 R8_UNORM 采样支持，避免跨设备复用能力结论或 GPU owner。
+ */
 class TextTextureCache
 {
-public:
+   public:
     TextTextureCache(ui::managers::DeviceManager& deviceManager, ui::managers::FontManager& fontManager);
 
     ~TextTextureCache();
@@ -62,16 +68,13 @@ public:
      */
     size_t size() const;
 
-    SDL_GPUTexture* getOrUpload(const std::string& text,
-                                const Eigen::Vector4f& color,
-                                uint32_t& outWidth,
-                                uint32_t& outHeight,
-                                float fontSize = 0.0F);
+    SDL_GPUTexture* getOrUpload(const std::string& text, const Eigen::Vector4f& color, uint32_t& outWidth,
+                                uint32_t& outHeight, float fontSize = 0.0F);
 
-private:
+   private:
     // 缓存容量配置
-    static constexpr size_t MAX_CACHE_SIZE = 256; // 最大缓存条目数
-    static constexpr size_t EVICTION_BATCH = 32;  // 每次驱逐数量
+    static constexpr size_t MAX_CACHE_SIZE = 256;  // 最大缓存条目数
+    static constexpr size_t EVICTION_BATCH = 32;   // 每次驱逐数量
 
     // 缓存条目结构
     struct CacheEntry
@@ -94,7 +97,7 @@ private:
      */
     std::string buildCacheKey(const std::string& text, float fontSize) const;
 
-    bool isR8UnormSampledTextureSupported(SDL_GPUDevice* device);
+    bool isR8UnormSampledTextureSupported(SDL_GPUDevice* device, std::uint64_t generationId);
 
     /**
      * @brief 尝试从缓存获取纹理
@@ -104,27 +107,25 @@ private:
     /**
      * @brief 创建并缓存新纹理
      */
-    SDL_GPUTexture* createAndCacheTexture(const std::string& text,
-                                          const Eigen::Vector4f& color,
+    SDL_GPUTexture* createAndCacheTexture(const std::string& text, const Eigen::Vector4f& color,
                                           const std::string& cacheKey,
-                                          uint32_t& outWidth,
-                                          uint32_t& outHeight,
-                                          float fontSize);
+                                          const detail::GpuDeviceGenerationHandle& generation, uint32_t& outWidth,
+                                          uint32_t& outHeight, float fontSize);
 
     /**
-     * @brief 创建GPU纹理并上传数据
+     * @brief 在指定设备代际创建纹理并提交位图上传
+     * @return 上传命令提交成功时返回同代际纹理 owner；任一阶段失败时返回空 owner
      */
-    wrappers::UniqueGPUTexture
-        createAndUploadTexture(SDL_GPUDevice* device, const std::vector<uint8_t>& bitmap, int width, int height);
+    wrappers::UniqueGPUTexture createAndUploadTexture(const detail::GpuDeviceGenerationHandle& generation,
+                                                      const std::vector<uint8_t>& bitmap, int width, int height);
 
     /**
-     * @brief 上传纹理数据到GPU
+     * @brief 使用同代际短期资源提交纹理数据上传
+     * @return 非阻塞提交成功时返回 true，否则返回 false
+     * @note true 仅表示命令已被 SDL 接受，不表示 GPU 已执行完成。
      */
-    bool uploadTextureData(SDL_GPUDevice* device,
-                           SDL_GPUTexture* texture,
-                           const std::vector<uint8_t>& bitmap,
-                           uint32_t width,
-                           uint32_t height);
+    bool uploadTextureData(const detail::GpuDeviceGenerationHandle& generation, SDL_GPUTexture* texture,
+                           const std::vector<uint8_t>& bitmap, uint32_t width, uint32_t height);
 
     /**
      * @brief 驱逐最少使用的缓存条目（LRU策略）
@@ -147,7 +148,8 @@ private:
         UNSUPPORTED,
     };
 
-    SDL_GPUDevice* m_r8SupportCheckedDevice = nullptr;
+    std::uint64_t m_cacheGenerationId = 0;
+    std::uint64_t m_r8SupportCheckedGenerationId = 0;
     R8UnormSampledSupportState m_r8UnormSampledSupportState = R8UnormSampledSupportState::UNKNOWN;
 
     // 统计信息
@@ -156,4 +158,4 @@ private:
     size_t m_evictionCount = 0;
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

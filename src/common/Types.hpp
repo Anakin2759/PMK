@@ -27,8 +27,8 @@
 #include <utility>
 
 #include "common/EigenConversions.hpp"
-#include "ui/Color.hpp" // IWYU pragma: export -- legacy aggregate include
-#include "ui/MathTypes.hpp" // IWYU pragma: export -- legacy aggregate include
+#include "ui/Color.hpp"      // IWYU pragma: export -- legacy aggregate include
+#include "ui/MathTypes.hpp"  // IWYU pragma: export -- legacy aggregate include
 
 namespace ui
 {
@@ -78,7 +78,9 @@ struct EdgeInsets
     float left = 0.0F;
 
     constexpr EdgeInsets() = default;
-    constexpr explicit EdgeInsets(float all) : top(all), right(all), bottom(all), left(all) {}
+    constexpr explicit EdgeInsets(float all) : top(all), right(all), bottom(all), left(all)
+    {
+    }
     constexpr EdgeInsets(float vertical, float horizontal)
         : top(vertical), right(horizontal), bottom(vertical), left(horizontal)
     {
@@ -91,15 +93,26 @@ struct EdgeInsets
     /**
      * @brief 从Vec4构造（Top, Right, Bottom, Left）
      */
-    explicit EdgeInsets(const Vec4& vec) : top(vec.x()), right(vec.y()), bottom(vec.z()), left(vec.w()) {}
+    explicit EdgeInsets(const Vec4& vec) : top(vec.x()), right(vec.y()), bottom(vec.z()), left(vec.w())
+    {
+    }
 
     /**
      * @brief 转换为Vec4
      */
-    [[nodiscard]] Vec4 toVec4() const { return Vec4(top, right, bottom, left); }
+    [[nodiscard]] Vec4 toVec4() const
+    {
+        return Vec4(top, right, bottom, left);
+    }
 
-    [[nodiscard]] float horizontal() const { return left + right; }
-    [[nodiscard]] float vertical() const { return top + bottom; }
+    [[nodiscard]] float horizontal() const
+    {
+        return left + right;
+    }
+    [[nodiscard]] float vertical() const
+    {
+        return top + bottom;
+    }
 };
 
 // ===================== 工具函数 =====================
@@ -185,8 +198,10 @@ inline Transform2D MakeTransform2D(const Vec2& translation, float rotation = 0.0
 template <typename Func>
 class CallbackWrapper
 {
-public:
-    explicit CallbackWrapper(Func func) : m_callback(std::move(func)) {}
+   public:
+    explicit CallbackWrapper(Func func) : m_callback(std::move(func))
+    {
+    }
 
     ~CallbackWrapper() = default;
 
@@ -210,7 +225,7 @@ public:
         return std::invoke(m_callback, std::forward<Args>(args)...);
     }
 
-private:
+   private:
     Func m_callback;
 };
 
@@ -224,4 +239,4 @@ auto MakeCallback(Func&& func)
 /// 用于结构体字段/容器的类型擦除无参回调别名（需要异构存储时使用）
 using VoidCallback = std::function<void()>;
 
-} // namespace ui
+}  // namespace ui

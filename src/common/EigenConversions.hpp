@@ -17,4 +17,4 @@ namespace ui::detail::eigen
     return {value.x(), value.y()};
 }
 
-} // namespace ui::detail::eigen
+}  // namespace ui::detail::eigen

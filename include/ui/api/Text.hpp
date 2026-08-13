@@ -31,7 +31,7 @@ void SetLineHeight(ui::entity entity, float height);
 void SetCharacterSpacing(ui::entity entity, float spacing);
 void SetTextWrapWidth(ui::entity entity, float width);
 void SetFontSize(ui::entity entity, float size);
-} // namespace ui::text
+}  // namespace ui::text
 
 namespace ui::actions::text
 {
@@ -50,7 +50,7 @@ inline constexpr EntityAction<&ui::text::SetLineHeight> SET_LINE_HEIGHT_ACTION{}
 inline constexpr EntityAction<&ui::text::SetCharacterSpacing> SET_CHARACTER_SPACING_ACTION{};
 inline constexpr EntityAction<&ui::text::SetTextWrapWidth> SET_TEXT_WRAP_WIDTH_ACTION{};
 inline constexpr EntityAction<&ui::text::SetFontSize> SET_FONT_SIZE_ACTION{};
-} // namespace ui::actions::text
+}  // namespace ui::actions::text
 
 namespace ui::chains
 {
@@ -114,4 +114,4 @@ inline auto FontSize(float size)
 {
     return ui::actions::text::SET_FONT_SIZE_ACTION.bind(size);
 }
-} // namespace ui::chains
+}  // namespace ui::chains

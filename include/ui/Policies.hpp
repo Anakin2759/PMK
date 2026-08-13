@@ -21,7 +21,11 @@ enum class SystemManager : std::uint16_t
     DEFAULT = INTERACTION | HIT_TEST | TWEEN | LAYOUT | RENDER | STATE | ACTION | TIMER | THEME
 };
 
-enum class LayoutDirection : std::uint8_t { HORIZONTAL, VERTICAL };
+enum class LayoutDirection : std::uint8_t
+{
+    HORIZONTAL,
+    VERTICAL
+};
 
 enum class Alignment : std::uint8_t
 {
@@ -36,7 +40,12 @@ enum class Alignment : std::uint8_t
     TOP_LEFT = TOP | LEFT
 };
 
-enum class Play : std::uint8_t { ONCE, LOOP, PINGPONG };
+enum class Play : std::uint8_t
+{
+    ONCE,
+    LOOP,
+    PINGPONG
+};
 
 enum class Easing : std::uint8_t
 {
@@ -50,7 +59,13 @@ enum class Easing : std::uint8_t
     CUSTOM
 };
 
-enum class Focus : std::uint8_t { NOFOCUS, TAB_FOCUS, CLICK_FOCUS, STRONG_FOCUS };
+enum class Focus : std::uint8_t
+{
+    NOFOCUS,
+    TAB_FOCUS,
+    CLICK_FOCUS,
+    STRONG_FOCUS
+};
 
 enum class Size : std::uint8_t
 {
@@ -72,9 +87,23 @@ enum class Size : std::uint8_t
     H_FILL_V_AUTO = H_FILL | V_AUTO
 };
 
-enum class Feature : std::uint8_t { DISABLED, ENABLED };
-enum class Visibility : std::uint8_t { VISIBLE, HIDDEN, COLLAPSED };
-enum class TextWrap : std::uint8_t { NONE, WORD, CHAR };
+enum class Feature : std::uint8_t
+{
+    DISABLED,
+    ENABLED
+};
+enum class Visibility : std::uint8_t
+{
+    VISIBLE,
+    HIDDEN,
+    COLLAPSED
+};
+enum class TextWrap : std::uint8_t
+{
+    NONE,
+    WORD,
+    CHAR
+};
 enum class TextFlag : std::uint16_t
 {
     DEFAULT = 0,
@@ -92,14 +121,50 @@ enum class TextFlag : std::uint16_t
     NONE_WRAP = 0
 };
 
-enum class AspectRatio : std::uint8_t { IGNORE_RATIO, MAINTAIN };
-enum class CheckState : std::uint8_t { UNCHECKED, CHECKED, INDETERMINATE };
-enum class Orientation : std::uint8_t { HORIZONTAL, VERTICAL };
-enum class Selection : std::uint8_t { SINGLE, MULTI };
-enum class SortOrder : std::uint8_t { NONE, ASCENDING, DESCENDING };
-enum class TableColumnSizing : std::uint8_t { EQUAL, FIXED, PROPORTIONAL, ADAPTIVE };
-enum class AnimationState : std::uint8_t { STOPPED, PLAYING };
-enum class LabelVisibility : std::uint8_t { HIDDEN, VISIBLE };
+enum class AspectRatio : std::uint8_t
+{
+    IGNORE_RATIO,
+    MAINTAIN
+};
+enum class CheckState : std::uint8_t
+{
+    UNCHECKED,
+    CHECKED,
+    INDETERMINATE
+};
+enum class Orientation : std::uint8_t
+{
+    HORIZONTAL,
+    VERTICAL
+};
+enum class Selection : std::uint8_t
+{
+    SINGLE,
+    MULTI
+};
+enum class SortOrder : std::uint8_t
+{
+    NONE,
+    ASCENDING,
+    DESCENDING
+};
+enum class TableColumnSizing : std::uint8_t
+{
+    EQUAL,
+    FIXED,
+    PROPORTIONAL,
+    ADAPTIVE
+};
+enum class AnimationState : std::uint8_t
+{
+    STOPPED,
+    PLAYING
+};
+enum class LabelVisibility : std::uint8_t
+{
+    HIDDEN,
+    VISIBLE
+};
 
 enum class Position : std::uint8_t
 {
@@ -118,9 +183,26 @@ enum class Position : std::uint8_t
     FIXED = V_FIXED | H_FIXED
 };
 
-enum class Scroll : std::uint8_t { NO_SCROLL, VERTICAL, HORIZONTAL, BOTH };
-enum class ScrollBar : std::uint8_t { DEFAULT = 0, NO_VISIBILITY = 1 << 0, DRAGGABLE = 1 << 1, AUTO_HIDE = 1 << 2 };
-enum class ScrollAnchor : std::uint8_t { TOP, BOTTOM, SMART };
+enum class Scroll : std::uint8_t
+{
+    NO_SCROLL,
+    VERTICAL,
+    HORIZONTAL,
+    BOTH
+};
+enum class ScrollBar : std::uint8_t
+{
+    DEFAULT = 0,
+    NO_VISIBILITY = 1 << 0,
+    DRAGGABLE = 1 << 1,
+    AUTO_HIDE = 1 << 2
+};
+enum class ScrollAnchor : std::uint8_t
+{
+    TOP,
+    BOTTOM,
+    SMART
+};
 
 enum class WindowFlag : std::uint8_t
 {
@@ -137,14 +219,24 @@ enum class WindowFlag : std::uint8_t
     DIALOG = MODAL | NO_COLLAPSE
 };
 
-enum class IconFlag : std::uint8_t { DEFAULT = 0, TEXTURE = 1 << 0, HAS_TEXT = 1 << 1 };
-enum class Log : std::uint8_t { SINGLE_FILE_R = 1 << 0, SINGLE_FILE_RW = 1 << 1, TERMINAL = 1 << 1 };
+enum class IconFlag : std::uint8_t
+{
+    DEFAULT = 0,
+    TEXTURE = 1 << 0,
+    HAS_TEXT = 1 << 1
+};
+enum class Log : std::uint8_t
+{
+    SINGLE_FILE_R = 1 << 0,
+    SINGLE_FILE_RW = 1 << 1,
+    TERMINAL = 1 << 1
+};
 
 // 仅对实际 flags 提供运算符；状态、方向、模式等枚举不允许伪造按位组合。
 template <typename T>
-concept Flag = std::same_as<T, Alignment> || std::same_as<T, Size> || std::same_as<T, TextFlag>
-           || std::same_as<T, Position> || std::same_as<T, WindowFlag> || std::same_as<T, ScrollBar>
-           || std::same_as<T, IconFlag> || std::same_as<T, SystemManager> || std::same_as<T, Log>;
+concept Flag = std::same_as<T, Alignment> || std::same_as<T, Size> || std::same_as<T, TextFlag> ||
+               std::same_as<T, Position> || std::same_as<T, WindowFlag> || std::same_as<T, ScrollBar> ||
+               std::same_as<T, IconFlag> || std::same_as<T, SystemManager> || std::same_as<T, Log>;
 
 template <Flag T>
 [[nodiscard]] constexpr T operator|(T lhs, T rhs) noexcept
@@ -175,13 +267,25 @@ template <Flag T>
 }
 
 template <Flag T>
-constexpr T& operator|=(T& lhs, T rhs) noexcept { return lhs = lhs | rhs; }
+constexpr T& operator|=(T& lhs, T rhs) noexcept
+{
+    return lhs = lhs | rhs;
+}
 template <Flag T>
-constexpr T& operator&=(T& lhs, T rhs) noexcept { return lhs = lhs & rhs; }
+constexpr T& operator&=(T& lhs, T rhs) noexcept
+{
+    return lhs = lhs & rhs;
+}
 template <Flag T>
-constexpr T& operator^=(T& lhs, T rhs) noexcept { return lhs = lhs ^ rhs; }
+constexpr T& operator^=(T& lhs, T rhs) noexcept
+{
+    return lhs = lhs ^ rhs;
+}
 
 template <Flag T>
-[[nodiscard]] constexpr bool HasFlag(T value, T flag) noexcept { return (value & flag) == flag; }
+[[nodiscard]] constexpr bool HasFlag(T value, T flag) noexcept
+{
+    return (value & flag) == flag;
+}
 
-} // namespace ui::policies
+}  // namespace ui::policies

@@ -45,4 +45,4 @@ void SetBorderThickness(ui::entity entity, float thickness)
     ui::detail::visibility::SetBorderThickness(ui::detail::ToInternal(entity), thickness);
 }
 
-} // namespace ui::visibility
+}  // namespace ui::visibility

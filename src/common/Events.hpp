@@ -15,13 +15,12 @@
  *
  * 2. 队列事件 [BUFFERED]
  *    - 通过 Dispatcher::Enqueue() 进入队列
- *    - 由 QueuedTask 在每帧开始阶段调用 Dispatcher::Update() 统一派发
+ *    - 由 FrameTick 在 PollInput 后的内部队列阶段调用 Dispatcher::Update() 统一派发
  *    - 主要用于原始输入事件和可延迟到下一帧处理的状态事件
  *
  * 额外说明：
- * - 常规帧刷新由 TaskChain::RenderTask 固定触发 UpdateLayout / UpdateRendering / EndFrame
- * - InteractionSystem 在少数平台阻塞场景下会直接 Trigger 布局和渲染刷新，
- *   这是即时补救通道，不代表常规帧流
+ * - FrameTick 按固定阶段触发 UpdateLayout / UpdateRendering / EndFrame
+ * - UpdateLayout / UpdateRendering 的即时补救白名单为空
  *
  * ************************************************************************
  */
@@ -47,8 +46,8 @@ namespace ui::events
  */
 struct ApplicationReadyEvent
 {
-    using is_event_tag = void; // 事件标签
-    entt::entity rootEntity;     // 根实体，包含全局上下文组件
+    using is_event_tag = void;  // 事件标签
+    entt::entity rootEntity;    // 根实体，包含全局上下文组件
 };
 
 /**
@@ -319,8 +318,7 @@ struct CloseWindow
 
 /**
  * @brief 渲染更新事件
- * [IMMEDIATE] 常规情况下由 TaskChain::RenderTask 每帧触发
- * 在平台阻塞消息场景下也可能由 InteractionSystem 直接触发即时重绘
+ * [IMMEDIATE] 由 FrameTick 在每帧 Render 阶段唯一触发
  */
 struct UpdateRendering
 {
@@ -329,8 +327,7 @@ struct UpdateRendering
 
 /**
  * @brief 布局更新事件
- * [IMMEDIATE] 常规情况下由 TaskChain::RenderTask 在每帧渲染前触发
- * 在平台阻塞消息场景下也可能由 InteractionSystem 直接触发即时补救布局
+ * [IMMEDIATE] 由 FrameTick 在每帧 Layout 阶段唯一触发
  */
 struct UpdateLayout
 {
@@ -339,7 +336,7 @@ struct UpdateLayout
 
 /**
  * @brief 帧结束事件
- * [IMMEDIATE] 由 TaskChain::RenderTask 在常规帧末尾触发，用于批量应用状态更新
+ * [IMMEDIATE] 由 FrameTick 在固定帧末尾触发，用于批量应用状态更新
  */
 struct EndFrame
 {
@@ -355,7 +352,7 @@ struct QueuedTask
 {
     using is_event_tag = void;
     VoidCallback func;
-    uint32_t intervalMs = 0; // 延迟执行时间
+    uint32_t intervalMs = 0;  // 延迟执行时间
     uint32_t remainingMs = 0;
     bool singleShoot = false;
     uint8_t frameSlot = 0;
@@ -366,12 +363,12 @@ struct QueuedTask
 
 // 原始指针移动事件（由底层输入系统转发）
 // [BUFFERED] 由 InteractionSystem 记录原始位置/相对位移后入队，
-// 再由 QueuedTask 阶段统一派发到命中测试和状态系统
+// 再由 FrameTick 的内部队列阶段统一派发到命中测试和状态系统
 struct RawPointerMove
 {
     using is_event_tag = void;
-    Vec2 position; // SDL window coordinates; HitTest consumes this same space.
-    Vec2 delta;    // 相对位移
+    Vec2 position;  // SDL window coordinates; HitTest consumes this same space.
+    Vec2 delta;     // 相对位移
     uint32_t windowID;
 };
 
@@ -380,10 +377,10 @@ struct RawPointerMove
 struct RawPointerButton
 {
     using is_event_tag = void;
-    Vec2 position; // SDL window coordinates
+    Vec2 position;  // SDL window coordinates
     uint32_t windowID;
-    bool pressed;   // true = down, false = up
-    uint8_t button; // SDL_BUTTON_LEFT, etc.
+    bool pressed;    // true = down, false = up
+    uint8_t button;  // SDL_BUTTON_LEFT, etc.
 };
 
 // 原始滚轮事件
@@ -391,9 +388,9 @@ struct RawPointerButton
 struct RawPointerWheel
 {
     using is_event_tag = void;
-    Vec2 position;     // 鼠标位置（SDL window coordinates）
-    Vec2 delta;        // 滚轮增量 (x, y)
-    uint32_t windowID; // Added windowID to match definition in InteractionSystem usage
+    Vec2 position;      // 鼠标位置（SDL window coordinates）
+    Vec2 delta;         // 滚轮增量 (x, y)
+    uint32_t windowID;  // Added windowID to match definition in InteractionSystem usage
 };
 
 // 原始文本输入事件
@@ -427,7 +424,7 @@ struct HitPointerMove
 {
     using is_event_tag = void;
     RawPointerMove raw{};
-    entt::entity hitEntity = entt::null; // 鼠标当前悬停的实体 (可能为 null)
+    entt::entity hitEntity = entt::null;  // 鼠标当前悬停的实体 (可能为 null)
 };
 
 // 命中测试后的按键事件
@@ -436,7 +433,7 @@ struct HitPointerButton
 {
     using is_event_tag = void;
     RawPointerButton raw{};
-    entt::entity hitEntity = entt::null; // 按键发生位置的实体 (可能为 null)
+    entt::entity hitEntity = entt::null;  // 按键发生位置的实体 (可能为 null)
 };
 
 // 命中测试后的滚轮事件
@@ -445,12 +442,12 @@ struct HitPointerWheel
 {
     using is_event_tag = void;
     RawPointerWheel raw{};
-    entt::entity hitEntity = entt::null; // 滚轮发生位置的实体 (可能为 null)
+    entt::entity hitEntity = entt::null;  // 滚轮发生位置的实体 (可能为 null)
 };
 
 /**
  * @brief 键盘重复驱动事件
- * [IMMEDIATE] 由 TaskChain::InputTask 在每个输入周期末尾触发，
+ * [IMMEDIATE] 由 FrameTick 在每帧 Logic 阶段触发，
  * TextInputSystem 订阅后执行 doProcessKeyRepeat()，
  * 替代原有 static s_current 路由，支持多 UiRuntime 独立实例。
  */
@@ -459,4 +456,4 @@ struct TickKeyRepeat
     using is_event_tag = void;
 };
 
-} // namespace ui::events
+}  // namespace ui::events

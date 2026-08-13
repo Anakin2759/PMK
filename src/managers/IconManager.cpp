@@ -7,6 +7,7 @@
 #include "ui/ErrorCodes.hpp"
 #include "freetype/ftimage.h"
 #include "common/GPUWrappers.hpp"
+#include "common/GpuFailureInjection.hpp"
 #include "SDL3/SDL_stdinc.h"
 #include <SDL3/SDL_gpu.h>
 #include <string>
@@ -52,13 +53,13 @@ std::vector<uint32_t> BuildPremultipliedRgba(const FT_Bitmap& bitmap, int width,
     for (const uint8_t alpha : bitmapData)
     {
         auto premultRGB = static_cast<uint8_t>((255U * alpha) / 255U);
-        rgbaPixels.at(pixelIndex) = (static_cast<uint32_t>(alpha) << 24U) | (static_cast<uint32_t>(premultRGB) << 16U)
-                                  | (static_cast<uint32_t>(premultRGB) << 8U) | premultRGB;
+        rgbaPixels.at(pixelIndex) = (static_cast<uint32_t>(alpha) << 24U) | (static_cast<uint32_t>(premultRGB) << 16U) |
+                                    (static_cast<uint32_t>(premultRGB) << 8U) | premultRGB;
         ++pixelIndex;
     }
     return rgbaPixels;
 }
-} // namespace
+}  // namespace
 
 IconManager::~IconManager() noexcept
 {
@@ -87,9 +88,7 @@ IconManager::~IconManager() noexcept
  * @return true 加载成功
  * @return false 加载失败
  */
-bool IconManager::loadIconFont(const std::string& name,
-                               const std::string& fontPath,
-                               const std::string& codepointsPath,
+bool IconManager::loadIconFont(const std::string& name, const std::string& fontPath, const std::string& codepointsPath,
                                int fontSize)
 {
     if (m_ftLibrary == nullptr)
@@ -158,12 +157,8 @@ bool IconManager::loadIconFont(const std::string& name,
     return true;
 }
 
-Result<void> IconManager::loadIconFontFromMemory(const std::string& name,
-                                                 const void* fontData,
-                                                 size_t fontLength,
-                                                 const void* codepointsData,
-                                                 size_t codepointsLength,
-                                                 int fontSize)
+Result<void> IconManager::loadIconFontFromMemory(const std::string& name, const void* fontData, size_t fontLength,
+                                                 const void* codepointsData, size_t codepointsLength, int fontSize)
 {
     if (m_ftLibrary == nullptr)
     {
@@ -192,7 +187,8 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name,
 
     if (error != 0)
     {
-        UiRuntime::current().logger().error("[IconManager] Failed to load font face from memory '{}' (error {})", name, error);
+        UiRuntime::current().logger().error("[IconManager] Failed to load font face from memory '{}' (error {})", name,
+                                            error);
         return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_New_Memory_Face '{}' error {}", name, error));
     }
 
@@ -322,6 +318,7 @@ void IconManager::shutdown()
 
     m_fontTextureCache.clear();
     m_imageTextureCache.clear();
+    m_cacheGenerationId = 0;
     m_fonts.clear();
     m_codepoints.clear();
 
@@ -336,6 +333,19 @@ void IconManager::shutdown()
 
 const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32_t codepoint, float size)
 {
+    const auto generation =
+        m_deviceManager != nullptr ? m_deviceManager->getGeneration() : detail::GpuDeviceGenerationHandle{};
+    if (!generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
+    {
+        return nullptr;
+    }
+    if (m_cacheGenerationId != generation.Id())
+    {
+        m_fontTextureCache.clear();
+        m_imageTextureCache.clear();
+        m_cacheGenerationId = generation.Id();
+    }
+
     // 量化大小以减少缓存条目
     float quantizedSize = quantizeSize(size);
 
@@ -351,12 +361,6 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
         iter->second.lastAccessTime = std::chrono::steady_clock::now();
         iter->second.accessCount++;
         return &iter->second.textureInfo;
-    }
-
-    // 如果缓存已满，执行 LRU 驱逐
-    if (m_fontTextureCache.size() >= MAX_FONT_CACHE_SIZE)
-    {
-        evictLRUFromFontCache();
     }
 
     auto fontDataIt = m_fonts.find(fontName);
@@ -376,7 +380,8 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
     FT_Error error = FT_Set_Pixel_Sizes(face, 0, static_cast<FT_UInt>(quantizedSize));
     if (error != 0)
     {
-        UiRuntime::current().logger().warn("[IconManager] Failed to set pixel size {} for codepoint {}", quantizedSize, codepoint);
+        UiRuntime::current().logger().warn("[IconManager] Failed to set pixel size {} for codepoint {}", quantizedSize,
+                                           codepoint);
         return nullptr;
     }
 
@@ -385,7 +390,8 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
     error = FT_Load_Glyph(face, glyphIndex, FT_LOAD_DEFAULT);
     if (error != 0)
     {
-        UiRuntime::current().logger().warn("[IconManager] Failed to load glyph for codepoint {}: error {}", codepoint, error);
+        UiRuntime::current().logger().warn("[IconManager] Failed to load glyph for codepoint {}: error {}", codepoint,
+                                           error);
         return nullptr;
     }
 
@@ -393,7 +399,8 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
     error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
     if (error != 0)
     {
-        UiRuntime::current().logger().warn("[IconManager] Failed to render glyph for codepoint {}: error {}", codepoint, error);
+        UiRuntime::current().logger().warn("[IconManager] Failed to render glyph for codepoint {}: error {}", codepoint,
+                                           error);
         return nullptr;
     }
 
@@ -407,31 +414,49 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
         return nullptr;
     }
 
-    SDL_GPUDevice* device = m_deviceManager->getDevice();
-    if (device == nullptr)
-    {
-        UiRuntime::current().logger().error("[IconManager] GPU device is null");
-        return nullptr;
-    }
-
     // 转换 alpha 位图为 RGBA（预乘 Alpha 格式）
     auto rgbaPixels = BuildPremultipliedRgba(bitmap, width, height);
 
     // 创建并上传纹理
     auto texture =
-        createAndUploadIconTexture(device, rgbaPixels, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+        createAndUploadIconTexture(generation, rgbaPixels, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
     if (texture == nullptr)
     {
         return nullptr;
     }
 
+    if (generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE || m_cacheGenerationId != generation.Id())
+    {
+        return nullptr;
+    }
+
+    // 候选纹理上传成功后才驱逐正式缓存，失败路径保持缓存与统计不变。
+    if (m_fontTextureCache.size() >= MAX_FONT_CACHE_SIZE)
+    {
+        evictLRUFromFontCache();
+    }
+
     return cacheIconTexture(cacheKey, std::move(texture), width, height);
 }
 
-const TextureInfo* IconManager::cacheIconTexture(const std::string& cacheKey,
-                                                 wrappers::UniqueGPUTexture texture,
-                                                 int width,
-                                                 int height)
+const TextureInfo* IconManager::getTextureInfo(std::string_view textureId) const
+{
+    const auto generation =
+        m_deviceManager != nullptr ? m_deviceManager->getGeneration() : detail::GpuDeviceGenerationHandle{};
+    if (!generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE ||
+        generation.Id() != m_cacheGenerationId)
+    {
+        return nullptr;
+    }
+    if (auto iterator = m_imageTextureCache.find(textureId); iterator != m_imageTextureCache.end())
+    {
+        return &iterator->second.textureInfo;
+    }
+    return nullptr;
+}
+
+const TextureInfo* IconManager::cacheIconTexture(const std::string& cacheKey, wrappers::UniqueGPUTexture texture,
+                                                 int width, int height)
 {
     CachedTextureEntry entry{};
     entry.textureInfo.texture = std::move(texture);
@@ -513,18 +538,22 @@ IconManager::CodepointMap IconManager::parseCodepointsJSON(std::istream& file)
     while (true)
     {
         size_t const keyStart = content.find('"', pos);
-        if (keyStart == std::string::npos) break;
+        if (keyStart == std::string::npos)
+            break;
 
         size_t const keyEnd = content.find('"', keyStart + 1);
-        if (keyEnd == std::string::npos) break;
+        if (keyEnd == std::string::npos)
+            break;
 
         std::string key = content.substr(keyStart + 1, keyEnd - keyStart - 1);
 
         size_t const valueStart = content.find('"', keyEnd + 1);
-        if (valueStart == std::string::npos) break;
+        if (valueStart == std::string::npos)
+            break;
 
         size_t const valueEnd = content.find('"', valueStart + 1);
-        if (valueEnd == std::string::npos) break;
+        if (valueEnd == std::string::npos)
+            break;
 
         std::string value = content.substr(valueStart + 1, valueEnd - valueStart - 1);
 
@@ -576,8 +605,7 @@ void IconManager::evictLRUFromFontCache()
     */
 
     UiRuntime::current().logger().debug("[IconManager] Evicted LRU entry: {} (access count: {})",
-                  lruEntry->first.substr(0, 50),
-                  lruEntry->second.accessCount);
+                                        lruEntry->first.substr(0, 50), lruEntry->second.accessCount);
 
     m_fontTextureCache.erase(lruEntry);
     m_evictionCount++;
@@ -611,22 +639,30 @@ void IconManager::evictLRUFromFontCache()
         }
 
         m_evictionCount += evicted;
-        UiRuntime::current().logger().info("[IconManager] Batch evicted {} entries, cache size: {}", evicted, m_fontTextureCache.size());
+        UiRuntime::current().logger().info("[IconManager] Batch evicted {} entries, cache size: {}", evicted,
+                                           m_fontTextureCache.size());
     }
 }
 /**
- * @brief
- * @param devices 设备
- * @param rgbaPixels {comment}
- * @param width {comment}
- * @param height {comment}
- * @return wrappers::UniqueGPUTexture {comment}
+ * @brief 在指定设备代际创建 RGBA 纹理并提交上传命令
+ * @param generation 纹理与短期传输缓冲共同绑定的设备代际
+ * @param rgbaPixels 连续存放的预乘 RGBA 像素
+ * @param width 纹理宽度
+ * @param height 纹理高度
+ * @return 提交成功时返回同代际纹理 owner；任一阶段失败时返回空 owner
+ * @note 成功仅表示非阻塞提交已被 SDL 接受，不表示 GPU 已执行完成。
  */
-wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(SDL_GPUDevice* device,
+wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(const detail::GpuDeviceGenerationHandle& generation,
                                                                    const std::vector<uint32_t>& rgbaPixels,
-                                                                   uint32_t width,
-                                                                   uint32_t height)
+                                                                   uint32_t width, uint32_t height)
 {
+    const auto activeDevice = generation.InvokeIfActive([](SDL_GPUDevice* device) { return device; });
+    SDL_GPUDevice* const device = activeDevice.value_or(nullptr);
+    if (device == nullptr || rgbaPixels.empty() || width == 0 || height == 0)
+    {
+        return nullptr;
+    }
+
     // 创建纹理
     SDL_GPUTextureCreateInfo texInfo = {};
     texInfo.type = SDL_GPU_TEXTURETYPE_2D;
@@ -637,7 +673,11 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(SDL_GPUDevice
     texInfo.num_levels = 1;
     texInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
 
-    auto texture = wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(device, SDL_CreateGPUTexture, &texInfo);
+    if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::RESOURCE_CREATE))
+    {
+        return nullptr;
+    }
+    auto texture = wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(generation, SDL_CreateGPUTexture, &texInfo);
     if (!texture)
     {
         UiRuntime::current().logger().error("[IconManager] Failed to create GPU texture");
@@ -649,8 +689,12 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(SDL_GPUDevice
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
     transferInfo.size = static_cast<uint32_t>(rgbaPixels.size() * sizeof(uint32_t));
 
+    if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::TRANSFER_CREATE))
+    {
+        return nullptr;
+    }
     auto transferBuffer = wrappers::MakeGpuResource<wrappers::UniqueGPUTransferBuffer>(
-        device, SDL_CreateGPUTransferBuffer, &transferInfo);
+        generation, SDL_CreateGPUTransferBuffer, &transferInfo);
     if (!transferBuffer)
     {
         UiRuntime::current().logger().error("[IconManager] Failed to create transfer buffer");
@@ -658,7 +702,11 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(SDL_GPUDevice
     }
 
     // 映射传输缓冲区
-    void* mappedData = SDL_MapGPUTransferBuffer(device, transferBuffer.get(), false);
+    void* mappedData = nullptr;
+    if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::MAP))
+    {
+        mappedData = SDL_MapGPUTransferBuffer(device, transferBuffer.get(), false);
+    }
     if (mappedData == nullptr)
     {
         UiRuntime::current().logger().error("[IconManager] Failed to map transfer buffer");
@@ -669,14 +717,31 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(SDL_GPUDevice
     SDL_UnmapGPUTransferBuffer(device, transferBuffer.get());
 
     // 上传到GPU
-    SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device);
+    SDL_GPUCommandBuffer* cmd = nullptr;
+    if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::COMMAND_ACQUIRE))
+    {
+        cmd = SDL_AcquireGPUCommandBuffer(device);
+    }
     if (cmd == nullptr)
     {
         UiRuntime::current().logger().error("[IconManager] Failed to acquire command buffer");
         return nullptr;
     }
 
-    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(cmd);
+    SDL_GPUCopyPass* copyPass = nullptr;
+    if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::COPY_PASS_BEGIN))
+    {
+        copyPass = SDL_BeginGPUCopyPass(cmd);
+    }
+    if (copyPass == nullptr)
+    {
+        UiRuntime::current().logger().error("[IconManager] Failed to begin copy pass");
+        if (!SDL_CancelGPUCommandBuffer(cmd))
+        {
+            UiRuntime::current().logger().error("[IconManager] Failed to cancel command buffer: {}", SDL_GetError());
+        }
+        return nullptr;
+    }
 
     SDL_GPUTextureTransferInfo srcInfo = {};
     srcInfo.transfer_buffer = transferBuffer.get();
@@ -691,9 +756,21 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(SDL_GPUDevice
 
     SDL_UploadToGPUTexture(copyPass, &srcInfo, &dstRegion, false);
     SDL_EndGPUCopyPass(copyPass);
-    SDL_SubmitGPUCommandBuffer(cmd);
+    if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::SUBMIT))
+    {
+        if (!SDL_CancelGPUCommandBuffer(cmd))
+        {
+            UiRuntime::current().logger().error("[IconManager] Failed to cancel command buffer: {}", SDL_GetError());
+        }
+        return nullptr;
+    }
+    if (!SDL_SubmitGPUCommandBuffer(cmd))
+    {
+        UiRuntime::current().logger().error("[IconManager] Failed to submit upload: {}", SDL_GetError());
+        return nullptr;
+    }
 
     return texture;
 }
 
-} // namespace ui::managers
+}  // namespace ui::managers

@@ -15,11 +15,17 @@ namespace
 
 class PublicEventApiTest : public ::testing::Test
 {
-protected:
-    void SetUp() override { m_scope = std::make_unique<UiRuntimeScope>(m_runtime); }
-    void TearDown() override { m_scope.reset(); }
+   protected:
+    void SetUp() override
+    {
+        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
+    }
+    void TearDown() override
+    {
+        m_scope.reset();
+    }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
@@ -48,13 +54,9 @@ TEST_F(PublicEventApiTest, TriggerInvokesRegisteredCallbackWithPayload)
                                     observed = payload;
                                 });
 
-    event::Trigger(eventId,
-                   event::EventPayload{.source = 7U,
-                                       .target = 9U,
-                                       .name = {},
-                                       .text = "ok",
-                                       .intValue = 42,
-                                       .floatValue = 0.0});
+    event::Trigger(
+        eventId,
+        event::EventPayload{.source = 7U, .target = 9U, .name = {}, .text = "ok", .intValue = 42, .floatValue = 0.0});
 
     EXPECT_TRUE(called);
     EXPECT_EQ(observed.source, 7U);
@@ -113,5 +115,5 @@ TEST(PublicEventApiIsolationTest, RuntimeScopesHaveIndependentEventTables)
     }
 }
 
-} // namespace
-} // namespace ui::tests
+}  // namespace
+}  // namespace ui::tests

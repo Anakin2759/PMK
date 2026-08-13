@@ -48,7 +48,7 @@ inline Result<WindowHandle> MakeWindowHandle(std::uintptr_t token, entity raw, s
 {
     return WindowHandle{raw, windowId, token};
 }
-} // namespace ui
+}  // namespace ui
 
 namespace ui::factory
 {
@@ -58,37 +58,32 @@ ui::Result<ui::EntityHandle> CreateBaseWidget(UiRuntime& runtime, std::string_vi
 void CreateFadeInAnimation(ui::entity entity, float duration);
 
 ui::entity CreateButton(const std::string& content, std::string_view alias = "");
-ui::Result<ui::EntityHandle> CreateButton(UiRuntime& runtime,
-                                          const std::string& content,
-                                          std::string_view alias = "");
+ui::Result<ui::EntityHandle> CreateButton(UiRuntime& runtime, const std::string& content, std::string_view alias = "");
 ui::entity CreateLabel(const std::string& content, std::string_view alias = "");
 ui::entity CreateTextEdit(const std::string& placeholder = "", bool multiline = false, std::string_view alias = "");
-ui::entity
-    CreateImage(void* textureId, float defaultWidth = 50.0F, float defaultHeight = 50.0F, std::string_view alias = "");
+ui::entity CreateImage(void* textureId, float defaultWidth = 50.0F, float defaultHeight = 50.0F,
+                       std::string_view alias = "");
 ui::entity CreateArrow(const Vec2& start, const Vec2& end, std::string_view alias = "");
 ui::entity CreateSpacer(int stretchFactor = 1, std::string_view alias = "");
 ui::entity CreateSpacer(float width, float height, std::string_view alias = "");
 ui::entity CreateDialog(std::string_view title, std::string_view alias = "");
 ui::entity CreateScrollArea(std::string_view alias = "");
 ui::entity CreateWindow(std::string_view title, std::string_view alias = "");
-ui::Result<ui::WindowHandle> CreateWindow(UiRuntime& runtime,
-                                          std::string_view title,
-                                          std::string_view alias = "");
+ui::Result<ui::WindowHandle> CreateWindow(UiRuntime& runtime, std::string_view title, std::string_view alias = "");
 ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias = "");
 ui::entity CreateVBoxLayout(std::string_view alias = "");
 ui::entity CreateHBoxLayout(std::string_view alias = "");
-ui::entity
-    CreateLineEdit(std::string_view initialText = "", std::string_view placeholder = "", std::string_view alias = "");
-ui::entity CreateTextBrowser(std::string_view initialText = "",
-                             std::string_view placeholder = "",
+ui::entity CreateLineEdit(std::string_view initialText = "", std::string_view placeholder = "",
+                          std::string_view alias = "");
+ui::entity CreateTextBrowser(std::string_view initialText = "", std::string_view placeholder = "",
                              std::string_view alias = "");
 ui::entity CreateCheckBox(const std::string& label, bool checked = false, std::string_view alias = "");
 ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedIndex = 0, std::string_view alias = "");
 void CloseDropDownPopup(ui::entity ddEntity);
 
 template <typename EntityLike>
-    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity>
-             && (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
+    requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
+             (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))
 void CloseDropDownPopup(EntityLike ddEntity)
 {
     CloseDropDownPopup(static_cast<ui::entity>(ddEntity));
@@ -96,10 +91,8 @@ void CloseDropDownPopup(EntityLike ddEntity)
 
 ui::entity CreateSlider(std::string_view alias = "");
 ui::entity CreateProgressBar(std::string_view alias = "");
-ui::entity CreateImageFromPath(std::string_view path,
-                               float defaultWidth = 0.0F,
-                               float defaultHeight = 0.0F,
+ui::entity CreateImageFromPath(std::string_view path, float defaultWidth = 0.0F, float defaultHeight = 0.0F,
                                std::string_view alias = "");
 ui::entity CreateCanvas(float width = 400.0F, float height = 300.0F, std::string_view alias = "");
 ui::entity CreateTable(int columns = 3, std::string_view alias = "");
-} // namespace ui::factory
+}  // namespace ui::factory

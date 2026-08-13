@@ -74,4 +74,4 @@ void SetCellWidget(ui::entity tableEntity, int row, int col, ui::entity widgetEn
     detail::table::SetCellWidget(detail::ToInternal(tableEntity), row, col, detail::ToInternal(widgetEntity));
 }
 
-} // namespace ui::table
+}  // namespace ui::table

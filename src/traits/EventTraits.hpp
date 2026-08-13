@@ -8,4 +8,4 @@ namespace ui::traits
 template <typename T>
 concept Events = requires { typename T::is_event_tag; };
 
-} // namespace ui::traits
+}  // namespace ui::traits

@@ -91,7 +91,7 @@ float GetSdlPrimaryDisplayUiScale() noexcept
     return IsValidScale(contentScale) ? contentScale : 1.0F;
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // ============================================================================
 // Windows 实现
@@ -105,15 +105,15 @@ float GetSdlPrimaryDisplayUiScale() noexcept
 #define NOMINMAX
 #endif
 
-#include <Windows.h>  // IWYU pragma: keep
-#include <windowsx.h> // GET_X_LPARAM, GET_Y_LPARAM
+#include <Windows.h>   // IWYU pragma: keep
+#include <windowsx.h>  // GET_X_LPARAM, GET_Y_LPARAM
 #include <basetsd.h>
 #include <minwindef.h>
 #include <windef.h>
 #include <winuser.h>
 #include <wingdi.h>
 #include <dwmapi.h>
-#include <commctrl.h> // SetWindowSubclass
+#include <commctrl.h>  // SetWindowSubclass
 #include <uxtheme.h>
 
 #pragma comment(lib, "dwmapi")
@@ -130,7 +130,7 @@ constexpr COLORREF DARK_CLIENT_BACKGROUND_COLOR = RGB(26, 26, 31);
 struct SubclassData
 {
     int borderWidth = 6;
-    int cornerRadius = 0; // 0 = 不裁剪圆角；> 0 时在 WM_SIZE 中同步更新 SetWindowRgn
+    int cornerRadius = 0;  // 0 = 不裁剪圆角；> 0 时在 WM_SIZE 中同步更新 SetWindowRgn
 };
 
 LRESULT HandleNcCalcSize(HWND hWnd, WPARAM wParam, LPARAM lParam)
@@ -140,7 +140,7 @@ LRESULT HandleNcCalcSize(HWND hWnd, WPARAM wParam, LPARAM lParam)
         return DefSubclassProc(hWnd, WM_NCCALCSIZE, wParam, lParam);
     }
 
-    auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam); // NOLINT
+    auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);  // NOLINT
 
     WINDOWPLACEMENT placement{};
     placement.length = sizeof(WINDOWPLACEMENT);
@@ -181,14 +181,22 @@ LRESULT HandleNcHitTest(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, cons
     bool const onTop = (cursorY >= windowRect.top && cursorY < windowRect.top + scaledBorder);
     bool const onBottom = (cursorY < windowRect.bottom && cursorY >= windowRect.bottom - scaledBorder);
 
-    if (onTop && onLeft) return HTTOPLEFT;
-    if (onTop && onRight) return HTTOPRIGHT;
-    if (onBottom && onLeft) return HTBOTTOMLEFT;
-    if (onBottom && onRight) return HTBOTTOMRIGHT;
-    if (onLeft) return HTLEFT;
-    if (onRight) return HTRIGHT;
-    if (onTop) return HTTOP;
-    if (onBottom) return HTBOTTOM;
+    if (onTop && onLeft)
+        return HTTOPLEFT;
+    if (onTop && onRight)
+        return HTTOPRIGHT;
+    if (onBottom && onLeft)
+        return HTBOTTOMLEFT;
+    if (onBottom && onRight)
+        return HTBOTTOMRIGHT;
+    if (onLeft)
+        return HTLEFT;
+    if (onRight)
+        return HTRIGHT;
+    if (onTop)
+        return HTTOP;
+    if (onBottom)
+        return HTBOTTOM;
 
     return HTCLIENT;
 }
@@ -216,10 +224,10 @@ void SyncRoundedRegion(HWND hWnd, LPARAM lParam, const SubclassData* data)
  *
  * 处理 WM_NCCALCSIZE 和 WM_NCHITTEST 以实现无标题栏 + 原生缩放行为。
  */
-LRESULT CALLBACK CustomFrameProc(
-    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, [[maybe_unused]] UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+LRESULT CALLBACK CustomFrameProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+                                 [[maybe_unused]] UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
-    auto* data = reinterpret_cast<SubclassData*>(dwRefData); // NOLINT
+    auto* data = reinterpret_cast<SubclassData*>(dwRefData);  // NOLINT
 
     switch (uMsg)
     {
@@ -236,20 +244,16 @@ LRESULT CALLBACK CustomFrameProc(
         case WM_SIZE:
         {
             SyncRoundedRegion(hWnd, lParam, data);
-            break; // 继续默认处理
+            break;  // 继续默认处理
         }
 
         case WM_DPICHANGED:
         {
-            auto const* suggestedRect = reinterpret_cast<RECT const*>(lParam); // NOLINT
+            auto const* suggestedRect = reinterpret_cast<RECT const*>(lParam);  // NOLINT
             if (suggestedRect != nullptr)
             {
-                SetWindowPos(hWnd,
-                             nullptr,
-                             suggestedRect->left,
-                             suggestedRect->top,
-                             suggestedRect->right - suggestedRect->left,
-                             suggestedRect->bottom - suggestedRect->top,
+                SetWindowPos(hWnd, nullptr, suggestedRect->left, suggestedRect->top,
+                             suggestedRect->right - suggestedRect->left, suggestedRect->bottom - suggestedRect->top,
                              SWP_NOZORDER | SWP_NOACTIVATE);
             }
             break;
@@ -259,7 +263,7 @@ LRESULT CALLBACK CustomFrameProc(
         {
             // 清理子类化数据
             RemoveWindowSubclass(hWnd, CustomFrameProc, SUBCLASS_ID);
-            delete data; // NOLINT
+            delete data;  // NOLINT
             return 0;
         }
 
@@ -276,13 +280,8 @@ HBRUSH DarkBackgroundBrush()
     return brush;
 }
 
-LRESULT CALLBACK DarkBackgroundProc(
-    HWND hWnd,
-    UINT uMsg,
-    WPARAM wParam,
-    LPARAM lParam,
-    [[maybe_unused]] UINT_PTR uIdSubclass,
-    [[maybe_unused]] DWORD_PTR dwRefData)
+LRESULT CALLBACK DarkBackgroundProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+                                    [[maybe_unused]] UINT_PTR uIdSubclass, [[maybe_unused]] DWORD_PTR dwRefData)
 {
     switch (uMsg)
     {
@@ -291,7 +290,7 @@ LRESULT CALLBACK DarkBackgroundProc(
             RECT clientRect{};
             if (GetClientRect(hWnd, &clientRect) != FALSE)
             {
-                FillRect(reinterpret_cast<HDC>(wParam), &clientRect, DarkBackgroundBrush()); // NOLINT
+                FillRect(reinterpret_cast<HDC>(wParam), &clientRect, DarkBackgroundBrush());  // NOLINT
             }
             return 1;
         }
@@ -324,7 +323,7 @@ HWND GetHwndFromSDL(SDL_Window* sdlWindow)
         SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 namespace ui::platform
 {
@@ -388,10 +387,7 @@ NativeWindowMetrics GetNativeWindowMetrics(SDL_Window* sdlWindow) noexcept
         }
     }
 
-    SDL_GetWindowBordersSize(sdlWindow,
-                             &metrics.borderTop,
-                             &metrics.borderLeft,
-                             &metrics.borderBottom,
+    SDL_GetWindowBordersSize(sdlWindow, &metrics.borderTop, &metrics.borderLeft, &metrics.borderBottom,
                              &metrics.borderRight);
     return metrics;
 }
@@ -399,19 +395,20 @@ NativeWindowMetrics GetNativeWindowMetrics(SDL_Window* sdlWindow) noexcept
 void SetupCustomTitleBar(SDL_Window* sdlWindow, int borderWidth)
 {
     HWND hwnd = GetHwndFromSDL(sdlWindow);
-    if (hwnd == nullptr) return;
+    if (hwnd == nullptr)
+        return;
 
     // 1. 修改窗口样式：保留 WS_CAPTION + WS_THICKFRAME（Win11 伪无边框方案）
     //    WS_CAPTION 必须保留，否则 DWM 不会应用 Win11 圆角和透明合成，
     //    导致圆角外区域显示黑色。标题栏区域通过 WM_NCCALCSIZE 返回 0 来隐藏。
     auto style = GetWindowLongW(hwnd, GWL_STYLE);
-    style &= ~WS_SYSMENU; // 仅移除系统菜单，保留 WS_CAPTION 给 DWM
+    style &= ~WS_SYSMENU;  // 仅移除系统菜单，保留 WS_CAPTION 给 DWM
     style |= (WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
     SetWindowLongW(hwnd, GWL_STYLE, style);
 
     // 2. 子类化窗口过程以处理 WM_NCCALCSIZE / WM_NCHITTEST
-    auto* subclassData = new SubclassData{borderWidth};                                               // NOLINT
-    SetWindowSubclass(hwnd, CustomFrameProc, SUBCLASS_ID, reinterpret_cast<DWORD_PTR>(subclassData)); // NOLINT
+    auto* subclassData = new SubclassData{borderWidth};                                                // NOLINT
+    SetWindowSubclass(hwnd, CustomFrameProc, SUBCLASS_ID, reinterpret_cast<DWORD_PTR>(subclassData));  // NOLINT
 
     // 3. 通知系统帧已更改，触发重绘
     SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -420,7 +417,8 @@ void SetupCustomTitleBar(SDL_Window* sdlWindow, int borderWidth)
 void EnableTransparency(SDL_Window* sdlWindow, int cornerRadius)
 {
     HWND hwnd = GetHwndFromSDL(sdlWindow);
-    if (hwnd == nullptr) return;
+    if (hwnd == nullptr)
+        return;
 
     // 1. WS_EX_NOREDIRECTIONBITMAP：告知 DWM 直接从 GPU 交换链读取像素（含 alpha 通道），
     //    而非使用 GDI 重定向位图（后者忽略 alpha）。在支持的驱动/OS 上可使 GPU alpha 生效。
@@ -440,7 +438,7 @@ void EnableTransparency(SDL_Window* sdlWindow, int cornerRadius)
         DWORD_PTR dwRefData = 0;
         if (GetWindowSubclass(hwnd, CustomFrameProc, SUBCLASS_ID, &dwRefData) != FALSE && dwRefData != 0)
         {
-            reinterpret_cast<SubclassData*>(dwRefData)->cornerRadius = cornerRadius; // NOLINT
+            reinterpret_cast<SubclassData*>(dwRefData)->cornerRadius = cornerRadius;  // NOLINT
         }
 
         RECT rect;
@@ -458,13 +456,14 @@ void EnableTransparency(SDL_Window* sdlWindow, int cornerRadius)
 void InstallDarkClientAreaBackground(SDL_Window* sdlWindow)
 {
     HWND hwnd = GetHwndFromSDL(sdlWindow);
-    if (hwnd == nullptr) return;
+    if (hwnd == nullptr)
+        return;
 
     SetWindowSubclass(hwnd, DarkBackgroundProc, DARK_BACKGROUND_SUBCLASS_ID, 0);
     InvalidateRect(hwnd, nullptr, TRUE);
 }
 
-} // namespace ui::platform
+}  // namespace ui::platform
 
 // ============================================================================
 // Linux 实现（X11 和/或 Wayland）
@@ -474,7 +473,7 @@ void InstallDarkClientAreaBackground(SDL_Window* sdlWindow)
 #ifdef UI_LINUX_X11
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
-#endif // UI_LINUX_X11
+#endif  // UI_LINUX_X11
 
 namespace
 {
@@ -496,9 +495,9 @@ struct MotifWmHints
 };
 
 constexpr unsigned long MWM_HINTS_DECORATIONS = (1L << 1);
-#endif // UI_LINUX_X11
+#endif  // UI_LINUX_X11
 
-} // anonymous namespace
+}  // anonymous namespace
 
 namespace ui::platform
 {
@@ -532,10 +531,7 @@ NativeWindowMetrics GetNativeWindowMetrics(SDL_Window* sdlWindow) noexcept
     }
 
     SDL_GetWindowSizeInPixels(sdlWindow, &metrics.clientWidth, &metrics.clientHeight);
-    SDL_GetWindowBordersSize(sdlWindow,
-                             &metrics.borderTop,
-                             &metrics.borderLeft,
-                             &metrics.borderBottom,
+    SDL_GetWindowBordersSize(sdlWindow, &metrics.borderTop, &metrics.borderLeft, &metrics.borderBottom,
                              &metrics.borderRight);
     metrics.windowWidth = metrics.clientWidth + metrics.borderLeft + metrics.borderRight;
     metrics.windowHeight = metrics.clientHeight + metrics.borderTop + metrics.borderBottom;
@@ -548,7 +544,7 @@ void SetupCustomTitleBar(SDL_Window* sdlWindow, [[maybe_unused]] int borderWidth
     // 尝试 X11 路径
     auto* display = static_cast<Display*>(
         SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr));
-    auto window = static_cast<::Window>(
+    auto window = static_cast< ::Window>(
         SDL_GetNumberProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0));
 
     if (display != nullptr && window != 0)
@@ -557,20 +553,15 @@ void SetupCustomTitleBar(SDL_Window* sdlWindow, [[maybe_unused]] int borderWidth
         Atom motifHintsAtom = XInternAtom(display, "_MOTIF_WM_HINTS", False);
         MotifWmHints hints{};
         hints.flags = MWM_HINTS_DECORATIONS;
-        hints.decorations = 0; // 移除所有装饰
+        hints.decorations = 0;  // 移除所有装饰
 
-        XChangeProperty(display,
-                        window,
-                        motifHintsAtom,
-                        motifHintsAtom,
-                        32,
-                        PropModeReplace,
-                        reinterpret_cast<unsigned char*>(&hints), // NOLINT
+        XChangeProperty(display, window, motifHintsAtom, motifHintsAtom, 32, PropModeReplace,
+                        reinterpret_cast<unsigned char*>(&hints),  // NOLINT
                         5);
         XFlush(display);
         return;
     }
-#endif // UI_LINUX_X11
+#endif  // UI_LINUX_X11
 
     // Wayland: 无法通过底层 API 移除装饰，依赖 SDL_WINDOW_BORDERLESS
     // （SDL3 创建窗口时已设置该标志）
@@ -587,7 +578,7 @@ void InstallDarkClientAreaBackground([[maybe_unused]] SDL_Window* sdlWindow)
 {
 }
 
-} // namespace ui::platform
+}  // namespace ui::platform
 
 // ============================================================================
 // 其他平台（macOS / 移动端等）— 空操作
@@ -626,10 +617,7 @@ NativeWindowMetrics GetNativeWindowMetrics(SDL_Window* sdlWindow) noexcept
     }
 
     SDL_GetWindowSizeInPixels(sdlWindow, &metrics.clientWidth, &metrics.clientHeight);
-    SDL_GetWindowBordersSize(sdlWindow,
-                             &metrics.borderTop,
-                             &metrics.borderLeft,
-                             &metrics.borderBottom,
+    SDL_GetWindowBordersSize(sdlWindow, &metrics.borderTop, &metrics.borderLeft, &metrics.borderBottom,
                              &metrics.borderRight);
     metrics.windowWidth = metrics.clientWidth + metrics.borderLeft + metrics.borderRight;
     metrics.windowHeight = metrics.clientHeight + metrics.borderTop + metrics.borderBottom;
@@ -650,6 +638,6 @@ void InstallDarkClientAreaBackground([[maybe_unused]] SDL_Window* sdlWindow)
 {
 }
 
-} // namespace ui::platform
+}  // namespace ui::platform
 
 #endif

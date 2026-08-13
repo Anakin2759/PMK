@@ -36,15 +36,15 @@ class UiRuntime;
  */
 class SystemManager
 {
-public:
+   public:
     /**
      * @brief SystemManager 生命周期状态。
      */
     enum class State : uint8_t
     {
-        ASSEMBLING, ///< 允许装配 System，尚未连接事件处理器。
-        REGISTERED, ///< 所有 System 已连接事件处理器。
-        STOPPED,    ///< 已完成注销，不允许再次装配或注册。
+        ASSEMBLING,  ///< 允许装配 System，尚未连接事件处理器。
+        REGISTERED,  ///< 所有 System 已连接事件处理器。
+        STOPPED,     ///< 已完成注销，不允许再次装配或注册。
     };
 
     // 构造函数：初始化所有子系统（注入 Registry 和 Dispatcher 以替代全局单例访问）
@@ -110,12 +110,18 @@ public:
     /**
      * @brief 获取系统数量
      */
-    [[nodiscard]] size_t getSystemCount() const { return m_systems.size(); }
+    [[nodiscard]] size_t getSystemCount() const
+    {
+        return m_systems.size();
+    }
 
     /**
      * @brief 获取当前生命周期状态。
      */
-    [[nodiscard]] State getState() const noexcept { return m_state; }
+    [[nodiscard]] State getState() const noexcept
+    {
+        return m_state;
+    }
 
     /**
      * @brief 返回当前 System 的阶段快照，供诊断和契约测试使用。
@@ -125,8 +131,8 @@ public:
     /**
      * @brief 清空所有UI元素 携带uitag的组件
      */
-    void clear(); // NOLINT(readability-convert-member-functions-to-static)
-private:
+    void clear();  // NOLINT(readability-convert-member-functions-to-static)
+   private:
     /**
      * @brief 注册框架内建系统。
      */
@@ -137,4 +143,4 @@ private:
     UiRuntime* m_runtime = nullptr;
     State m_state = State::ASSEMBLING;
 };
-} // namespace ui
+}  // namespace ui

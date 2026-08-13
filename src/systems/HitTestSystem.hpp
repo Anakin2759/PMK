@@ -32,9 +32,11 @@ namespace ui::systems
  */
 class HitTestSystem : public ui::interface::EnableRegister<HitTestSystem>
 {
-public:
+   public:
     HitTestSystem() = default;
-    explicit HitTestSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
+    explicit HitTestSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    {
+    }
 
     void registerHandlersImpl();
 
@@ -72,7 +74,7 @@ public:
      */
     entt::entity findHitEntity(const Vec2& mousePos, entt::entity topWindow);
 
-private:
+   private:
     /**
      * @brief 连接组件生命周期事件以自动失效缓存
      */
@@ -111,8 +113,8 @@ private:
      */
     struct ZOrderCache
     {
-        std::vector<entt::entity> entities; // 排序后的实体列表
-        bool dirty = true;                  // 缓存是否失效
+        std::vector<entt::entity> entities;  // 排序后的实体列表
+        bool dirty = true;                   // 缓存是否失效
     };
 
     // 按窗口维护的 Z-Order 缓存
@@ -151,4 +153,4 @@ private:
     void onRawPointerWheel(const events::RawPointerWheel& event);
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

@@ -31,14 +31,16 @@ void DrawFilledRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color col
 void DrawCircle(ui::entity entity, Vec2 center, float radius, Color color, float lineWidth = 1.0F);
 void DrawFilledCircle(ui::entity entity, Vec2 center, float radius, Color color);
 void DrawPolyline(ui::entity entity, std::vector<Vec2> points, Color color, float lineWidth = 1.0F);
-void DrawCubicBezier(
-    ui::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color, float lineWidth = 1.0F);
+void DrawCubicBezier(ui::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color,
+                     float lineWidth = 1.0F);
 
 /** @brief 路径构建器，调用 commit() 将路径写入 Canvas。 */
 class Painter
 {
-public:
-    explicit Painter(ui::entity canvas) : m_canvas(canvas) {}
+   public:
+    explicit Painter(ui::entity canvas) : m_canvas(canvas)
+    {
+    }
 
     Painter& moveTo(Vec2 pos);
     Painter& lineTo(Vec2 pos);
@@ -46,13 +48,13 @@ public:
     Painter& polyline(std::vector<Vec2> points);
     Painter& commit(Color color, float lineWidth = 1.0F);
 
-private:
+   private:
     ui::entity m_canvas;
     std::vector<Vec2> m_path;
     Vec2 m_cursor{0.0F, 0.0F};
 };
 
-} // namespace ui::canvas
+}  // namespace ui::canvas
 
 namespace ui::actions::canvas
 {
@@ -60,7 +62,7 @@ inline constexpr EntityAction<&ui::canvas::Clear> CANVAS_CLEAR_ACTION{};
 inline constexpr EntityAction<&ui::canvas::DrawLine> CANVAS_DRAW_LINE_ACTION{};
 inline constexpr EntityAction<&ui::canvas::DrawRect> CANVAS_DRAW_RECT_ACTION{};
 inline constexpr EntityAction<&ui::canvas::DrawFilledRect> CANVAS_DRAW_FILLED_RECT_ACTION{};
-} // namespace ui::actions::canvas
+}  // namespace ui::actions::canvas
 
 namespace ui::chains
 {
@@ -85,4 +87,4 @@ inline auto CanvasDrawFilledRect(Vec2 topLeft, Vec2 bottomRight, Color color)
     return ui::actions::canvas::CANVAS_DRAW_FILLED_RECT_ACTION.bind(topLeft, bottomRight, color);
 }
 
-} // namespace ui::chains
+}  // namespace ui::chains

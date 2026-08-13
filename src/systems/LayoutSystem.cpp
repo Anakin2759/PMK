@@ -50,8 +50,7 @@ constexpr float DEFAULT_LEAF_HEIGHT = 20.0F;
     {
         return false;
     }
-    return reg.any_of<components::SpacerTag>(entity)
-        || reg.all_of<components::Position, components::Size>(entity);
+    return reg.any_of<components::SpacerTag>(entity) || reg.all_of<components::Position, components::Size>(entity);
 }
 
 void DetachFromOwnerIfNeeded(YGNodeRef ownerNode, YGNodeRef childNode, YGNodeRef targetNode)
@@ -62,8 +61,7 @@ void DetachFromOwnerIfNeeded(YGNodeRef ownerNode, YGNodeRef childNode, YGNodeRef
     }
 }
 
-[[nodiscard]] policies::Alignment ResolveContainerAlignment(Registry& reg,
-                                                            entt::entity entity,
+[[nodiscard]] policies::Alignment ResolveContainerAlignment(Registry& reg, entt::entity entity,
                                                             const components::LayoutInfo& layoutInfo)
 {
     const auto* scrollArea = reg.try_get<components::ScrollArea>(entity);
@@ -76,16 +74,16 @@ void DetachFromOwnerIfNeeded(YGNodeRef ownerNode, YGNodeRef childNode, YGNodeRef
 
     auto hasHorizontalAlignment = [&](policies::Alignment value)
     {
-        return policies::HasFlag(value, policies::Alignment::LEFT)
-            || policies::HasFlag(value, policies::Alignment::HCENTER)
-            || policies::HasFlag(value, policies::Alignment::RIGHT);
+        return policies::HasFlag(value, policies::Alignment::LEFT) ||
+               policies::HasFlag(value, policies::Alignment::HCENTER) ||
+               policies::HasFlag(value, policies::Alignment::RIGHT);
     };
 
     auto hasVerticalAlignment = [&](policies::Alignment value)
     {
-        return policies::HasFlag(value, policies::Alignment::TOP)
-            || policies::HasFlag(value, policies::Alignment::VCENTER)
-            || policies::HasFlag(value, policies::Alignment::BOTTOM);
+        return policies::HasFlag(value, policies::Alignment::TOP) ||
+               policies::HasFlag(value, policies::Alignment::VCENTER) ||
+               policies::HasFlag(value, policies::Alignment::BOTTOM);
     };
 
     if (!hasHorizontalAlignment(alignment))
@@ -101,16 +99,16 @@ void DetachFromOwnerIfNeeded(YGNodeRef ownerNode, YGNodeRef childNode, YGNodeRef
     switch (scrollArea->scroll)
     {
         case policies::Scroll::VERTICAL:
-            alignment = static_cast<policies::Alignment>((static_cast<uint8_t>(alignment)
-                                                          & ~static_cast<uint8_t>(policies::Alignment::BOTTOM)
-                                                          & ~static_cast<uint8_t>(policies::Alignment::VCENTER))
-                                                         | static_cast<uint8_t>(policies::Alignment::TOP));
+            alignment = static_cast<policies::Alignment>((static_cast<uint8_t>(alignment) &
+                                                          ~static_cast<uint8_t>(policies::Alignment::BOTTOM) &
+                                                          ~static_cast<uint8_t>(policies::Alignment::VCENTER)) |
+                                                         static_cast<uint8_t>(policies::Alignment::TOP));
             break;
         case policies::Scroll::HORIZONTAL:
-            alignment = static_cast<policies::Alignment>((static_cast<uint8_t>(alignment)
-                                                          & ~static_cast<uint8_t>(policies::Alignment::RIGHT)
-                                                          & ~static_cast<uint8_t>(policies::Alignment::HCENTER))
-                                                         | static_cast<uint8_t>(policies::Alignment::LEFT));
+            alignment = static_cast<policies::Alignment>((static_cast<uint8_t>(alignment) &
+                                                          ~static_cast<uint8_t>(policies::Alignment::RIGHT) &
+                                                          ~static_cast<uint8_t>(policies::Alignment::HCENTER)) |
+                                                         static_cast<uint8_t>(policies::Alignment::LEFT));
             break;
         case policies::Scroll::BOTH:
             alignment = policies::Alignment::TOP_LEFT;
@@ -282,9 +280,7 @@ void ConfigureCrossAxisStretch(const components::Size& sizeComp, YGNodeRef node,
     }
 }
 
-void ConfigureFlexBehaviorFromSize(const components::Size& sizeComp,
-                                   YGNodeRef node,
-                                   bool isRow,
+void ConfigureFlexBehaviorFromSize(const components::Size& sizeComp, YGNodeRef node, bool isRow,
                                    bool parentIsScrollArea)
 {
     ConfigureMainAxisFlex(sizeComp, node, isRow, parentIsScrollArea);
@@ -810,11 +806,13 @@ struct LayoutTraversalFrame
     bool postVisit = false;
 };
 
-} // namespace
+}  // namespace
 
 LayoutSystem::LayoutSystem(UiRuntime& runtime)
-    : m_yogaConfig(YGConfigNew()), m_entityToNode(std::make_unique<std::unordered_map<entt::entity, YGNodeRef>>()),
-      m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    : m_yogaConfig(YGConfigNew()),
+      m_entityToNode(std::make_unique<std::unordered_map<entt::entity, YGNodeRef>>()),
+      m_reg(&runtime.registry()),
+      m_disp(&runtime.dispatcher())
 {
 }
 
@@ -828,7 +826,9 @@ LayoutSystem::~LayoutSystem()
 }
 
 LayoutSystem::LayoutSystem(LayoutSystem&& other) noexcept
-    : m_yogaConfig(other.m_yogaConfig), m_entityToNode(std::move(other.m_entityToNode)), m_reg(other.m_reg),
+    : m_yogaConfig(other.m_yogaConfig),
+      m_entityToNode(std::move(other.m_entityToNode)),
+      m_reg(other.m_reg),
       m_disp(other.m_disp)
 {
     other.m_yogaConfig = nullptr;
@@ -865,7 +865,8 @@ void LayoutSystem::registerHandlersImpl()
     m_disp->sink<events::UpdateLayout>().connect<&LayoutSystem::update>(*this);
 
     // P1-4: 实体销毁时自动释放对应 YGNode（替代 O(n) cleanupInvalidNodes 扫描）
-    m_onDestroyConnection = m_reg->onDestroy<components::Hierarchy>().template connect<&LayoutSystem::onEntityDestroyed>(*this);
+    m_onDestroyConnection =
+        m_reg->onDestroy<components::Hierarchy>().template connect<&LayoutSystem::onEntityDestroyed>(*this);
 }
 
 void LayoutSystem::unregisterHandlersImpl()
@@ -877,7 +878,12 @@ void LayoutSystem::unregisterHandlersImpl()
 void LayoutSystem::update()
 {
     // 统计事件处理入口次数而非 Yoga root 数；用于识别同一调度帧内的重复布局请求。
-    ++m_reg->getOrEmplaceInCtx<globalcontext::FrameContext>().layoutUpdateCount;
+    auto& frameContext = m_reg->getOrEmplaceInCtx<globalcontext::FrameContext>();
+    ++frameContext.layoutUpdateCount;
+    if (frameContext.stage != globalcontext::FrameStage::LAYOUT || frameContext.layoutUpdateCount != 1U)
+    {
+        return;
+    }
     cleanupInvalidNodes();
 
     std::unordered_set<entt::entity> dirtyRoots;
@@ -1254,4 +1260,4 @@ void LayoutSystem::applyWindowCentering(entt::entity root, float screenWidth, fl
     }
 }
 
-} // namespace ui::systems
+}  // namespace ui::systems

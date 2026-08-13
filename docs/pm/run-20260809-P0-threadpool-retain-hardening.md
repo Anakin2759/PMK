@@ -1,0 +1,69 @@
+# 项目经理协调记录 - P0 止血：ThreadPool 保留路线 + 生命周期硬化
+
+- 时间：2026-08-09
+- 输入来源：架构评审 `docs/architecture/ARCHITECTURE_REVIEW_2026-08-09.md` + 用户决策
+- 本轮范围：规划 + 已证据支持的最小实施；并发结构改动须先实测复现
+- 验收标准：不以理论风险直接改动无锁路径；只有明确复现并完成方案评审后才实施并发修复
+
+## 用户已确认的决策（2026-08-09，含变更）
+
+| # | 决策项 | 结论 |
+|---|---|---|
+| Q1 | ThreadPool 处置 | **变更**：先评估是否有必要；**证明没必要则完全移除**（线程池及相关文件/option） |
+| Q2 | 宏选项 | 随 Q1 评估结论走：移除则一并移除 |
+| Q3 | 帧循环改造（P1-1） | 接受，进入 P1 排期（本轮流做规划，实施在 P1） |
+| Q4 | `current()` 硬化 | 走**方案 A**：debug 断言 + release 空安全 |
+| Q5-Q8 | 守卫脚本/Theme/并发 CI/utils 拆分 | **未决策**，标记待用户，不阻塞 P0 |
+| P0-A 返工 | ThreadPool 通知方案 | 用户质疑持锁违反"无锁实现"承诺，P0-A 标记**未通过架构验收**；评估结论若为移除，则无需返工，直接移除 |
+
+## 工作包
+
+| # | 工作包 | Agent | 输入 | 产物 | 状态 |
+|---|---|---|---|---|---|
+| 1 | P0 细化规划 | 架构师 | 评审文档 + 用户决策 | `ARCHITECTURE_REVIEW_2026-08-09.md` §7（P0-A~P0-G） | 完成 |
+| 2a | P0-A：ThreadPool M1 修复 + option 生效 | 代码工厂 | §7.1 | 源码变更 + 交付报告 | **取消**（评估结论：移除 ThreadPool，问题随删除消失） |
+| 2a-新 | **TP-Removal：完全移除 ThreadPool 及相关代码** | 代码工厂 | THREADPOOL_DECISION_2026-08-09.md 移除清单 | 源码变更 + 交付报告 | 完成（代码侧收口；物理删除待用户终端执行） |
+| 2b | P0-B：EventLoop(utils) M1 修复 | 代码工厂 | §7.2 | 源码变更 + 交付报告 | **撤销/暂缓**（已还原；待压力测试实测） |
+| 2c | P0-D：current() 强契约硬化 | 代码工厂 | `P0_RUNTIME_HARDENING_PLAN_2026-08-09.md` D1 | 源码变更 + 交付报告 | 完成（Debug assert + Release terminate） |
+| 2d-1 | P0-F：守卫脚本正则对齐 + docs/todo 状态标注 | 代码工厂 | §7.6 | tools 变更 + 交付报告 | 阻塞（调度失败×2，升级用户） |
+| 2d-2 | P0-F：copilot-instructions.md 过时修订 | 提示词与 Agent 定制 | §7.6 | 定制文件变更报告 | 待办 |
+| 2e | P0-C：线程安全契约文档 | 代码工厂 | §7.3 | THREAD_SAFETY_CONTRACT.md | 待办 |
+| 2f | P0-E：退出期生命周期硬化 | 代码工厂 | `P0_RUNTIME_HARDENING_PLAN_2026-08-09.md` E1 | 源码变更 + 交付报告 | **暂缓**（依赖先明确实测问题与停止协议） |
+| 2g | P0-G：benchmark 测量基建骨架 | 代码工厂 | §7.7 | tests/benchmark/ 骨架 + README | **取消/改向**（无对象，P2-1 立项时再建） |
+| 3 | 并发单测 + benchmark 门控数据 | 测试构建闭环 | P0-A/B/D/E 交付 + §7.7 | 测试报告 + 基准数据 + 问题日志 | 待办 |
+| 4 | 中文 Doxygen 注释收尾 + 授权 git 同步 | 中文 Doxygen 注释与 Git 同步 | 代码工厂变更文件表 | 注释变更表 + 同步状态 | 待办（取决于 git 授权） |
+
+## 调度时间线
+
+- 2026-08-09 派发工作包 1（架构师细化 P0 规划）→ 完成
+- 2026-08-09 派发工作包 2a（P0-A ThreadPool）→ 完成（后被用户质疑无锁承诺）
+- 2026-08-09 架构师评估 ThreadPool 必要性 → 结论**移除**（`THREADPOOL_DECISION_2026-08-09.md`）
+- 2026-08-09 派发 TP-Removal 移除工作包
+- 2026-08-09 验收当前磁盘：ThreadPool 及相关文件、CMake option、测试悬空引用均已移除
+- 2026-08-09 重新落地 P0-B EventLoop lost-wakeup 修复 → 完成
+- 2026-08-09 新增 `docs/architecture/P0_RUNTIME_HARDENING_PLAN_2026-08-09.md`
+- 2026-08-09 P0-E/E1 派发两次失败 → 按规则升级用户
+- 2026-08-09 P0-D/D1 强契约硬化 → 完成
+- 2026-08-10 用户要求还原 EventLoop 并发修改；恢复无锁提交/消费/通知路径
+- 2026-08-10 用户确立门槛：类似修改必须先有明确、可重复的实测复现
+- 2026-08-10 用户确认未来方向：不恢复 ThreadPool，但保留“纯 CPU 计算 worker → EventLoop.Post → 主线程渲染/GPU 上传”的分离并发路线
+
+## 待用户决策
+
+- [x] Q1：ThreadPool 处置 → **已决：移除**（评估证据链：零调用点/零测试/零 benchmark/未来异步走 EventLoop 通道）
+- [ ] Q1.1：`Singleton.hpp` 是否随本次一并删除（架构师建议是，纳入移除清单）
+- [ ] Q5：`check_architecture_boundaries.py` 修复对齐 or 废弃（改由编译期 `ui_public_header_check`）
+- [ ] Q6：是否立项 Theme/Style 系统为 P2 根能力
+- [ ] Q7：是否投入并发压力测试进 CI（若保留 EventLoop/ThreadPool）
+- [x] Q7 修订：并发测试可先作为观测/复现工具；未复现前不得据此改同步结构
+- [x] Q9：异步方向 → 不恢复 ThreadPool；未来仅按 P2-1 评估纯 CPU 计算/渲染分离并发
+- [ ] Q8：是否允许 `Registry/Dispatcher/Logger` 从 `src/utils` 迁到 `src/core`（破坏性 include 变更）
+- [ ] git 同步是否授权（工作包 4 触发条件）
+
+## 结论
+
+- 状态：部分完成；EventLoop 生命周期与唤醒修复暂缓，等待实测复现证据
+- 关键产物：`docs/architecture/THREADPOOL_DECISION_2026-08-09.md`、`docs/architecture/P0_RUNTIME_HARDENING_PLAN_2026-08-09.md`
+- 已完成：ThreadPool 完全移除、`UiRuntime::current()` 强契约硬化
+- 已撤销：基于理论风险引入锁的 EventLoop 修复与 E1.1 接收闸门
+- 下一工作包：仅做只读/测试型复现；若明确 CPU 瓶颈，再按 P2-1 设计专用 worker 与主线程结果回传

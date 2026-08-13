@@ -78,5 +78,5 @@ TEST(UiRuntimeTest, DestroyingActiveRuntimeClearsStaleCurrent)
     EXPECT_EQ(UiRuntime::tryCurrent(), nullptr);
 }
 
-} // namespace
-} // namespace ui::tests
+}  // namespace
+}  // namespace ui::tests

@@ -27,8 +27,10 @@ namespace ui::renderers
 
 class DropDownRenderer : public core::IRenderer
 {
-public:
-    explicit DropDownRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit DropDownRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
     [[nodiscard]] bool canHandle(entt::entity entity) const override
     {
@@ -37,15 +39,17 @@ public:
 
     void collect(entt::entity entity, core::RenderContext& context) override
     {
-        if (context.batchManager == nullptr || context.whiteTexture == nullptr) return;
+        if (context.batchManager == nullptr || context.whiteTexture == nullptr)
+            return;
 
         const auto* dropDown = m_reg->try_get<components::DropDown>(entity);
-        if (dropDown == nullptr) return;
+        if (dropDown == nullptr)
+            return;
 
         constexpr float ARROW_W = 16.0F;
         constexpr float RADIUS = 4.0F;
-        constexpr float TRI_W = 10.0F; // 下箭头三角形宽度
-        constexpr float TRI_H = 6.0F;  // 下箭头三角形高度
+        constexpr float TRI_W = 10.0F;  // 下箭头三角形宽度
+        constexpr float TRI_H = 6.0F;   // 下箭头三角形高度
 
         render::UiPushConstants pushConst{};
         pushConst.screen_size[0] = context.screenWidth;
@@ -64,7 +68,7 @@ public:
         render::UiPushConstants arrowBgPc = pushConst;
         arrowBgPc.rect_size[0] = arrowBgSize.x();
         arrowBgPc.rect_size[1] = arrowBgSize.y();
-        arrowBgPc.radius[0] = arrowBgPc.radius[1] = 0.0F; // 左侧不圆角
+        arrowBgPc.radius[0] = arrowBgPc.radius[1] = 0.0F;  // 左侧不圆角
         arrowBgPc.radius[2] = arrowBgPc.radius[3] = RADIUS;
 
         const Eigen::Vector4f arrowBgColor{0.18F, 0.18F, 0.22F, context.alpha};
@@ -81,10 +85,8 @@ public:
         triPc.radius[0] = triPc.radius[1] = triPc.radius[2] = triPc.radius[3] = 0.0F;
         triPc.draw_mode = 0.0F;
 
-        const Eigen::Vector4f arrowColor{dropDown->arrowColor.red,
-                                         dropDown->arrowColor.green,
-                                         dropDown->arrowColor.blue,
-                                         dropDown->arrowColor.alpha};
+        const Eigen::Vector4f arrowColor{dropDown->arrowColor.red, dropDown->arrowColor.green,
+                                         dropDown->arrowColor.blue, dropDown->arrowColor.alpha};
 
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, triPc);
         const auto baseIndex = static_cast<uint16_t>(context.batchManager->currentVertexCount());
@@ -108,25 +110,28 @@ public:
             vtx.shadow_params[1] = 0.0F;
             vtx.shadow_params[2] = 0.0F;
             vtx.shadow_params[3] = context.alpha;
-            vtx.mode_params[0] = 0.0F; // padding_flag = 0 → 走主体 SDF 分支
+            vtx.mode_params[0] = 0.0F;  // padding_flag = 0 → 走主体 SDF 分支
             vtx.mode_params[1] = 0.0F;
-            vtx.mode_params[2] = 0.0F; // draw_mode = 填充
+            vtx.mode_params[2] = 0.0F;  // draw_mode = 填充
             vtx.mode_params[3] = 0.0F;
             return vtx;
         };
 
-        context.batchManager->addVertex(makeVertex(triX, triY, 0.0F, 0.0F));                          // 左上
-        context.batchManager->addVertex(makeVertex(triX + TRI_W, triY, 1.0F, 0.0F));                  // 右上
-        context.batchManager->addVertex(makeVertex(triX + (TRI_W * 0.5F), triY + TRI_H, 0.5F, 1.0F)); // 下中
+        context.batchManager->addVertex(makeVertex(triX, triY, 0.0F, 0.0F));                           // 左上
+        context.batchManager->addVertex(makeVertex(triX + TRI_W, triY, 1.0F, 0.0F));                   // 右上
+        context.batchManager->addVertex(makeVertex(triX + (TRI_W * 0.5F), triY + TRI_H, 0.5F, 1.0F));  // 下中
         context.batchManager->addIndex(baseIndex);
         context.batchManager->addIndex(static_cast<uint16_t>(baseIndex + 1));
         context.batchManager->addIndex(static_cast<uint16_t>(baseIndex + 2));
     }
 
-    int getPriority() const override { return 8; }
+    int getPriority() const override
+    {
+        return 8;
+    }
 
-private:
+   private:
     Registry* m_reg = nullptr;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

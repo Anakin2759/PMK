@@ -1,6 +1,5 @@
 
 
-
 /**
  * Implementation for Application
  */
@@ -17,7 +16,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-
 
 #include "SystemManager.hpp"
 #include "UiRuntime.hpp"
@@ -37,20 +35,20 @@
 #include "utils/Dispatcher.hpp"
 #include "utils/Logger.hpp"
 
-static constexpr uint32_t MAX_FRAME_TIME_MS = 250; // 防止卡顿时长时间更新
-static constexpr uint32_t LOOP_DELAY_MS = 1;       // 主循环延迟，防止100% CPU占用
+static constexpr uint32_t MAX_FRAME_TIME_MS = 250;  // 防止卡顿时长时间更新
+static constexpr uint32_t LOOP_DELAY_MS = 1;        // 主循环延迟，防止100% CPU占用
 
 namespace
 {
 void OnDropDownCloseRequested(const ui::events::DropDownCloseRequested& event);
 void WriteStderr(const char* text) noexcept;
-} // namespace
+}  // namespace
 
 namespace ui
 {
 class ApplicationImpl
 {
-public:
+   public:
     explicit ApplicationImpl(std::span<char*> arg);
     ApplicationImpl(const ApplicationImpl&) = delete;
     ApplicationImpl& operator=(const ApplicationImpl&) = delete;
@@ -63,9 +61,9 @@ public:
     [[nodiscard]] UiRuntime& runtime() noexcept;
     [[nodiscard]] const UiRuntime& runtime() const noexcept;
 
-private:
-    std::unique_ptr<UiRuntime> m_runtime;           // 管理全局状态和资源
-    std::unique_ptr<UiRuntimeScope> m_runtimeScope; // 保持 legacy API 在应用生命周期内绑定当前 Runtime
+   private:
+    std::unique_ptr<UiRuntime> m_runtime;            // 管理全局状态和资源
+    std::unique_ptr<UiRuntimeScope> m_runtimeScope;  // 保持 legacy API 在应用生命周期内绑定当前 Runtime
     EventLoop m_eventLoop;
     detail::ApplicationLifecycle m_lifecycle;
 
@@ -75,9 +73,9 @@ private:
     std::chrono::steady_clock::time_point m_lastUpdateTime = std::chrono::steady_clock::now();
 };
 
-ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
+ApplicationImpl::ApplicationImpl(std::span<char*> arg)  // NOLINT
     : m_runtime(std::make_unique<UiRuntime>()),
-    m_runtimeScope(std::make_unique<UiRuntimeScope>(*m_runtime)),
+      m_runtimeScope(std::make_unique<UiRuntimeScope>(*m_runtime)),
       m_systems(std::make_unique<SystemManager>(m_runtime.get()))
 {
     config::AppConfig::instance().parseCommandLine(arg);
@@ -106,14 +104,14 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
     }
     m_lifecycle.ArmSdl([] { SDL_Quit(); });
 
-    if (config::AppConfig::instance().platformScalingEnabled()
-        && config::AppConfig::instance().forcedPlatformScale() <= 0.0F)
+    if (config::AppConfig::instance().platformScalingEnabled() &&
+        config::AppConfig::instance().forcedPlatformScale() <= 0.0F)
     {
         config::AppConfig::instance().setPlatformUiScale(platform::GetPrimaryDisplayUiScale());
     }
 
     m_runtime->logger().info("平台 UI 缩放: {:.2f}, framebuffer 初始缩放由窗口实时测量",
-                 config::AppConfig::instance().platformUiScale());
+                             config::AppConfig::instance().platformUiScale());
     m_runtime->logger().info("SDL 初始化成功");
 
     // 确保 FrameContext / StateContext 在系统初始化前可用
@@ -121,11 +119,9 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
     (void)m_runtime->ensureContext<globalcontext::StateContext>();
 
     m_systems->registerAllHandlers();
-    auto taskChain = tasks::QueuedTask{.runtime = m_runtime.get()}
-                     | tasks::InputTask{.systems = m_systems.get(), .runtime = m_runtime.get()}
-                     | tasks::RenderTask{.runtime = m_runtime.get()};
+    auto frameTick = tasks::FrameTick{*m_runtime, *m_systems};
     m_eventLoop.registerDefaultHandler(
-        [this, taskChain]() mutable
+        [this, frameTick]
         {
             auto now = std::chrono::steady_clock::now();
 
@@ -140,8 +136,8 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg) // NOLINT
             // 3. 安全保护
             dtMs = std::min(dtMs, MAX_FRAME_TIME_MS);
 
-            // 4. 执行任务链
-            taskChain(dtMs);
+            // M3 前沿用 EventLoop 现有 16 ms 调度及本地 dt；每个 callback 只执行一个 FrameTick。
+            frameTick(dtMs);
 
             SDL_Delay(LOOP_DELAY_MS);
         });
@@ -192,11 +188,11 @@ const UiRuntime& ApplicationImpl::runtime() const noexcept
     return *m_runtime;
 }
 
-Application::Application(std::span<char*> arg) : m_impl(std::make_unique<ApplicationImpl>(arg)) {}
+Application::Application(std::span<char*> arg) : m_impl(std::make_unique<ApplicationImpl>(arg))
+{
+}
 
 Application::~Application() noexcept = default;
-
-
 
 void Application::onQuitRequested([[maybe_unused]] ui::events::QuitRequested& event)
 {
@@ -217,7 +213,7 @@ const UiRuntime& Application::runtime() const noexcept
 {
     return m_impl->runtime();
 }
-} // namespace ui
+}  // namespace ui
 
 namespace
 {
@@ -239,4 +235,4 @@ void WriteStderr(const char* text) noexcept
         std::clearerr(stderr);
     }
 }
-} // namespace
+}  // namespace

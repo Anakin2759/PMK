@@ -1,4 +1,5 @@
 #include "TextTextureCache.hpp"
+#include "common/GpuFailureInjection.hpp"
 
 namespace ui::managers
 {
@@ -17,6 +18,9 @@ TextTextureCache::~TextTextureCache()
 void TextTextureCache::clear()
 {
     m_cache.clear();
+    m_cacheGenerationId = 0;
+    m_r8SupportCheckedGenerationId = 0;
+    m_r8UnormSampledSupportState = R8UnormSampledSupportState::UNKNOWN;
     UiRuntime::current().logger().info("[TextTextureCache] Cleared all cached textures");
 }
 
@@ -28,8 +32,8 @@ TextTextureCache::CacheStats TextTextureCache::getStats() const
     stats.hitCount = m_hitCount;
     stats.missCount = m_missCount;
     stats.hitRate = (m_hitCount + m_missCount) > 0
-                      ? static_cast<float>(m_hitCount) / static_cast<float>(m_hitCount + m_missCount)
-                      : 0.0F;
+                        ? static_cast<float>(m_hitCount) / static_cast<float>(m_hitCount + m_missCount)
+                        : 0.0F;
     stats.evictionCount = m_evictionCount;
     return stats;
 }
@@ -39,12 +43,21 @@ size_t TextTextureCache::size() const
     return m_cache.size();
 }
 
-SDL_GPUTexture* TextTextureCache::getOrUpload(
-    const std::string& text, const Eigen::Vector4f& color, uint32_t& outWidth, uint32_t& outHeight, float fontSize)
+SDL_GPUTexture* TextTextureCache::getOrUpload(const std::string& text, const Eigen::Vector4f& color, uint32_t& outWidth,
+                                              uint32_t& outHeight, float fontSize)
 {
     SDL_GPUDevice* device = m_deviceManager.getDevice();
-    if (device == nullptr || !m_fontManager.isLoaded()) return nullptr;
-    if (!isR8UnormSampledTextureSupported(device)) return nullptr;
+    const auto generation = m_deviceManager.getGeneration();
+    if (device == nullptr || !generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE ||
+        !m_fontManager.isLoaded())
+        return nullptr;
+    if (m_cacheGenerationId != generation.Id())
+    {
+        m_cache.clear();
+        m_cacheGenerationId = generation.Id();
+    }
+    if (!isR8UnormSampledTextureSupported(device, generation.Id()))
+        return nullptr;
 
     std::string cacheKey = buildCacheKey(text, fontSize);
 
@@ -55,7 +68,7 @@ SDL_GPUTexture* TextTextureCache::getOrUpload(
     }
 
     // 缓存未命中，创建新纹理
-    return createAndCacheTexture(text, color, cacheKey, outWidth, outHeight, fontSize);
+    return createAndCacheTexture(text, color, cacheKey, generation, outWidth, outHeight, fontSize);
 }
 
 uint8_t TextTextureCache::quantizeColor(float value)
@@ -65,22 +78,22 @@ uint8_t TextTextureCache::quantizeColor(float value)
 
 std::string TextTextureCache::buildCacheKey(const std::string& text, float fontSize) const
 {
-    return text + "_" + std::to_string(static_cast<int>(fontSize * 10.0F)) + "_"
-         + std::to_string(static_cast<int>(m_fontManager.getOversampleScale() * 100.0F));
+    return text + "_" + std::to_string(static_cast<int>(fontSize * 10.0F)) + "_" +
+           std::to_string(static_cast<int>(m_fontManager.getOversampleScale() * 100.0F));
 }
 
-bool TextTextureCache::isR8UnormSampledTextureSupported(SDL_GPUDevice* device)
+bool TextTextureCache::isR8UnormSampledTextureSupported(SDL_GPUDevice* device, std::uint64_t generationId)
 {
-    if (m_r8SupportCheckedDevice != device)
+    if (m_r8SupportCheckedGenerationId != generationId)
     {
-        m_r8SupportCheckedDevice = device;
+        m_r8SupportCheckedGenerationId = generationId;
         m_r8UnormSampledSupportState = R8UnormSampledSupportState::UNKNOWN;
     }
 
     if (m_r8UnormSampledSupportState == R8UnormSampledSupportState::UNKNOWN)
     {
-        const bool supported = SDL_GPUTextureSupportsFormat(
-            device, SDL_GPU_TEXTUREFORMAT_R8_UNORM, SDL_GPU_TEXTURETYPE_2D, SDL_GPU_TEXTUREUSAGE_SAMPLER);
+        const bool supported = SDL_GPUTextureSupportsFormat(device, SDL_GPU_TEXTUREFORMAT_R8_UNORM,
+                                                            SDL_GPU_TEXTURETYPE_2D, SDL_GPU_TEXTUREUSAGE_SAMPLER);
         m_r8UnormSampledSupportState =
             supported ? R8UnormSampledSupportState::SUPPORTED : R8UnormSampledSupportState::UNSUPPORTED;
 
@@ -111,24 +124,11 @@ SDL_GPUTexture* TextTextureCache::tryGetFromCache(const std::string& cacheKey, u
     return nullptr;
 }
 
-SDL_GPUTexture* TextTextureCache::createAndCacheTexture(const std::string& text,
-                                                        const Eigen::Vector4f& color,
+SDL_GPUTexture* TextTextureCache::createAndCacheTexture(const std::string& text, const Eigen::Vector4f& color,
                                                         const std::string& cacheKey,
-                                                        uint32_t& outWidth,
-                                                        uint32_t& outHeight,
-                                                        float fontSize)
+                                                        const detail::GpuDeviceGenerationHandle& generation,
+                                                        uint32_t& outWidth, uint32_t& outHeight, float fontSize)
 {
-    SDL_GPUDevice* device = m_deviceManager.getDevice();
-
-    // 缓存未命中
-    m_missCount++;
-
-    // 如果达到容量限制，执行LRU驱逐
-    if (m_cache.size() >= MAX_CACHE_SIZE)
-    {
-        evictLRU();
-    }
-
     // 渲染文本位图（传入 fontSize）
     int bitmapWidth = 0;
     int bitmapHeight = 0;
@@ -141,11 +141,24 @@ SDL_GPUTexture* TextTextureCache::createAndCacheTexture(const std::string& text,
     }
 
     // 创建GPU纹理并上传数据
-    auto texture = createAndUploadTexture(device, bitmap, bitmapWidth, bitmapHeight);
+    auto texture = createAndUploadTexture(generation, bitmap, bitmapWidth, bitmapHeight);
     if (texture == nullptr)
     {
         return nullptr;
     }
+
+    if (generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE || m_cacheGenerationId != generation.Id())
+    {
+        return nullptr;
+    }
+
+    // 候选纹理上传成功后才修改正式缓存，失败路径不得驱逐既有条目。
+    if (m_cache.size() >= MAX_CACHE_SIZE)
+    {
+        evictLRU();
+    }
+
+    m_missCount++;
 
     SDL_GPUTexture* rawTexture = texture.get();
 
@@ -165,11 +178,14 @@ SDL_GPUTexture* TextTextureCache::createAndCacheTexture(const std::string& text,
     return rawTexture;
 }
 
-wrappers::UniqueGPUTexture TextTextureCache::createAndUploadTexture(SDL_GPUDevice* device,
-                                                                    const std::vector<uint8_t>& bitmap,
-                                                                    int width,
+wrappers::UniqueGPUTexture TextTextureCache::createAndUploadTexture(const detail::GpuDeviceGenerationHandle& generation,
+                                                                    const std::vector<uint8_t>& bitmap, int width,
                                                                     int height)
 {
+    if (!generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
+    {
+        return nullptr;
+    }
     SDL_GPUTextureCreateInfo textureInfo = {};
     textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
     textureInfo.format = SDL_GPU_TEXTUREFORMAT_R8_UNORM;
@@ -179,7 +195,12 @@ wrappers::UniqueGPUTexture TextTextureCache::createAndUploadTexture(SDL_GPUDevic
     textureInfo.num_levels = 1;
     textureInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
 
-    auto texture = wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(device, SDL_CreateGPUTexture, &textureInfo);
+    if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::RESOURCE_CREATE))
+    {
+        return nullptr;
+    }
+    auto texture =
+        wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(generation, SDL_CreateGPUTexture, &textureInfo);
     if (!texture)
     {
         UiRuntime::current().logger().error("[TextTextureCache] Failed to create texture");
@@ -187,7 +208,7 @@ wrappers::UniqueGPUTexture TextTextureCache::createAndUploadTexture(SDL_GPUDevic
     }
 
     // 上传纹理数据
-    if (!uploadTextureData(device, texture.get(), bitmap, textureInfo.width, textureInfo.height))
+    if (!uploadTextureData(generation, texture.get(), bitmap, textureInfo.width, textureInfo.height))
     {
         return nullptr;
     }
@@ -195,22 +216,36 @@ wrappers::UniqueGPUTexture TextTextureCache::createAndUploadTexture(SDL_GPUDevic
     return texture;
 }
 
-bool TextTextureCache::uploadTextureData(
-    SDL_GPUDevice* device, SDL_GPUTexture* texture, const std::vector<uint8_t>& bitmap, uint32_t width, uint32_t height)
+bool TextTextureCache::uploadTextureData(const detail::GpuDeviceGenerationHandle& generation, SDL_GPUTexture* texture,
+                                         const std::vector<uint8_t>& bitmap, uint32_t width, uint32_t height)
 {
+    const auto activeDevice = generation.InvokeIfActive([](SDL_GPUDevice* device) { return device; });
+    SDL_GPUDevice* const device = activeDevice.value_or(nullptr);
+    if (device == nullptr || texture == nullptr)
+    {
+        return false;
+    }
     SDL_GPUTransferBufferCreateInfo transferInfo = {};
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
     transferInfo.size = static_cast<uint32_t>(bitmap.size());
 
+    if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::TRANSFER_CREATE))
+    {
+        return false;
+    }
     auto transferBuffer = wrappers::MakeGpuResource<wrappers::UniqueGPUTransferBuffer>(
-        device, SDL_CreateGPUTransferBuffer, &transferInfo);
+        generation, SDL_CreateGPUTransferBuffer, &transferInfo);
     if (!transferBuffer)
     {
         UiRuntime::current().logger().error("[TextTextureCache] Failed to create transfer buffer");
         return false;
     }
 
-    void* data = SDL_MapGPUTransferBuffer(device, transferBuffer.get(), false);
+    void* data = nullptr;
+    if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::MAP))
+    {
+        data = SDL_MapGPUTransferBuffer(device, transferBuffer.get(), false);
+    }
     if (data == nullptr)
     {
         UiRuntime::current().logger().error("[TextTextureCache] Failed to map transfer buffer");
@@ -220,8 +255,29 @@ bool TextTextureCache::uploadTextureData(
     SDL_memcpy(data, bitmap.data(), bitmap.size());
     SDL_UnmapGPUTransferBuffer(device, transferBuffer.get());
 
-    SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device);
-    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(cmd);
+    SDL_GPUCommandBuffer* cmd = nullptr;
+    if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::COMMAND_ACQUIRE))
+    {
+        cmd = SDL_AcquireGPUCommandBuffer(device);
+    }
+    if (cmd == nullptr)
+    {
+        return false;
+    }
+    SDL_GPUCopyPass* copyPass = nullptr;
+    if (!detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::COPY_PASS_BEGIN))
+    {
+        copyPass = SDL_BeginGPUCopyPass(cmd);
+    }
+    if (copyPass == nullptr)
+    {
+        if (!SDL_CancelGPUCommandBuffer(cmd))
+        {
+            UiRuntime::current().logger().error("[TextTextureCache] Failed to cancel command buffer: {}",
+                                                SDL_GetError());
+        }
+        return false;
+    }
 
     SDL_GPUTextureTransferInfo srcInfo = {};
     srcInfo.transfer_buffer = transferBuffer.get();
@@ -236,17 +292,32 @@ bool TextTextureCache::uploadTextureData(
 
     SDL_UploadToGPUTexture(copyPass, &srcInfo, &dstRegion, false);
     SDL_EndGPUCopyPass(copyPass);
-    SDL_SubmitGPUCommandBuffer(cmd);
+    if (detail::ShouldInjectGpuFailure(detail::GpuFaultPoint::SUBMIT))
+    {
+        if (!SDL_CancelGPUCommandBuffer(cmd))
+        {
+            UiRuntime::current().logger().error("[TextTextureCache] Failed to cancel command buffer: {}",
+                                                SDL_GetError());
+        }
+        return false;
+    }
+    if (!SDL_SubmitGPUCommandBuffer(cmd))
+    {
+        UiRuntime::current().logger().error("[TextTextureCache] Failed to submit upload: {}", SDL_GetError());
+        return false;
+    }
 
     return true;
 }
 
 void TextTextureCache::evictLRU()
 {
-    if (m_cache.empty()) return;
+    if (m_cache.empty())
+        return;
 
     SDL_GPUDevice* device = m_deviceManager.getDevice();
-    if (device == nullptr) return;
+    if (device == nullptr)
+        return;
 
     // 找到最旧的条目
     auto lru = m_cache.begin();
@@ -267,8 +338,7 @@ void TextTextureCache::evictLRU()
     */
 
     UiRuntime::current().logger().debug("[TextTextureCache] Evicted LRU entry: {} (access count: {})",
-                  lru->first.substr(0, 50),
-                  lru->second.accessCount);
+                                        lru->first.substr(0, 50), lru->second.accessCount);
 
     m_cache.erase(lru);
     m_evictionCount++;
@@ -282,10 +352,12 @@ void TextTextureCache::evictLRU()
 
 void TextTextureCache::evictBatch()
 {
-    if (m_cache.size() <= EVICTION_BATCH) return;
+    if (m_cache.size() <= EVICTION_BATCH)
+        return;
 
     SDL_GPUDevice* device = m_deviceManager.getDevice();
-    if (device == nullptr) return;
+    if (device == nullptr)
+        return;
 
     // 创建按访问时间排序的列表
     std::vector<std::pair<std::string, std::chrono::steady_clock::time_point>> entries;
@@ -297,8 +369,7 @@ void TextTextureCache::evictBatch()
     }
 
     // 按访问时间排序（最旧的在前）
-    std::sort(entries.begin(),
-              entries.end(),
+    std::sort(entries.begin(), entries.end(),
               [](const auto& first, const auto& second) { return first.second < second.second; });
 
     // 驱逐前 EVICTION_BATCH 个条目
@@ -314,7 +385,8 @@ void TextTextureCache::evictBatch()
     }
 
     m_evictionCount += evicted;
-    UiRuntime::current().logger().info("[TextTextureCache] Batch evicted {} entries, cache size: {}", evicted, m_cache.size());
+    UiRuntime::current().logger().info("[TextTextureCache] Batch evicted {} entries, cache size: {}", evicted,
+                                       m_cache.size());
 }
 
-} // namespace ui::managers
+}  // namespace ui::managers

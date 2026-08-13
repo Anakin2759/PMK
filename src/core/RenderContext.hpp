@@ -27,12 +27,12 @@ class IconManager;
 class ImageManager;
 class TextTextureCache;
 class BatchManager;
-} // namespace ui::managers
+}  // namespace ui::managers
 
 namespace ui::interface
 {
 class IBackendRenderer;
-} // namespace ui::interface
+}  // namespace ui::interface
 
 namespace ui::core
 {
@@ -107,8 +107,8 @@ struct RenderContext
 
     /**
      */
-    [[nodiscard]] RenderContext
-        createChildContext(const Eigen::Vector2f& childPos, const Eigen::Vector2f& childSize, float childAlpha) const
+    [[nodiscard]] RenderContext createChildContext(const Eigen::Vector2f& childPos, const Eigen::Vector2f& childSize,
+                                                   float childAlpha) const
     {
         RenderContext child = *this;
         child.position = position + childPos;
@@ -118,4 +118,4 @@ struct RenderContext
     }
 };
 
-} // namespace ui::core
+}  // namespace ui::core

@@ -26,9 +26,9 @@ struct Size
     Vec2 size{0.0F, 0.0F};
     Vec2 minSize{0.0F, 0.0F};
     Vec2 maxSize{FLT_MAX, FLT_MAX};
-    policies::Size sizePolicy = policies::Size::AUTO; // 宽度策略
+    policies::Size sizePolicy = policies::Size::AUTO;  // 宽度策略
 
-    float percentage = 1.0F; // 百分比值 (当策略为 Percentage 时使用，0.0-1.0)
+    float percentage = 1.0F;  // 百分比值 (当策略为 Percentage 时使用，0.0-1.0)
 };
 
 /**
@@ -58,7 +58,7 @@ struct CanvasSize
 struct Margin
 {
     using is_component_tag = void;
-    Vec4 values{0.0F, 0.0F, 0.0F, 0.0F}; // Top, Right, Bottom, Left
+    Vec4 values{0.0F, 0.0F, 0.0F, 0.0F};  // Top, Right, Bottom, Left
 };
 
 /**
@@ -68,7 +68,7 @@ struct Margin
 struct Padding
 {
     using is_component_tag = void;
-    Vec4 values{0.0F, 0.0F, 0.0F, 0.0F}; // Top, Right, Bottom, Left
+    Vec4 values{0.0F, 0.0F, 0.0F, 0.0F};  // Top, Right, Bottom, Left
 };
 
 /**
@@ -78,7 +78,7 @@ struct Hierarchy
 {
     using is_component_tag = void;
     entt::entity parent = entt::null;
-    std::vector<entt::entity> children; // 存储所有子节点
+    std::vector<entt::entity> children;  // 存储所有子节点
 };
 
 /**
@@ -87,7 +87,7 @@ struct Hierarchy
 struct ZOrderIndex
 {
     using is_component_tag = void;
-    int value = 0; // Z 顺序值，值越大越靠前
+    int value = 0;  // Z 顺序值，值越大越靠前
 };
 
 /**
@@ -97,9 +97,9 @@ struct LayoutInfo
 {
     using is_component_tag = void;
     static constexpr float DEFAULT_SPACING = 5.0F;
-    policies::LayoutDirection direction = policies::LayoutDirection::HORIZONTAL; // 布局方向
-    policies::Alignment alignment = policies::Alignment::CENTER;                 // 元素对齐方式
-    float spacing = DEFAULT_SPACING;                                             // 元素间距
+    policies::LayoutDirection direction = policies::LayoutDirection::HORIZONTAL;  // 布局方向
+    policies::Alignment alignment = policies::Alignment::CENTER;                  // 元素对齐方式
+    float spacing = DEFAULT_SPACING;                                              // 元素间距
 };
 
 /**
@@ -108,7 +108,7 @@ struct LayoutInfo
 struct Spacer
 {
     using is_component_tag = void;
-    uint8_t stretchFactor = 1; // 默认拉伸因子
+    uint8_t stretchFactor = 1;  // 默认拉伸因子
 };
 
 /**
@@ -139,4 +139,4 @@ struct LineInfo
     float thickness = DEFAULT_THICKNESS;
 };
 
-} // namespace ui::components
+}  // namespace ui::components

@@ -28,50 +28,40 @@
 namespace ui::icon
 {
 inline constexpr float DEFAULT_ICON_SIZE = 16.0F;    // NOLINT(readability-magic-numbers)
-inline constexpr float DEFAULT_ICON_SPACING = 4.0F; // NOLINT(readability-magic-numbers)
+inline constexpr float DEFAULT_ICON_SPACING = 4.0F;  // NOLINT(readability-magic-numbers)
 
-void SetIcon(ui::entity entity,
-             const std::string& textureId,
-             policies::IconFlag iconflag = policies::IconFlag::DEFAULT,
-             float iconSize = DEFAULT_ICON_SIZE,
-             float spacing = DEFAULT_ICON_SPACING);
+void SetIcon(ui::entity entity, const std::string& textureId, policies::IconFlag iconflag = policies::IconFlag::DEFAULT,
+             float iconSize = DEFAULT_ICON_SIZE, float spacing = DEFAULT_ICON_SPACING);
 
-void SetIcon(ui::entity entity,
-             const std::string& fontName,
-             uint32_t codepoint,
-             policies::IconFlag iconflag = policies::IconFlag::DEFAULT,
-             float iconSize = DEFAULT_ICON_SIZE,
+void SetIcon(ui::entity entity, const std::string& fontName, uint32_t codepoint,
+             policies::IconFlag iconflag = policies::IconFlag::DEFAULT, float iconSize = DEFAULT_ICON_SIZE,
              float spacing = DEFAULT_ICON_SPACING);
 
 void RemoveIcon(ui::entity entity);
-} // namespace ui::icon
+}  // namespace ui::icon
 
 namespace ui::actions::icon
 {
-inline constexpr EntityAction<static_cast<void (*)(
-    ui::entity, const std::string&, uint32_t, policies::IconFlag, float, float)>(&ui::icon::SetIcon)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, const std::string&, uint32_t, policies::IconFlag, float,
+                                                   float)>(&ui::icon::SetIcon)>
     SET_FONT_ICON_ACTION{};
 inline constexpr EntityAction<static_cast<void (*)(ui::entity, const std::string&, policies::IconFlag, float, float)>(
     &ui::icon::SetIcon)>
     SET_TEXTURE_ICON_ACTION{};
 inline constexpr EntityAction<&ui::icon::RemoveIcon> REMOVE_ICON_ACTION{};
-} // namespace ui::actions::icon
+}  // namespace ui::actions::icon
 
 namespace ui::chains
 {
-inline auto Icon(const std::string& fontName,
-                 uint32_t codepoint,
+inline auto Icon(const std::string& fontName, uint32_t codepoint,
                  policies::IconFlag iconflag = policies::IconFlag::DEFAULT,
-                 float iconSize = ui::icon::DEFAULT_ICON_SIZE,
-                 float spacing = ui::icon::DEFAULT_ICON_SPACING)
+                 float iconSize = ui::icon::DEFAULT_ICON_SIZE, float spacing = ui::icon::DEFAULT_ICON_SPACING)
 {
     return ui::actions::icon::SET_FONT_ICON_ACTION.bind(fontName, codepoint, iconflag, iconSize, spacing);
 }
 
-inline auto Icon(const std::string& textureId,
-                 policies::IconFlag iconflag = policies::IconFlag::DEFAULT,
-                 float iconSize = ui::icon::DEFAULT_ICON_SIZE,
-                 float spacing = ui::icon::DEFAULT_ICON_SPACING)
+inline auto Icon(const std::string& textureId, policies::IconFlag iconflag = policies::IconFlag::DEFAULT,
+                 float iconSize = ui::icon::DEFAULT_ICON_SIZE, float spacing = ui::icon::DEFAULT_ICON_SPACING)
 {
     return ui::actions::icon::SET_TEXTURE_ICON_ACTION.bind(textureId, iconflag, iconSize, spacing);
 }
@@ -80,4 +70,4 @@ inline auto RemoveIcon()
 {
     return ui::actions::icon::REMOVE_ICON_ACTION.bind();
 }
-} // namespace ui::chains
+}  // namespace ui::chains

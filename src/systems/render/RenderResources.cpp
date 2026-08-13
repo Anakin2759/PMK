@@ -44,12 +44,11 @@ void RenderSystem::initializeRenderers()
     m_impl->m_renderers.push_back(std::make_unique<renderers::CheckBoxRenderer>(*m_reg));
     m_impl->m_renderers.push_back(std::make_unique<renderers::DropDownRenderer>(*m_reg));
 
-    std::ranges::sort(
-        m_impl->m_renderers,
-        [](const std::unique_ptr<core::IRenderer>& leftRenderer, const std::unique_ptr<core::IRenderer>& rightRenderer)
-        { return leftRenderer->getPriority() < rightRenderer->getPriority(); });
+    std::ranges::sort(m_impl->m_renderers, [](const std::unique_ptr<core::IRenderer>& leftRenderer,
+                                              const std::unique_ptr<core::IRenderer>& rightRenderer)
+                      { return leftRenderer->getPriority() < rightRenderer->getPriority(); });
 
     ui::UiRuntime::current().logger().info("[RenderSystem] 初始化了 {} 个渲染器", m_impl->m_renderers.size());
 }
 
-} // namespace ui::systems
+}  // namespace ui::systems

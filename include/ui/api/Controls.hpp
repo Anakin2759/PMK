@@ -62,7 +62,7 @@ void SetOnDragStart(ui::entity entity, Callback<> callback);
 void SetOnDragEnd(ui::entity entity, Callback<> callback);
 void SetOnDragMove(ui::entity entity, Callback<Vec2> callback);
 void SetDroppable(ui::entity entity, bool enabled);
-} // namespace ui::controls
+}  // namespace ui::controls
 
 namespace ui::actions::controls
 {
@@ -96,7 +96,7 @@ inline constexpr EntityAction<&ui::controls::SetOnDragStart> SET_ON_DRAG_START_A
 inline constexpr EntityAction<&ui::controls::SetOnDragEnd> SET_ON_DRAG_END_ACTION{};
 inline constexpr EntityAction<&ui::controls::SetOnDragMove> SET_ON_DRAG_MOVE_ACTION{};
 inline constexpr EntityAction<&ui::controls::SetDroppable> SET_DROPPABLE_ACTION{};
-} // namespace ui::actions::controls
+}  // namespace ui::actions::controls
 
 namespace ui::chains
 {
@@ -220,4 +220,4 @@ inline auto Droppable(bool enabled = true)
 {
     return ui::actions::controls::SET_DROPPABLE_ACTION.bind(enabled);
 }
-} // namespace ui::chains
+}  // namespace ui::chains

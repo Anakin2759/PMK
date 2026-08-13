@@ -37,9 +37,9 @@ static constexpr size_t MAX_BATCH_COUNT = 256ULL * 1024ULL;
  */
 class BatchManager
 {
-public:
+   public:
     BatchManager()
-        : m_bufferResource(MAX_BATCH_COUNT), // 预分配 256KB
+        : m_bufferResource(MAX_BATCH_COUNT),  // 预分配 256KB
           m_batches(std::in_place, &m_bufferResource)
     {
     }
@@ -61,8 +61,7 @@ public:
      * @param scissor 裁剪区域
      * @param pushConstants 推送常量（逐实体字段由内部提取至顶点属性，保留全量用于兼容 FallbackBackendRenderer）
      */
-    void beginBatch(SDL_GPUTexture* texture,
-                    const std::optional<SDL_Rect>& scissor,
+    void beginBatch(SDL_GPUTexture* texture, const std::optional<SDL_Rect>& scissor,
                     const render::UiPushConstants& pushConstants)
     {
         // 从 UiPushConstants 提取逐实体字段到 m_pendingQuadParams，addRect 时写入顶点属性
@@ -92,8 +91,8 @@ public:
                 {
                     const SDL_Rect& nextScissor = scissor.value();
                     const SDL_Rect& currentScissor = m_currentBatch->scissorRect.value();
-                    canMerge = (nextScissor.x == currentScissor.x && nextScissor.y == currentScissor.y
-                                && nextScissor.w == currentScissor.w && nextScissor.h == currentScissor.h);
+                    canMerge = (nextScissor.x == currentScissor.x && nextScissor.y == currentScissor.y &&
+                                nextScissor.w == currentScissor.w && nextScissor.h == currentScissor.h);
                 }
                 else if (scissor.has_value() != m_currentBatch->scissorRect.has_value())
                 {
@@ -112,7 +111,7 @@ public:
             m_currentBatch.emplace(&m_bufferResource);
             m_currentBatch->texture = texture;
             m_currentBatch->scissorRect = scissor;
-            m_currentBatch->pushConstants = pushConstants; // 保留全量供 FallbackBackendRenderer 使用
+            m_currentBatch->pushConstants = pushConstants;  // 保留全量供 FallbackBackendRenderer 使用
         }
     }
 
@@ -155,15 +154,9 @@ public:
      * @param uv0~uv3 对应的 UV 坐标（编码局部坐标，由调用方计算）
      * @param color  顶点颜色
      */
-    void addOrientedQuad(const Eigen::Vector2f& vert0,
-                         const Eigen::Vector2f& vert1,
-                         const Eigen::Vector2f& vert2,
-                         const Eigen::Vector2f& vert3,
-                         const Eigen::Vector2f& uvVert0,
-                         const Eigen::Vector2f& uvVert1,
-                         const Eigen::Vector2f& uvVert2,
-                         const Eigen::Vector2f& uvVert3,
-                         const Eigen::Vector4f& color)
+    void addOrientedQuad(const Eigen::Vector2f& vert0, const Eigen::Vector2f& vert1, const Eigen::Vector2f& vert2,
+                         const Eigen::Vector2f& vert3, const Eigen::Vector2f& uvVert0, const Eigen::Vector2f& uvVert1,
+                         const Eigen::Vector2f& uvVert2, const Eigen::Vector2f& uvVert3, const Eigen::Vector4f& color)
     {
         if (!m_currentBatch.has_value())
         {
@@ -179,10 +172,10 @@ public:
         for (std::size_t vIdx = 0; vIdx < 4; ++vIdx)
         {
             render::Vertex vtx{};
-            vtx.position[0] = positions.at(vIdx).x(); // NOLINT
-            vtx.position[1] = positions.at(vIdx).y(); // NOLINT
-            vtx.texCoord[0] = uvCoords.at(vIdx).x();  // NOLINT
-            vtx.texCoord[1] = uvCoords.at(vIdx).y();  // NOLINT
+            vtx.position[0] = positions.at(vIdx).x();  // NOLINT
+            vtx.position[1] = positions.at(vIdx).y();  // NOLINT
+            vtx.texCoord[0] = uvCoords.at(vIdx).x();   // NOLINT
+            vtx.texCoord[1] = uvCoords.at(vIdx).y();   // NOLINT
             vtx.color[0] = color.x();
             vtx.color[1] = color.y();
             vtx.color[2] = color.z();
@@ -204,12 +197,9 @@ public:
             m_currentBatch->vertices.push_back(vtx);
         }
 
-        std::array<uint16_t, 6> indices = {baseIndex,
-                                           static_cast<uint16_t>(baseIndex + 1),
-                                           static_cast<uint16_t>(baseIndex + 2),
-                                           baseIndex,
-                                           static_cast<uint16_t>(baseIndex + 2),
-                                           static_cast<uint16_t>(baseIndex + 3)};
+        std::array<uint16_t, 6> indices = {
+            baseIndex, static_cast<uint16_t>(baseIndex + 1), static_cast<uint16_t>(baseIndex + 2),
+            baseIndex, static_cast<uint16_t>(baseIndex + 2), static_cast<uint16_t>(baseIndex + 3)};
         for (const auto& idx : indices)
         {
             m_currentBatch->indices.push_back(idx);
@@ -219,11 +209,8 @@ public:
     /**
      * @brief 添加矩形（4个顶点 + 6个索引）
      */
-    void addRect(const Eigen::Vector2f& pos,
-                 const Eigen::Vector2f& size,
-                 const Eigen::Vector4f& color,
-                 const Eigen::Vector2f& uvMin = {0.0F, 0.0F},
-                 const Eigen::Vector2f& uvMax = {1.0F, 1.0F})
+    void addRect(const Eigen::Vector2f& pos, const Eigen::Vector2f& size, const Eigen::Vector4f& color,
+                 const Eigen::Vector2f& uvMin = {0.0F, 0.0F}, const Eigen::Vector2f& uvMax = {1.0F, 1.0F})
     {
         if (!m_currentBatch.has_value())
         {
@@ -300,12 +287,9 @@ public:
         }
 
         // 添加6个索引（2个三角形）
-        std::array<uint16_t, 6> indices = {baseIndex,
-                                           static_cast<uint16_t>(baseIndex + 1),
-                                           static_cast<uint16_t>(baseIndex + 2),
-                                           baseIndex,
-                                           static_cast<uint16_t>(baseIndex + 2),
-                                           static_cast<uint16_t>(baseIndex + 3)};
+        std::array<uint16_t, 6> indices = {
+            baseIndex, static_cast<uint16_t>(baseIndex + 1), static_cast<uint16_t>(baseIndex + 2),
+            baseIndex, static_cast<uint16_t>(baseIndex + 2), static_cast<uint16_t>(baseIndex + 3)};
 
         for (const auto& idx : indices)
         {
@@ -330,7 +314,7 @@ public:
      */
     void optimize()
     {
-        flushBatch(); // 确保当前批次已刷新
+        flushBatch();  // 确保当前批次已刷新
 
         // TODO:
         // 1. 按纹理排序减少纹理切换
@@ -341,12 +325,18 @@ public:
     /**
      * @brief 获取所有批次
      */
-    [[nodiscard]] const std::pmr::vector<render::RenderBatch>& getBatches() const { return *m_batches; }
+    [[nodiscard]] const std::pmr::vector<render::RenderBatch>& getBatches() const
+    {
+        return *m_batches;
+    }
 
     /**
      * @brief 获取批次数量
      */
-    [[nodiscard]] size_t getBatchCount() const { return m_batches->size(); }
+    [[nodiscard]] size_t getBatchCount() const
+    {
+        return m_batches->size();
+    }
 
     /**
      * @brief 获取总顶点数
@@ -361,7 +351,7 @@ public:
         return count;
     }
 
-private:
+   private:
     struct PendingQuadParams
     {
         float rect_size[2] = {0.0F, 0.0F};
@@ -375,10 +365,10 @@ private:
         float draw_mode = 0.0F;
     };
 
-    std::pmr::monotonic_buffer_resource m_bufferResource;           // 帧内内存池资源
-    std::optional<std::pmr::vector<render::RenderBatch>> m_batches; // 存储所有渲染批次
-    std::optional<render::RenderBatch> m_currentBatch;              // 当前正在构建的批次
-    PendingQuadParams m_pendingQuadParams{};                        // 当前逐实体 SDF 参数
+    std::pmr::monotonic_buffer_resource m_bufferResource;            // 帧内内存池资源
+    std::optional<std::pmr::vector<render::RenderBatch>> m_batches;  // 存储所有渲染批次
+    std::optional<render::RenderBatch> m_currentBatch;               // 当前正在构建的批次
+    PendingQuadParams m_pendingQuadParams{};                         // 当前逐实体 SDF 参数
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

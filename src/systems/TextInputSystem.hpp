@@ -26,9 +26,11 @@ namespace ui::systems
 
 class TextInputSystem : public ui::interface::EnableRegister<TextInputSystem>
 {
-public:
+   public:
     TextInputSystem() = default;
-    explicit TextInputSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
+    explicit TextInputSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    {
+    }
 
     void registerHandlersImpl()
     {
@@ -44,9 +46,12 @@ public:
         m_disp->sink<events::RawKeyInput>().disconnect<&TextInputSystem::onRawKeyInput>(*this);
     }
 
-    ui::interface::SystemPhase getPhase() { return ui::interface::SystemPhase::INPUT; }
+    ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::INPUT;
+    }
 
-private:
+   private:
     void onRawTextInput(const events::RawTextInput& event)
     {
         services::TextEditingService::handleTextInput(*m_reg, event.text);
@@ -57,7 +62,8 @@ private:
         const auto key = static_cast<SDL_Keycode>(event.key);
         if (event.pressed)
         {
-            if (event.repeat) return;
+            if (event.repeat)
+                return;
             beginKeyRepeat(key);
             services::TextEditingService::handleKeyDown(*m_reg, key, static_cast<SDL_Keymod>(event.modifiers));
             return;
@@ -68,15 +74,17 @@ private:
 
     void doProcessKeyRepeat()
     {
-        if (m_heldKey == SDLK_UNKNOWN) return;
+        if (m_heldKey == SDLK_UNKNOWN)
+            return;
 
         uint64_t now = SDL_GetTicks();
-        if (now < m_keyPressTime + KEY_REPEAT_DELAY) return;
-        if (now < m_lastRepeatTime + KEY_REPEAT_INTERVAL) return;
+        if (now < m_keyPressTime + KEY_REPEAT_DELAY)
+            return;
+        if (now < m_lastRepeatTime + KEY_REPEAT_INTERVAL)
+            return;
 
         m_lastRepeatTime = now;
         services::TextEditingService::handleKeyDown(*m_reg, m_heldKey, SDL_GetModState());
-        m_disp->trigger<ui::events::UpdateRendering>(ui::events::UpdateRendering{});
     }
 
     void beginKeyRepeat(SDL_Keycode key)
@@ -88,7 +96,8 @@ private:
 
     void handleKeyUp(SDL_Keycode key)
     {
-        if (key != m_heldKey) return;
+        if (key != m_heldKey)
+            return;
 
         m_heldKey = SDLK_UNKNOWN;
         m_keyPressTime = 0;
@@ -104,4 +113,4 @@ private:
     Dispatcher* m_disp = nullptr;
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

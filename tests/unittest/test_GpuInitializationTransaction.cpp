@@ -84,6 +84,47 @@ TEST(GpuInitializationTransactionTest, ThirdNodeFailureRollsBackInReverseOrder)
     EXPECT_EQ(released, (std::vector{Node::TEXT_TEXTURE_CACHE, Node::PIPELINE_CACHE}));
 }
 
+class GpuInitializationNodeFailureTest : public ::testing::TestWithParam<Node>
+{
+};
+
+TEST_P(GpuInitializationNodeFailureTest, RollsBackEachCommittedPredecessorExactlyOnce)
+{
+    Transaction transaction;
+    std::vector<Node> released;
+    ASSERT_TRUE(transaction.Begin());
+
+    for (const Node node : {Node::PIPELINE_CACHE, Node::TEXT_TEXTURE_CACHE, Node::COMMAND_BUFFER})
+    {
+        if (node == GetParam())
+        {
+            break;
+        }
+        ASSERT_TRUE(transaction.Commit(node));
+    }
+
+    const auto cleanup = [&released](Node node) { released.push_back(node); };
+    transaction.FailAndRollback(cleanup);
+    transaction.FailAndRollback(cleanup);
+    transaction.Shutdown(cleanup);
+    transaction.Shutdown(cleanup);
+
+    std::vector<Node> expected;
+    if (GetParam() == Node::COMMAND_BUFFER)
+    {
+        expected = {Node::TEXT_TEXTURE_CACHE, Node::PIPELINE_CACHE};
+    }
+    else if (GetParam() == Node::TEXT_TEXTURE_CACHE)
+    {
+        expected = {Node::PIPELINE_CACHE};
+    }
+    EXPECT_EQ(released, expected);
+    EXPECT_EQ(transaction.CommittedCount(), 0U);
+}
+
+INSTANTIATE_TEST_SUITE_P(AllInitializationNodes, GpuInitializationNodeFailureTest,
+                         ::testing::Values(Node::PIPELINE_CACHE, Node::TEXT_TEXTURE_CACHE, Node::COMMAND_BUFFER));
+
 TEST(GpuInitializationTransactionTest, ReadyShutdownUsesReverseOrderExactlyOnce)
 {
     Transaction transaction;
@@ -95,8 +136,7 @@ TEST(GpuInitializationTransactionTest, ReadyShutdownUsesReverseOrderExactlyOnce)
     transaction.Shutdown(cleanup);
     transaction.Shutdown(cleanup);
 
-    EXPECT_EQ(released,
-              (std::vector{Node::COMMAND_BUFFER, Node::TEXT_TEXTURE_CACHE, Node::PIPELINE_CACHE}));
+    EXPECT_EQ(released, (std::vector{Node::COMMAND_BUFFER, Node::TEXT_TEXTURE_CACHE, Node::PIPELINE_CACHE}));
     EXPECT_EQ(transaction.GetState(), Transaction::State::SHUTDOWN);
 }
 
@@ -128,11 +168,10 @@ TEST(GpuInitializationTransactionTest, CleanupExceptionDoesNotSkipRemainingNodes
             }
         });
 
-    EXPECT_EQ(released,
-              (std::vector{Node::COMMAND_BUFFER, Node::TEXT_TEXTURE_CACHE, Node::PIPELINE_CACHE}));
+    EXPECT_EQ(released, (std::vector{Node::COMMAND_BUFFER, Node::TEXT_TEXTURE_CACHE, Node::PIPELINE_CACHE}));
     EXPECT_EQ(transaction.CommittedCount(), 0U);
     EXPECT_TRUE(transaction.HadCleanupFailure());
 }
 
-} // namespace
-} // namespace ui::systems::render::tests
+}  // namespace
+}  // namespace ui::systems::render::tests

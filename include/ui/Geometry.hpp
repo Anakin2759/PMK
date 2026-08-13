@@ -41,4 +41,4 @@ struct VerticalScrollbarGeometry
     float maxScroll = 0.0F;
 };
 
-} // namespace ui
+}  // namespace ui

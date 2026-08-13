@@ -28,7 +28,7 @@
 namespace ui::utils
 {
 
-inline constexpr size_t kMaxLogFileSize = static_cast<size_t>(1024) * 1024 * 5; // 5MB
+inline constexpr size_t kMaxLogFileSize = static_cast<size_t>(1024) * 1024 * 5;  // 5MB
 inline constexpr size_t kMaxLogFileCount = 1;
 
 /**
@@ -53,20 +53,18 @@ struct LogLocation
  */
 class Logger
 {
-public:
+   public:
     /**
      * @brief 使用默认配置构造 Logger（控制台 + 文件双 sink）
      */
-    Logger()
-        : m_logger(CreateDefaultLogger())
+    Logger() : m_logger(CreateDefaultLogger())
     {
     }
 
     /**
      * @brief 使用外部 spdlog::logger 构造
      */
-    explicit Logger(std::shared_ptr<spdlog::logger> logger)
-        : m_logger(std::move(logger))
+    explicit Logger(std::shared_ptr<spdlog::logger> logger) : m_logger(std::move(logger))
     {
     }
 
@@ -118,8 +116,8 @@ public:
      */
     void reconfigure(std::string_view filePath)
     {
-        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            std::string(filePath), kMaxLogFileSize, kMaxLogFileCount);
+        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(std::string(filePath), kMaxLogFileSize,
+                                                                               kMaxLogFileCount);
         fileSink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%# %!] %v");
 
         auto& sinks = m_logger->sinks();
@@ -136,9 +134,12 @@ public:
     /**
      * @brief 获取底层 spdlog::logger
      */
-    [[nodiscard]] std::shared_ptr<spdlog::logger> getLogger() const { return m_logger; }
+    [[nodiscard]] std::shared_ptr<spdlog::logger> getLogger() const
+    {
+        return m_logger;
+    }
 
-private:
+   private:
     std::shared_ptr<spdlog::logger> m_logger;
 
     [[nodiscard]] static std::shared_ptr<spdlog::logger> CreateDefaultLogger()
@@ -146,8 +147,8 @@ private:
         auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         consoleSink->set_pattern("%^[%T] [%l] %n: %v%$");
 
-        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            "logs/pestmankill.log", kMaxLogFileSize, kMaxLogFileCount);
+        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs/pestmankill.log", kMaxLogFileSize,
+                                                                               kMaxLogFileCount);
         fileSink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%# %!] %v");
 
         std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
@@ -161,10 +162,8 @@ private:
     void log(spdlog::level::level_enum level, const LogLocation& msg, Args&&... args)
     {
         m_logger->log(
-            spdlog::source_loc{msg.loc.file_name(), static_cast<int>(msg.loc.line()), msg.loc.function_name()},
-            level,
-            fmt::runtime(msg.fmt),
-            std::forward<Args>(args)...);
+            spdlog::source_loc{msg.loc.file_name(), static_cast<int>(msg.loc.line()), msg.loc.function_name()}, level,
+            fmt::runtime(msg.fmt), std::forward<Args>(args)...);
     }
 };
 
@@ -174,10 +173,10 @@ inline std::string NormalizePath(const char* path)
     std::string result = path == nullptr ? "" : path;
     for (auto& cha : result)
     {
-        if (cha == '\\') cha = '/';
+        if (cha == '\\')
+            cha = '/';
     }
     return result;
 }
 
-} // namespace ui::utils
-
+}  // namespace ui::utils

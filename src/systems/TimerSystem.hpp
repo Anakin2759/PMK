@@ -46,9 +46,11 @@ namespace ui::systems
  */
 class TimerSystem : public interface::EnableRegister<TimerSystem>
 {
-public:
+   public:
     TimerSystem() = default;
-    explicit TimerSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()) {}
+    explicit TimerSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    {
+    }
 
     /**
      * @brief 注册事件处理器
@@ -60,7 +62,10 @@ public:
      */
     void unregisterHandlersImpl();
 
-    ui::interface::SystemPhase getPhase() { return ui::interface::SystemPhase::FRAME; }
+    ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::FRAME;
+    }
 
     /**
      * @brief 添加定时任务
@@ -83,9 +88,9 @@ public:
      */
     void update(uint32_t deltaMs);
 
-private:
+   private:
     void onUpdateTimer(const events::UpdateTimer& event);
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
 };
-} // namespace ui::systems
+}  // namespace ui::systems

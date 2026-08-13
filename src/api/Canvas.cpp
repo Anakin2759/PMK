@@ -154,4 +154,4 @@ Painter& Painter::commit(Color color, float lineWidth)
     return *this;
 }
 
-} // namespace ui::canvas
+}  // namespace ui::canvas

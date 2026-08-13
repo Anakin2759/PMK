@@ -48,22 +48,21 @@ bool NearlyEqual(float lhs, float rhs)
 
 bool SameColor(const Color& lhs, const Color& rhs)
 {
-    return NearlyEqual(lhs.red, rhs.red) && NearlyEqual(lhs.green, rhs.green) && NearlyEqual(lhs.blue, rhs.blue)
-        && NearlyEqual(lhs.alpha, rhs.alpha);
+    return NearlyEqual(lhs.red, rhs.red) && NearlyEqual(lhs.green, rhs.green) && NearlyEqual(lhs.blue, rhs.blue) &&
+           NearlyEqual(lhs.alpha, rhs.alpha);
 }
 
 bool SameRadii(const Vec4& lhs, const Vec4& rhs)
 {
-    return NearlyEqual(lhs.x(), rhs.x()) && NearlyEqual(lhs.y(), rhs.y()) && NearlyEqual(lhs.z(), rhs.z())
-        && NearlyEqual(lhs.w(), rhs.w());
+    return NearlyEqual(lhs.x(), rhs.x()) && NearlyEqual(lhs.y(), rhs.y()) && NearlyEqual(lhs.z(), rhs.z()) &&
+           NearlyEqual(lhs.w(), rhs.w());
 }
 
-bool CanUpdateManagedRadius(const Vec4& currentRadius,
-                            const Vec4& desiredRadius,
+bool CanUpdateManagedRadius(const Vec4& currentRadius, const Vec4& desiredRadius,
                             const std::optional<Vec4>& managedRadius)
 {
-    return SameRadii(currentRadius, Vec4{0.0F, 0.0F, 0.0F, 0.0F}) || SameRadii(currentRadius, desiredRadius)
-        || (managedRadius.has_value() && SameRadii(currentRadius, *managedRadius));
+    return SameRadii(currentRadius, Vec4{0.0F, 0.0F, 0.0F, 0.0F}) || SameRadii(currentRadius, desiredRadius) ||
+           (managedRadius.has_value() && SameRadii(currentRadius, *managedRadius));
 }
 
 bool ColorMatchesAny(const Color& color, std::initializer_list<Color> candidates)
@@ -116,8 +115,8 @@ bool IsDefaultProgressBackgroundColor(const Color& color)
     return SameColor(color, Color{0.3F, 0.3F, 0.3F, 1.0F});
 }
 
-bool ApplyBackground(
-    Registry& reg, entt::entity entity, const Color& nextColor, const Color& previousColor, const Vec4& radius)
+bool ApplyBackground(Registry& reg, entt::entity entity, const Color& nextColor, const Color& previousColor,
+                     const Vec4& radius)
 {
     const auto* styleState = reg.try_get<components::ThemeStyleState>(entity);
     auto* background = reg.try_get<components::Background>(entity);
@@ -130,12 +129,11 @@ bool ApplyBackground(
         return true;
     }
 
-    if ((background->enabled != policies::Feature::ENABLED && SameColor(background->color, Color::Transparent()))
-        || SameColor(background->color, previousColor))
+    if ((background->enabled != policies::Feature::ENABLED && SameColor(background->color, Color::Transparent())) ||
+        SameColor(background->color, previousColor))
     {
         background->color = nextColor;
-        if (CanUpdateManagedRadius(background->borderRadius,
-                                   radius,
+        if (CanUpdateManagedRadius(background->borderRadius, radius,
                                    styleState != nullptr ? styleState->managedBackgroundRadius : std::optional<Vec4>{}))
         {
             background->borderRadius = radius;
@@ -147,12 +145,8 @@ bool ApplyBackground(
     return false;
 }
 
-bool ApplyBorder(Registry& reg,
-                 entt::entity entity,
-                 const Color& nextColor,
-                 const Color& previousColor,
-                 const Vec4& radius,
-                 float thickness = 1.0F)
+bool ApplyBorder(Registry& reg, entt::entity entity, const Color& nextColor, const Color& previousColor,
+                 const Vec4& radius, float thickness = 1.0F)
 {
     const auto* styleState = reg.try_get<components::ThemeStyleState>(entity);
     auto* border = reg.try_get<components::Border>(entity);
@@ -166,13 +160,12 @@ bool ApplyBorder(Registry& reg,
         return true;
     }
 
-    if ((border->enabled != policies::Feature::ENABLED && SameColor(border->color, Color::White()))
-        || SameColor(border->color, previousColor))
+    if ((border->enabled != policies::Feature::ENABLED && SameColor(border->color, Color::White())) ||
+        SameColor(border->color, previousColor))
     {
         border->color = nextColor;
         border->thickness = thickness;
-        if (CanUpdateManagedRadius(border->borderRadius,
-                                   radius,
+        if (CanUpdateManagedRadius(border->borderRadius, radius,
                                    styleState != nullptr ? styleState->managedBorderRadius : std::optional<Vec4>{}))
         {
             border->borderRadius = radius;
@@ -218,10 +211,7 @@ bool ApplyTextEditColor(Registry& reg, entt::entity entity, const Color& nextCol
     return false;
 }
 
-bool ApplyDropDownArrowColor(Registry& reg,
-                             entt::entity entity,
-                             const Color& nextColor,
-                             const Color& previousColor)
+bool ApplyDropDownArrowColor(Registry& reg, entt::entity entity, const Color& nextColor, const Color& previousColor)
 {
     auto* dropDown = reg.try_get<components::DropDown>(entity);
     if (dropDown == nullptr)
@@ -238,9 +228,7 @@ bool ApplyDropDownArrowColor(Registry& reg,
     return false;
 }
 
-bool ApplyCheckBoxColors(Registry& reg,
-                         entt::entity entity,
-                         const theme::ThemePalette& nextTheme,
+bool ApplyCheckBoxColors(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                          const theme::ThemePalette& previousTheme)
 {
     auto* checkBox = reg.try_get<components::CheckBox>(entity);
@@ -263,9 +251,7 @@ bool ApplyCheckBoxColors(Registry& reg,
     return changed;
 }
 
-bool ApplySliderColors(Registry& reg,
-                       entt::entity entity,
-                       const theme::ThemePalette& nextTheme,
+bool ApplySliderColors(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                        const theme::ThemePalette& previousTheme)
 {
     auto* slider = reg.try_get<components::SliderInfo>(entity);
@@ -293,9 +279,7 @@ bool ApplySliderColors(Registry& reg,
     return changed;
 }
 
-bool ApplyProgressBarColors(Registry& reg,
-                            entt::entity entity,
-                            const theme::ThemePalette& nextTheme,
+bool ApplyProgressBarColors(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                             const theme::ThemePalette& previousTheme)
 {
     auto* progressBar = reg.try_get<components::ProgressBar>(entity);
@@ -310,8 +294,8 @@ bool ApplyProgressBarColors(Registry& reg,
         progressBar->fillColor = nextTheme.accent;
         changed = true;
     }
-    if (IsDefaultProgressBackgroundColor(progressBar->backgroundColor)
-        || SameColor(progressBar->backgroundColor, previousTheme.surfaceBackground))
+    if (IsDefaultProgressBackgroundColor(progressBar->backgroundColor) ||
+        SameColor(progressBar->backgroundColor, previousTheme.surfaceBackground))
     {
         progressBar->backgroundColor = nextTheme.surfaceBackground;
         changed = true;
@@ -337,8 +321,8 @@ void ClearThemedTags(Registry& reg)
     }
 }
 
-Color ResolveFocusedBorderColor(
-    bool disabled, bool focused, const Color& normalColor, const Color& focusedColor, const Color& disabledColor)
+Color ResolveFocusedBorderColor(bool disabled, bool focused, const Color& normalColor, const Color& focusedColor,
+                                const Color& disabledColor)
 {
     if (disabled)
     {
@@ -353,26 +337,22 @@ Color ResolveFocusedBorderColor(
     return normalColor;
 }
 
-void InitializeManagedButtonColors(Registry& reg,
-                                   entt::entity entity,
-                                   const theme::ThemePalette& theme,
+void InitializeManagedButtonColors(Registry& reg, entt::entity entity, const theme::ThemePalette& theme,
                                    components::ThemeStyleState& styleState)
 {
     if (const auto* background = reg.try_get<components::Background>(entity);
-        background != nullptr
-        && ColorMatchesAny(background->color,
-                           {theme.primaryButtonBackground,
-                            theme.primaryButtonBackgroundHover,
-                            theme.primaryButtonBackgroundActive,
-                            theme.primaryButtonBackgroundDisabled}))
+        background != nullptr &&
+        ColorMatchesAny(background->color,
+                        {theme.primaryButtonBackground, theme.primaryButtonBackgroundHover,
+                         theme.primaryButtonBackgroundActive, theme.primaryButtonBackgroundDisabled}))
     {
         styleState.managedBackgroundColor = background->color;
         styleState.managedBackgroundRadius = background->borderRadius;
     }
 
     if (const auto* border = reg.try_get<components::Border>(entity);
-        border != nullptr
-        && ColorMatchesAny(border->color, {theme.surfaceBorder, theme.focusBorderColor, theme.disabledBorder}))
+        border != nullptr &&
+        ColorMatchesAny(border->color, {theme.surfaceBorder, theme.focusBorderColor, theme.disabledBorder}))
     {
         styleState.managedBorderColor = border->color;
         styleState.managedBorderRadius = border->borderRadius;
@@ -385,26 +365,21 @@ void InitializeManagedButtonColors(Registry& reg,
     }
 }
 
-void InitializeManagedDropDownColors(Registry& reg,
-                                     entt::entity entity,
-                                     const theme::ThemePalette& theme,
+void InitializeManagedDropDownColors(Registry& reg, entt::entity entity, const theme::ThemePalette& theme,
                                      components::ThemeStyleState& styleState)
 {
     if (const auto* background = reg.try_get<components::Background>(entity);
-        background != nullptr
-        && ColorMatchesAny(background->color,
-                           {theme.inputBackground,
-                            theme.inputBackgroundHover,
-                            theme.inputBackgroundActive,
-                            theme.inputBackgroundDisabled}))
+        background != nullptr &&
+        ColorMatchesAny(background->color, {theme.inputBackground, theme.inputBackgroundHover,
+                                            theme.inputBackgroundActive, theme.inputBackgroundDisabled}))
     {
         styleState.managedBackgroundColor = background->color;
         styleState.managedBackgroundRadius = background->borderRadius;
     }
 
     if (const auto* border = reg.try_get<components::Border>(entity);
-        border != nullptr
-        && ColorMatchesAny(border->color, {theme.inputBorder, theme.focusBorderColor, theme.inputBorderDisabled}))
+        border != nullptr &&
+        ColorMatchesAny(border->color, {theme.inputBorder, theme.focusBorderColor, theme.inputBorderDisabled}))
     {
         styleState.managedBorderColor = border->color;
         styleState.managedBorderRadius = border->borderRadius;
@@ -417,18 +392,15 @@ void InitializeManagedDropDownColors(Registry& reg,
     }
 
     if (const auto* dropDown = reg.try_get<components::DropDown>(entity);
-        dropDown != nullptr
-        && ColorMatchesAny(
-            dropDown->arrowColor,
-            {theme.dropDownArrow, theme.dropDownArrowHover, theme.dropDownArrowActive, theme.dropDownArrowDisabled}))
+        dropDown != nullptr &&
+        ColorMatchesAny(dropDown->arrowColor, {theme.dropDownArrow, theme.dropDownArrowHover, theme.dropDownArrowActive,
+                                               theme.dropDownArrowDisabled}))
     {
         styleState.managedIndicatorColor = dropDown->arrowColor;
     }
 }
 
-void InitializeManagedDropDownPopupPanelColors(Registry& reg,
-                                               entt::entity entity,
-                                               const theme::ThemePalette& theme,
+void InitializeManagedDropDownPopupPanelColors(Registry& reg, entt::entity entity, const theme::ThemePalette& theme,
                                                components::ThemeStyleState& styleState)
 {
     if (const auto* background = reg.try_get<components::Background>(entity);
@@ -446,18 +418,13 @@ void InitializeManagedDropDownPopupPanelColors(Registry& reg,
     }
 }
 
-void InitializeManagedDropDownPopupItemColors(Registry& reg,
-                                              entt::entity entity,
-                                              const theme::ThemePalette& theme,
+void InitializeManagedDropDownPopupItemColors(Registry& reg, entt::entity entity, const theme::ThemePalette& theme,
                                               components::ThemeStyleState& styleState)
 {
     if (const auto* background = reg.try_get<components::Background>(entity);
-        background != nullptr
-        && ColorMatchesAny(background->color,
-                           {theme.popupItemBackground,
-                            theme.popupItemBackgroundHover,
-                            theme.popupItemBackgroundActive,
-                            theme.popupItemBackgroundSelected}))
+        background != nullptr &&
+        ColorMatchesAny(background->color, {theme.popupItemBackground, theme.popupItemBackgroundHover,
+                                            theme.popupItemBackgroundActive, theme.popupItemBackgroundSelected}))
     {
         styleState.managedBackgroundColor = background->color;
         styleState.managedBackgroundRadius = background->borderRadius;
@@ -470,9 +437,7 @@ void InitializeManagedDropDownPopupItemColors(Registry& reg,
     }
 }
 
-void InitializeManagedCheckBoxColors(Registry& reg,
-                                     entt::entity entity,
-                                     const theme::ThemePalette& theme,
+void InitializeManagedCheckBoxColors(Registry& reg, entt::entity entity, const theme::ThemePalette& theme,
                                      components::ThemeStyleState& styleState)
 {
     if (const auto* text = reg.try_get<components::Text>(entity);
@@ -483,9 +448,8 @@ void InitializeManagedCheckBoxColors(Registry& reg,
 
     if (const auto* checkBox = reg.try_get<components::CheckBox>(entity); checkBox != nullptr)
     {
-        if (ColorMatchesAny(
-                checkBox->boxColor,
-                {theme.surfaceBackground, theme.checkBoxBoxHover, theme.checkBoxBoxActive, theme.checkBoxBoxDisabled}))
+        if (ColorMatchesAny(checkBox->boxColor, {theme.surfaceBackground, theme.checkBoxBoxHover,
+                                                 theme.checkBoxBoxActive, theme.checkBoxBoxDisabled}))
         {
             styleState.managedBackgroundColor = checkBox->boxColor;
         }
@@ -514,20 +478,17 @@ void InitializeManagedInteractiveColors(Registry& reg, entt::entity entity, cons
     if (reg.any_of<components::TextEditTag>(entity))
     {
         if (const auto* background = reg.try_get<components::Background>(entity);
-            background != nullptr
-            && ColorMatchesAny(background->color,
-                               {theme.inputBackground,
-                                theme.inputBackgroundHover,
-                                theme.inputBackgroundActive,
-                                theme.inputBackgroundDisabled}))
+            background != nullptr &&
+            ColorMatchesAny(background->color, {theme.inputBackground, theme.inputBackgroundHover,
+                                                theme.inputBackgroundActive, theme.inputBackgroundDisabled}))
         {
             styleState.managedBackgroundColor = background->color;
             styleState.managedBackgroundRadius = background->borderRadius;
         }
 
         if (const auto* border = reg.try_get<components::Border>(entity);
-            border != nullptr
-            && ColorMatchesAny(border->color, {theme.inputBorder, theme.focusBorderColor, theme.inputBorderDisabled}))
+            border != nullptr &&
+            ColorMatchesAny(border->color, {theme.inputBorder, theme.focusBorderColor, theme.inputBorderDisabled}))
         {
             styleState.managedBorderColor = border->color;
             styleState.managedBorderRadius = border->borderRadius;
@@ -559,8 +520,8 @@ bool UpdateManagedBackground(Registry& reg, entt::entity entity, const Color& de
         return false;
     }
 
-    if (!SameColor(background->color, *styleState->managedBackgroundColor)
-        || SameColor(background->color, desiredColor))
+    if (!SameColor(background->color, *styleState->managedBackgroundColor) ||
+        SameColor(background->color, desiredColor))
     {
         return false;
     }
@@ -619,8 +580,8 @@ bool UpdateManagedCheckBoxBoxColor(Registry& reg, entt::entity entity, const Col
         return false;
     }
 
-    if (!SameColor(checkBox->boxColor, *styleState->managedBackgroundColor)
-        || SameColor(checkBox->boxColor, desiredColor))
+    if (!SameColor(checkBox->boxColor, *styleState->managedBackgroundColor) ||
+        SameColor(checkBox->boxColor, desiredColor))
     {
         return false;
     }
@@ -640,8 +601,8 @@ bool UpdateManagedIndicatorColor(Registry& reg, entt::entity entity, const Color
 
     if (auto* checkBox = reg.try_get<components::CheckBox>(entity); checkBox != nullptr)
     {
-        if (!SameColor(checkBox->checkColor, *styleState->managedIndicatorColor)
-            || SameColor(checkBox->checkColor, desiredColor))
+        if (!SameColor(checkBox->checkColor, *styleState->managedIndicatorColor) ||
+            SameColor(checkBox->checkColor, desiredColor))
         {
             return false;
         }
@@ -653,8 +614,8 @@ bool UpdateManagedIndicatorColor(Registry& reg, entt::entity entity, const Color
 
     if (auto* dropDown = reg.try_get<components::DropDown>(entity); dropDown != nullptr)
     {
-        if (!SameColor(dropDown->arrowColor, *styleState->managedIndicatorColor)
-            || SameColor(dropDown->arrowColor, desiredColor))
+        if (!SameColor(dropDown->arrowColor, *styleState->managedIndicatorColor) ||
+            SameColor(dropDown->arrowColor, desiredColor))
         {
             return false;
         }
@@ -697,26 +658,20 @@ bool ApplyButtonInteractiveTheme(Registry& reg, entt::entity entity, const theme
     }
 
     changed |= UpdateManagedBackground(reg, entity, desiredBackground);
-    changed |= UpdateManagedBorder(reg,
-                                   entity,
-                                   ResolveFocusedBorderColor(disabled,
-                                                             reg.any_of<components::FocusedTag>(entity),
-                                                             theme.surfaceBorder,
-                                                             theme.focusBorderColor,
-                                                             theme.disabledBorder));
+    changed |= UpdateManagedBorder(
+        reg, entity,
+        ResolveFocusedBorderColor(disabled, reg.any_of<components::FocusedTag>(entity), theme.surfaceBorder,
+                                  theme.focusBorderColor, theme.disabledBorder));
     changed |= UpdateManagedTextColor(reg, entity, disabled ? theme.textDisabled : theme.primaryButtonText);
     return changed;
 }
 
 bool ApplyTextEditInteractiveTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& theme)
 {
-    return UpdateManagedBorder(reg,
-                               entity,
+    return UpdateManagedBorder(reg, entity,
                                ResolveFocusedBorderColor(reg.any_of<components::DisabledTag>(entity),
-                                                         reg.any_of<components::FocusedTag>(entity),
-                                                         theme.inputBorder,
-                                                         theme.focusBorderColor,
-                                                         theme.inputBorderDisabled));
+                                                         reg.any_of<components::FocusedTag>(entity), theme.inputBorder,
+                                                         theme.focusBorderColor, theme.inputBorderDisabled));
 }
 
 bool ApplyDropDownInteractiveTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& theme)
@@ -741,13 +696,10 @@ bool ApplyDropDownInteractiveTheme(Registry& reg, entt::entity entity, const the
     }
 
     changed |= UpdateManagedBackground(reg, entity, desiredBackground);
-    changed |= UpdateManagedBorder(reg,
-                                   entity,
-                                   ResolveFocusedBorderColor(disabled,
-                                                             reg.any_of<components::FocusedTag>(entity),
-                                                             theme.inputBorder,
-                                                             theme.focusBorderColor,
-                                                             theme.inputBorderDisabled));
+    changed |= UpdateManagedBorder(
+        reg, entity,
+        ResolveFocusedBorderColor(disabled, reg.any_of<components::FocusedTag>(entity), theme.inputBorder,
+                                  theme.focusBorderColor, theme.inputBorderDisabled));
     changed |= UpdateManagedTextColor(reg, entity, disabled ? theme.textDisabled : theme.inputText);
     changed |= UpdateManagedIndicatorColor(reg, entity, desiredArrow);
     return changed;
@@ -839,57 +791,38 @@ bool ApplyInteractiveThemeToEntity(Registry& reg, entt::entity entity, const the
     return changed;
 }
 
-bool ApplyButtonTheme(Registry& reg,
-                      entt::entity entity,
-                      const theme::ThemePalette& nextTheme,
+bool ApplyButtonTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                       const theme::ThemePalette& previousTheme)
 {
     bool changed = false;
-    changed |= ApplyBackground(reg,
-                               entity,
-                               nextTheme.primaryButtonBackground,
-                               previousTheme.primaryButtonBackground,
+    changed |= ApplyBackground(reg, entity, nextTheme.primaryButtonBackground, previousTheme.primaryButtonBackground,
                                nextTheme.primaryButtonRadius);
-    changed |= ApplyBorder(reg,
-                           entity,
-                           nextTheme.surfaceBorder,
-                           previousTheme.surfaceBorder,
-                           nextTheme.primaryButtonRadius,
-                           nextTheme.primaryButtonBorderThickness);
+    changed |= ApplyBorder(reg, entity, nextTheme.surfaceBorder, previousTheme.surfaceBorder,
+                           nextTheme.primaryButtonRadius, nextTheme.primaryButtonBorderThickness);
     changed |= ApplyTextColor(reg, entity, nextTheme.primaryButtonText, previousTheme.primaryButtonText);
     return changed;
 }
 
-bool ApplyLabelTheme(Registry& reg,
-                     entt::entity entity,
-                     const theme::ThemePalette& nextTheme,
+bool ApplyLabelTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                      const theme::ThemePalette& previousTheme)
 {
     return ApplyTextColor(reg, entity, nextTheme.textPrimary, previousTheme.textPrimary);
 }
 
-bool ApplyTextEditTheme(Registry& reg,
-                        entt::entity entity,
-                        const theme::ThemePalette& nextTheme,
+bool ApplyTextEditTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                         const theme::ThemePalette& previousTheme)
 {
     bool changed = false;
-    changed |= ApplyBackground(
-        reg, entity, nextTheme.inputBackground, previousTheme.inputBackground, nextTheme.inputControlRadius);
-    changed |= ApplyBorder(reg,
-                           entity,
-                           nextTheme.inputBorder,
-                           previousTheme.inputBorder,
-                           nextTheme.inputControlRadius,
+    changed |= ApplyBackground(reg, entity, nextTheme.inputBackground, previousTheme.inputBackground,
+                               nextTheme.inputControlRadius);
+    changed |= ApplyBorder(reg, entity, nextTheme.inputBorder, previousTheme.inputBorder, nextTheme.inputControlRadius,
                            nextTheme.inputBorderThickness);
     changed |= ApplyTextColor(reg, entity, nextTheme.inputText, previousTheme.inputText);
     changed |= ApplyTextEditColor(reg, entity, nextTheme.inputText, previousTheme.inputText);
     return changed;
 }
 
-bool ApplyCheckBoxTheme(Registry& reg,
-                        entt::entity entity,
-                        const theme::ThemePalette& nextTheme,
+bool ApplyCheckBoxTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                         const theme::ThemePalette& previousTheme)
 {
     bool changed = false;
@@ -898,34 +831,25 @@ bool ApplyCheckBoxTheme(Registry& reg,
     return changed;
 }
 
-bool ApplyDropDownTheme(Registry& reg,
-                        entt::entity entity,
-                        const theme::ThemePalette& nextTheme,
+bool ApplyDropDownTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                         const theme::ThemePalette& previousTheme)
 {
     bool changed = false;
-    changed |= ApplyBackground(
-        reg, entity, nextTheme.inputBackground, previousTheme.inputBackground, nextTheme.inputControlRadius);
-    changed |= ApplyBorder(reg,
-                           entity,
-                           nextTheme.inputBorder,
-                           previousTheme.inputBorder,
-                           nextTheme.inputControlRadius,
+    changed |= ApplyBackground(reg, entity, nextTheme.inputBackground, previousTheme.inputBackground,
+                               nextTheme.inputControlRadius);
+    changed |= ApplyBorder(reg, entity, nextTheme.inputBorder, previousTheme.inputBorder, nextTheme.inputControlRadius,
                            nextTheme.inputBorderThickness);
     changed |= ApplyTextColor(reg, entity, nextTheme.inputText, previousTheme.inputText);
     changed |= ApplyDropDownArrowColor(reg, entity, nextTheme.dropDownArrow, previousTheme.dropDownArrow);
     return changed;
 }
 
-bool ReapplyManagedBackgroundRadius(Registry& reg,
-                                    entt::entity entity,
-                                    const Color& expectedColor,
-                                    const Vec4& previousRadius,
-                                    const Vec4& nextRadius)
+bool ReapplyManagedBackgroundRadius(Registry& reg, entt::entity entity, const Color& expectedColor,
+                                    const Vec4& previousRadius, const Vec4& nextRadius)
 {
     auto* background = reg.try_get<components::Background>(entity);
-    if (background == nullptr || !SameColor(background->color, expectedColor)
-        || !SameRadii(background->borderRadius, previousRadius))
+    if (background == nullptr || !SameColor(background->color, expectedColor) ||
+        !SameRadii(background->borderRadius, previousRadius))
     {
         return false;
     }
@@ -934,15 +858,12 @@ bool ReapplyManagedBackgroundRadius(Registry& reg,
     return true;
 }
 
-bool ReapplyManagedBorderRadius(Registry& reg,
-                                entt::entity entity,
-                                const Color& expectedColor,
-                                const Vec4& previousRadius,
-                                const Vec4& nextRadius)
+bool ReapplyManagedBorderRadius(Registry& reg, entt::entity entity, const Color& expectedColor,
+                                const Vec4& previousRadius, const Vec4& nextRadius)
 {
     auto* border = reg.try_get<components::Border>(entity);
-    if (border == nullptr || !SameColor(border->color, expectedColor)
-        || !SameRadii(border->borderRadius, previousRadius))
+    if (border == nullptr || !SameColor(border->color, expectedColor) ||
+        !SameRadii(border->borderRadius, previousRadius))
     {
         return false;
     }
@@ -951,100 +872,80 @@ bool ReapplyManagedBorderRadius(Registry& reg,
     return true;
 }
 
-bool ApplyDropDownPopupPanelTheme(Registry& reg,
-                                  entt::entity entity,
-                                  const theme::ThemePalette& nextTheme,
+bool ApplyDropDownPopupPanelTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                                   const theme::ThemePalette& previousTheme)
 {
     bool changed = false;
-    changed |= ApplyBackground(
-        reg, entity, nextTheme.popupBackground, previousTheme.popupBackground, nextTheme.popupPanelRadius);
-    changed |= ApplyBorder(reg,
-                           entity,
-                           nextTheme.popupBorder,
-                           previousTheme.popupBorder,
-                           nextTheme.popupPanelRadius,
+    changed |= ApplyBackground(reg, entity, nextTheme.popupBackground, previousTheme.popupBackground,
+                               nextTheme.popupPanelRadius);
+    changed |= ApplyBorder(reg, entity, nextTheme.popupBorder, previousTheme.popupBorder, nextTheme.popupPanelRadius,
                            nextTheme.popupBorderThickness);
 
-    changed |= ReapplyManagedBackgroundRadius(
-        reg, entity, nextTheme.popupBackground, previousTheme.popupPanelRadius, nextTheme.popupPanelRadius);
-    changed |= ReapplyManagedBorderRadius(
-        reg, entity, nextTheme.popupBorder, previousTheme.popupPanelRadius, nextTheme.popupPanelRadius);
+    changed |= ReapplyManagedBackgroundRadius(reg, entity, nextTheme.popupBackground, previousTheme.popupPanelRadius,
+                                              nextTheme.popupPanelRadius);
+    changed |= ReapplyManagedBorderRadius(reg, entity, nextTheme.popupBorder, previousTheme.popupPanelRadius,
+                                          nextTheme.popupPanelRadius);
 
     return changed;
 }
 
-bool ApplyDropDownPopupItemTheme(Registry& reg,
-                                 entt::entity entity,
-                                 const theme::ThemePalette& nextTheme,
+bool ApplyDropDownPopupItemTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                                  const theme::ThemePalette& previousTheme)
 {
     const auto* popupItem = reg.try_get<components::DropDownPopupItem>(entity);
     const Color initialBackground = (popupItem != nullptr && IsDropDownPopupItemSelected(reg, *popupItem))
-                                      ? nextTheme.popupItemBackgroundSelected
-                                      : nextTheme.popupItemBackground;
+                                        ? nextTheme.popupItemBackgroundSelected
+                                        : nextTheme.popupItemBackground;
     const Color previousBackground = (popupItem != nullptr && IsDropDownPopupItemSelected(reg, *popupItem))
-                                       ? previousTheme.popupItemBackgroundSelected
-                                       : previousTheme.popupItemBackground;
+                                         ? previousTheme.popupItemBackgroundSelected
+                                         : previousTheme.popupItemBackground;
     const Color initialText = (popupItem != nullptr && IsDropDownPopupItemSelected(reg, *popupItem))
-                                ? nextTheme.popupItemTextSelected
-                                : nextTheme.popupItemText;
+                                  ? nextTheme.popupItemTextSelected
+                                  : nextTheme.popupItemText;
     const Color previousText = (popupItem != nullptr && IsDropDownPopupItemSelected(reg, *popupItem))
-                                 ? previousTheme.popupItemTextSelected
-                                 : previousTheme.popupItemText;
+                                   ? previousTheme.popupItemTextSelected
+                                   : previousTheme.popupItemText;
 
     bool changed = false;
     changed |= ApplyBackground(reg, entity, initialBackground, previousBackground, nextTheme.popupItemRadius);
     changed |= ApplyTextColor(reg, entity, initialText, previousText);
 
-    changed |= ReapplyManagedBackgroundRadius(
-        reg, entity, initialBackground, previousTheme.popupItemRadius, nextTheme.popupItemRadius);
+    changed |= ReapplyManagedBackgroundRadius(reg, entity, initialBackground, previousTheme.popupItemRadius,
+                                              nextTheme.popupItemRadius);
 
     return changed;
 }
 
-bool ApplySliderTheme(Registry& reg,
-                      entt::entity entity,
-                      const theme::ThemePalette& nextTheme,
+bool ApplySliderTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                       const theme::ThemePalette& previousTheme)
 {
     return ApplySliderColors(reg, entity, nextTheme, previousTheme);
 }
 
-bool ApplyProgressBarTheme(Registry& reg,
-                           entt::entity entity,
-                           const theme::ThemePalette& nextTheme,
+bool ApplyProgressBarTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                            const theme::ThemePalette& previousTheme)
 {
     return ApplyProgressBarColors(reg, entity, nextTheme, previousTheme);
 }
 
-bool ApplyWindowTheme(Registry& reg,
-                      entt::entity entity,
-                      const theme::ThemePalette& nextTheme,
+bool ApplyWindowTheme(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                       const theme::ThemePalette& previousTheme)
 {
     bool changed = false;
-    changed |= ApplyBackground(
-        reg, entity, nextTheme.windowBackground, previousTheme.windowBackground, nextTheme.windowPanelRadius);
-    changed |= ApplyBorder(reg,
-                           entity,
-                           nextTheme.surfaceBorder,
-                           previousTheme.surfaceBorder,
-                           nextTheme.windowPanelRadius,
-                           nextTheme.windowBorderThickness);
+    changed |= ApplyBackground(reg, entity, nextTheme.windowBackground, previousTheme.windowBackground,
+                               nextTheme.windowPanelRadius);
+    changed |= ApplyBorder(reg, entity, nextTheme.surfaceBorder, previousTheme.surfaceBorder,
+                           nextTheme.windowPanelRadius, nextTheme.windowBorderThickness);
 
-    changed |= ReapplyManagedBackgroundRadius(
-        reg, entity, nextTheme.windowBackground, previousTheme.windowPanelRadius, nextTheme.windowPanelRadius);
-    changed |= ReapplyManagedBorderRadius(
-        reg, entity, nextTheme.surfaceBorder, previousTheme.windowPanelRadius, nextTheme.windowPanelRadius);
+    changed |= ReapplyManagedBackgroundRadius(reg, entity, nextTheme.windowBackground, previousTheme.windowPanelRadius,
+                                              nextTheme.windowPanelRadius);
+    changed |= ReapplyManagedBorderRadius(reg, entity, nextTheme.surfaceBorder, previousTheme.windowPanelRadius,
+                                          nextTheme.windowPanelRadius);
 
     return changed;
 }
 
-bool ApplyThemeToEntity(Registry& reg,
-                        entt::entity entity,
-                        const theme::ThemePalette& nextTheme,
+bool ApplyThemeToEntity(Registry& reg, entt::entity entity, const theme::ThemePalette& nextTheme,
                         const theme::ThemePalette& previousTheme)
 {
     bool changed = false;
@@ -1103,7 +1004,7 @@ bool ApplyThemeToEntity(Registry& reg,
     return changed;
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // =====================================================================
 // ThemeSystem 方法实现
@@ -1161,4 +1062,4 @@ void ThemeSystem::update()
     }
 }
 
-} // namespace ui::systems
+}  // namespace ui::systems

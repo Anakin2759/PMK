@@ -18,7 +18,7 @@ void SetBackgroundColor(ui::entity entity, const Color& color);
 void SetBorderRadius(ui::entity entity, float radius);
 void SetBorderColor(ui::entity entity, const Color& color);
 void SetBorderThickness(ui::entity entity, float thickness);
-} // namespace ui::visibility
+}  // namespace ui::visibility
 
 namespace ui::actions::visibility
 {
@@ -30,7 +30,7 @@ inline constexpr EntityAction<&ui::visibility::SetBackgroundColor> SET_BACKGROUN
 inline constexpr EntityAction<&ui::visibility::SetBorderRadius> SET_BORDER_RADIUS_ACTION{};
 inline constexpr EntityAction<&ui::visibility::SetBorderColor> SET_BORDER_COLOR_ACTION{};
 inline constexpr EntityAction<&ui::visibility::SetBorderThickness> SET_BORDER_THICKNESS_ACTION{};
-} // namespace ui::actions::visibility
+}  // namespace ui::actions::visibility
 
 namespace ui::chains
 {
@@ -66,4 +66,4 @@ inline auto BorderThickness(float thickness)
 {
     return ui::actions::visibility::SET_BORDER_THICKNESS_ACTION.bind(thickness);
 }
-} // namespace ui::chains
+}  // namespace ui::chains

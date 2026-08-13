@@ -96,7 +96,7 @@ void SetMinRowHeight(ui::entity entity, float height);
 /** @brief 设置行高 */
 void SetRowHeight(ui::entity entity, float height);
 
-} // namespace ui::table
+}  // namespace ui::table
 
 namespace ui::actions::table
 {
@@ -108,7 +108,7 @@ inline constexpr EntityAction<&ui::table::ClearRows> CLEAR_ROWS_ACTION{};
 inline constexpr EntityAction<&ui::table::SetSelectedRow> SET_SELECTED_ROW_ACTION{};
 inline constexpr EntityAction<&ui::table::SetCellWidget> SET_CELL_WIDGET_ACTION{};
 
-} // namespace ui::actions::table
+}  // namespace ui::actions::table
 
 namespace ui::chains
 {
@@ -195,4 +195,4 @@ inline auto TableRowHeight(float height)
     return Chain{[height](ui::entity entity) { ui::table::SetRowHeight(entity, height); }};
 }
 
-} // namespace ui::chains
+}  // namespace ui::chains

@@ -18,4 +18,4 @@ namespace ui
 template <typename... Args>
 using Callback = std::move_only_function<void(Args...)>;
 
-} // namespace ui
+}  // namespace ui

@@ -5,8 +5,8 @@
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-01-26
  * @version 0.1
- * @brief UI模块的全局实体注册表单例封装
-  - 基于 EnTT 实现的全局实体注册表单例
+ * @brief UI模块的实体注册表封装（依赖注入，非全局单例）
+  - 内部持有 entt::registry，由 UiRuntime 持有并经 UiRuntimeScope 注入 System
   - 提供统一的实体和组件管理接口
  *
  * ************************************************************************
@@ -25,7 +25,6 @@
 #include "common/EntityTypes.hpp"
 #include "traits/ComponentsTraits.hpp"
 
-
 namespace ui
 {
 using traits::ComponentOrUiTag;
@@ -38,53 +37,97 @@ class Registry
     friend class UiRuntime;
     friend class UiRuntimeScope;
 
-
-public:
-    
+   public:
     Registry() = default;
     // -------------------------------------------------------------------------
     // Instance methods — dependency-injected systems use these via Registry&
     // -------------------------------------------------------------------------
 
-    [[nodiscard]] entt::entity create() { return m_registry.create(); }
+    [[nodiscard]] entt::entity create()
+    {
+        return m_registry.create();
+    }
 
-    [[nodiscard]] bool valid(entt::entity entity) const noexcept { return m_registry.valid(entity); }
+    [[nodiscard]] bool valid(entt::entity entity) const noexcept
+    {
+        return m_registry.valid(entity);
+    }
 
-    void destroy(entt::entity entity) { m_registry.destroy(entity); }
+    void destroy(entt::entity entity)
+    {
+        m_registry.destroy(entity);
+    }
 
-    void destroy(ui::entity entity) { m_registry.destroy(static_cast<entt::entity>(entity)); }
+    void destroy(ui::entity entity)
+    {
+        m_registry.destroy(static_cast<entt::entity>(entity));
+    }
 
     template <ComponentOrUiTag Type>
-    [[nodiscard]] Type& get(ui::entity entity) { return m_registry.template get<Type>(static_cast<entt::entity>(entity)); }
+    [[nodiscard]] Type& get(ui::entity entity)
+    {
+        return m_registry.template get<Type>(static_cast<entt::entity>(entity));
+    }
 
     template <ComponentOrUiTag Type>
-    [[nodiscard]] const Type& get(ui::entity entity) const { return m_registry.template get<Type>(static_cast<entt::entity>(entity)); }
+    [[nodiscard]] const Type& get(ui::entity entity) const
+    {
+        return m_registry.template get<Type>(static_cast<entt::entity>(entity));
+    }
 
     template <ComponentOrUiTag Type>
-    [[nodiscard]] Type* try_get(ui::entity entity) noexcept { return m_registry.template try_get<Type>(static_cast<entt::entity>(entity)); }
+    [[nodiscard]] Type* try_get(ui::entity entity) noexcept
+    {
+        return m_registry.template try_get<Type>(static_cast<entt::entity>(entity));
+    }
 
     template <ComponentOrUiTag Type>
-    [[nodiscard]] const Type* try_get(ui::entity entity) const noexcept { return m_registry.template try_get<Type>(static_cast<entt::entity>(entity)); }
+    [[nodiscard]] const Type* try_get(ui::entity entity) const noexcept
+    {
+        return m_registry.template try_get<Type>(static_cast<entt::entity>(entity));
+    }
 
     template <ComponentOrUiTag Type, typename... Args>
-    decltype(auto) emplace(ui::entity entity, Args&&... args) { return m_registry.template emplace<Type>(static_cast<entt::entity>(entity), std::forward<Args>(args)...); }
+    decltype(auto) emplace(ui::entity entity, Args&&... args)
+    {
+        return m_registry.template emplace<Type>(static_cast<entt::entity>(entity), std::forward<Args>(args)...);
+    }
 
     template <ComponentOrUiTag Type, typename... Args>
-    decltype(auto) emplace_or_replace(ui::entity entity, Args&&... args) { return m_registry.template emplace_or_replace<Type>(static_cast<entt::entity>(entity), std::forward<Args>(args)...); }
+    decltype(auto) emplace_or_replace(ui::entity entity, Args&&... args)
+    {
+        return m_registry.template emplace_or_replace<Type>(static_cast<entt::entity>(entity),
+                                                            std::forward<Args>(args)...);
+    }
 
     template <ComponentOrUiTag Type, typename... Args>
-    Type& get_or_emplace(ui::entity entity, Args&&... args) { return m_registry.template get_or_emplace<Type>(static_cast<entt::entity>(entity), std::forward<Args>(args)...); }
+    Type& get_or_emplace(ui::entity entity, Args&&... args)
+    {
+        return m_registry.template get_or_emplace<Type>(static_cast<entt::entity>(entity), std::forward<Args>(args)...);
+    }
 
     template <ComponentOrUiTag Type>
-    void remove(ui::entity entity) { m_registry.template remove<Type>(static_cast<entt::entity>(entity)); }
+    void remove(ui::entity entity)
+    {
+        m_registry.template remove<Type>(static_cast<entt::entity>(entity));
+    }
 
-    [[nodiscard]] bool valid(ui::entity entity) const noexcept { return m_registry.valid(static_cast<entt::entity>(entity)); }
+    [[nodiscard]] bool valid(ui::entity entity) const noexcept
+    {
+        return m_registry.valid(static_cast<entt::entity>(entity));
+    }
 
     template <ComponentOrUiTag... Type>
-    [[nodiscard]] bool any_of(ui::entity entity) const { return m_registry.any_of<Type...>(static_cast<entt::entity>(entity)); }
+    [[nodiscard]] bool any_of(ui::entity entity) const
+    {
+        return m_registry.any_of<Type...>(static_cast<entt::entity>(entity));
+    }
 
     template <ComponentOrUiTag... Type>
-    [[nodiscard]] bool all_of(ui::entity entity) const { return m_registry.all_of<Type...>(static_cast<entt::entity>(entity)); }
+    [[nodiscard]] bool all_of(ui::entity entity) const
+    {
+        return m_registry.all_of<Type...>(static_cast<entt::entity>(entity));
+    }
 
     template <ComponentOrUiTag... Type>
     [[nodiscard]] auto view()
@@ -122,14 +165,11 @@ public:
         return m_registry.get<Type>(entity);
     }
 
-
-
     template <ComponentOrUiTag Type>
     [[nodiscard]] const Type& get(entt::entity entity) const
     {
         return m_registry.get<Type>(entity);
     }
-
 
     template <ComponentOrUiTag Type>
     [[nodiscard]] Type* try_get(entt::entity entity) noexcept
@@ -137,15 +177,11 @@ public:
         return m_registry.try_get<Type>(entity);
     }
 
-
-
     template <ComponentOrUiTag Type>
     [[nodiscard]] const Type* try_get(entt::entity entity) const noexcept
     {
         return m_registry.try_get<Type>(entity);
     }
-
-
 
     template <ComponentOrUiTag Type, typename... Args>
     decltype(auto) emplace(entt::entity entity, Args&&... args)
@@ -153,23 +189,17 @@ public:
         return m_registry.emplace<Type>(entity, std::forward<Args>(args)...);
     }
 
-
-
     template <ComponentOrUiTag Type, typename... Args>
     Type& replace(entt::entity entity, Args&&... args)
     {
         return m_registry.replace<Type>(entity, std::forward<Args>(args)...);
     }
 
-
-
     template <ComponentOrUiTag Type, typename... Args>
     decltype(auto) emplace_or_replace(entt::entity entity, Args&&... args)
     {
         return m_registry.emplace_or_replace<Type>(entity, std::forward<Args>(args)...);
     }
-
-
 
     template <ComponentOrUiTag Type, typename... Args>
     Type& get_or_emplace(entt::entity entity, Args&&... args)
@@ -191,13 +221,11 @@ public:
         m_registry.remove<Type>(entity);
     }
 
-
     template <ComponentOrUiTag... Type>
     [[nodiscard]] bool any_of(entt::entity entity) const
     {
         return m_registry.any_of<Type...>(entity);
     }
-
 
     template <ComponentOrUiTag... Type>
     [[nodiscard]] bool all_of(entt::entity entity) const
@@ -205,14 +233,16 @@ public:
         return m_registry.all_of<Type...>(entity);
     }
 
-
     template <ComponentOrUiTag... Type>
     void clear()
     {
         m_registry.clear<Type...>();
     }
 
-    void clear() { m_registry.clear(); }
+    void clear()
+    {
+        m_registry.clear();
+    }
 
     template <ComponentOrUiTag Type>
     [[nodiscard]] auto on_construct()
@@ -233,37 +263,49 @@ public:
     }
 
     template <ComponentOrUiTag Context>
-    [[nodiscard]] auto* findInCtx() { return m_registry.ctx().find<Context>(); }
+    [[nodiscard]] auto* findInCtx()
+    {
+        return m_registry.ctx().find<Context>();
+    }
 
     template <ComponentOrUiTag Context>
-    [[nodiscard]] const auto* findInCtx() const { return m_registry.ctx().find<Context>(); }
+    [[nodiscard]] const auto* findInCtx() const
+    {
+        return m_registry.ctx().find<Context>();
+    }
 
-    [[nodiscard]] auto& ctx() { return m_registry.ctx(); }
-    [[nodiscard]] const auto& ctx() const { return m_registry.ctx(); }
+    [[nodiscard]] auto& ctx()
+    {
+        return m_registry.ctx();
+    }
+    [[nodiscard]] const auto& ctx() const
+    {
+        return m_registry.ctx();
+    }
 
+    template <ComponentOrUiTag Context>
+    [[nodiscard]] auto getInCtx() const
+    {
+        return m_registry.ctx().get<Context>();
+    }
 
-     template <ComponentOrUiTag Context>
-    [[nodiscard]] auto getInCtx()const
-     { return m_registry.ctx().get<Context>(); }
-
-      template <ComponentOrUiTag Context>
-    [[nodiscard]] auto emplaceInCtx()const
-     { return m_registry.ctx().emplace<Context>(); }
+    template <ComponentOrUiTag Context>
+    [[nodiscard]] auto emplaceInCtx() const
+    {
+        return m_registry.ctx().emplace<Context>();
+    }
 
     /// 获取或创建 EnTT context 对象（内部通过 ctx().find / emplace 实现）
     template <typename Context>
     [[nodiscard]] auto& getOrEmplaceInCtx()
     {
         auto* found = m_registry.ctx().template find<Context>();
-        if (found == nullptr) found = &m_registry.ctx().template emplace<Context>();
+        if (found == nullptr)
+            found = &m_registry.ctx().template emplace<Context>();
         return *found;
     }
 
-
-
-    
-private:
-
+   private:
     entt::registry m_registry;
 };
-} // namespace ui
+}  // namespace ui

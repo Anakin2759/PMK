@@ -11,9 +11,8 @@ namespace ui
 
 class UiRuntimeScope
 {
-public:
-    explicit UiRuntimeScope(UiRuntime& runtime) noexcept
-        : m_prev(UiRuntime::s_current)
+   public:
+    explicit UiRuntimeScope(UiRuntime& runtime) noexcept : m_prev(UiRuntime::s_current)
     {
         UiRuntime::s_current = &runtime;
     }
@@ -28,8 +27,8 @@ public:
     UiRuntimeScope(UiRuntimeScope&&) = delete;
     UiRuntimeScope& operator=(UiRuntimeScope&&) = delete;
 
-private:
+   private:
     UiRuntime* m_prev;
 };
 
-} // namespace ui
+}  // namespace ui

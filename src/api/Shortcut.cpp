@@ -25,4 +25,4 @@ void ClearAll()
     systems::ShortcutSystem::clearAll();
 }
 
-} // namespace ui::shortcut
+}  // namespace ui::shortcut

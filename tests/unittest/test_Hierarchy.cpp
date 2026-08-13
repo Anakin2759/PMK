@@ -24,16 +24,22 @@ Registry& ActiveRegistry()
 
 class HierarchyTest : public ::testing::Test
 {
-protected:
-    void SetUp() override { m_scope = std::make_unique<UiRuntimeScope>(m_runtime); }
-    void TearDown() override { m_scope.reset(); }
+   protected:
+    void SetUp() override
+    {
+        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
+    }
+    void TearDown() override
+    {
+        m_scope.reset();
+    }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
 
-} // namespace
+}  // namespace
 
 // ===================== AddChild =====================
 
@@ -80,7 +86,7 @@ TEST_F(HierarchyTest, AddChildIsIdempotentOnDoubleCall)
     const auto child = factory::CreateLabel("C", "h_child_idem");
 
     hierarchy::AddChild(parent, child);
-    hierarchy::AddChild(parent, child); // 重复添加
+    hierarchy::AddChild(parent, child);  // 重复添加
 
     const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     ASSERT_NE(pHier, nullptr);
@@ -95,7 +101,7 @@ TEST_F(HierarchyTest, AddChildReparentsFromOldParent)
     const auto child = factory::CreateLabel("C", "h_child_reparent");
 
     hierarchy::AddChild(parentA, child);
-    hierarchy::AddChild(parentB, child); // 重新挂到 B 下
+    hierarchy::AddChild(parentB, child);  // 重新挂到 B 下
 
     auto& registry = ActiveRegistry();
     const auto* cHier = registry.try_get<components::Hierarchy>(child);
@@ -158,7 +164,7 @@ TEST_F(HierarchyTest, RemoveChildRestoresRootTagOnChild)
     const auto child = factory::CreateLabel("C", "h_roottag_child");
 
     hierarchy::AddChild(parent, child);
-    ASSERT_FALSE(ActiveRegistry().all_of<components::RootTag>(child)); // AddChild 已移除
+    ASSERT_FALSE(ActiveRegistry().all_of<components::RootTag>(child));  // AddChild 已移除
 
     hierarchy::RemoveChild(parent, child);
 
@@ -224,4 +230,4 @@ TEST_F(HierarchyTest, TraverseChildrenOnLeafEntityCallsVisitorZeroTimes)
     EXPECT_EQ(callCount, 0);
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

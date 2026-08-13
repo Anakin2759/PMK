@@ -109,7 +109,7 @@ template <typename... Tags>
  */
 class RendererRegistry
 {
-public:
+   public:
     RendererRegistry() = default;
     ~RendererRegistry() = default;
 
@@ -152,19 +152,24 @@ public:
     }
 
     /** @brief 获取已注册渲染器数量 */
-    [[nodiscard]] size_t count() const noexcept { return m_entries.size(); }
+    [[nodiscard]] size_t count() const noexcept
+    {
+        return m_entries.size();
+    }
 
     /** @brief 清空所有注册 */
-    void clear() noexcept { m_entries.clear(); }
+    void clear() noexcept
+    {
+        m_entries.clear();
+    }
 
-private:
+   private:
     struct Entry
     {
         MatchPredicate predicate;
         std::unique_ptr<core::IRenderer> renderer;
 
-        Entry(MatchPredicate p, std::unique_ptr<core::IRenderer> r)
-            : predicate(std::move(p)), renderer(std::move(r))
+        Entry(MatchPredicate p, std::unique_ptr<core::IRenderer> r) : predicate(std::move(p)), renderer(std::move(r))
         {
         }
     };
@@ -172,4 +177,4 @@ private:
     std::vector<Entry> m_entries;
 };
 
-} // namespace ui::renderer_registry
+}  // namespace ui::renderer_registry

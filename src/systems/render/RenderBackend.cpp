@@ -36,6 +36,7 @@
 #include "SDL3/SDL_gpu.h"
 #include "SDL3/SDL_init.h"
 #include <exception>
+#include <stdexcept>
 #include "managers/CommandBuffer.hpp"
 #include "utils/Registry.hpp"
 #include "renderers/FallbackBackendRenderer.hpp"
@@ -53,7 +54,7 @@ namespace
  * @brief 是否将环境变量值视为 true
  * @param value 环境变量的值
  * @return true 如果值表示 true
- * @return false 如果值表示 false   
+ * @return false 如果值表示 false
  */
 bool IsTruthyEnvironmentValue(const char* value)
 {
@@ -103,10 +104,28 @@ ui::Result<ui::managers::BinaryResource> LoadUiResource(std::string_view resourc
     return ui::cpo::load_binary_resource(*resourceProvider, resourcePath);
 }
 
-} // namespace
+}  // namespace
 
 namespace ui::systems
 {
+namespace
+{
+void resetGpuInitializationNode(RenderSystemImpl& impl, render::GpuInitializationTransaction::Node node)
+{
+    switch (node)
+    {
+        case render::GpuInitializationTransaction::Node::COMMAND_BUFFER:
+            impl.m_commandBuffer.reset();
+            break;
+        case render::GpuInitializationTransaction::Node::TEXT_TEXTURE_CACHE:
+            impl.m_textTextureCache.reset();
+            break;
+        case render::GpuInitializationTransaction::Node::PIPELINE_CACHE:
+            impl.m_pipelineCache.reset();
+            break;
+    }
+}
+}  // namespace
 
 const RenderSystem::RenderStats& RenderSystem::getStats() const
 {
@@ -137,20 +156,24 @@ interface::SystemPhase RenderSystem::getPhase()
 }
 
 RenderSystem::RenderSystem(UiRuntime& runtime)
-    : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()), m_impl(std::make_unique<RenderSystemImpl>(
+    : m_reg(&runtime.registry()),
+      m_disp(&runtime.dispatcher()),
+      m_impl(std::make_unique<RenderSystemImpl>(
 #ifdef UI_FORCE_CPU_RENDER
-                                      true
+          true
 #else
-                                      IsTruthyEnvironmentValue(SDL_getenv("PESTMANKILL_FORCE_FALLBACK"))
+          IsTruthyEnvironmentValue(SDL_getenv("PESTMANKILL_FORCE_FALLBACK"))
 #endif
-                                      ))
+          ))
 {
     if (m_impl->m_forceFallback)
     {
 #ifdef UI_FORCE_CPU_RENDER
-        ui::UiRuntime::current().logger().warn("[RenderSystem] 编译选项 UI_FORCE_CPU_RENDER 已启用，强制使用 CPU software 后端");
+        ui::UiRuntime::current().logger().warn(
+            "[RenderSystem] 编译选项 UI_FORCE_CPU_RENDER 已启用，强制使用 CPU software 后端");
 #else
-        ui::UiRuntime::current().logger().warn("[RenderSystem] 检测到环境变量 PESTMANKILL_FORCE_FALLBACK，强制启用 SDL_Renderer fallback 后端");
+        ui::UiRuntime::current().logger().warn(
+            "[RenderSystem] 检测到环境变量 PESTMANKILL_FORCE_FALLBACK，强制启用 SDL_Renderer fallback 后端");
 #endif
     }
 }
@@ -209,7 +232,8 @@ RenderSystem& RenderSystem::operator=(RenderSystem&& other) noexcept
 
 void RenderSystem::onWindowsGraphicsContextSet(const events::WindowGraphicsContextSetEvent& event)
 {
-    ui::UiRuntime::current().logger().info("[RenderSystem] 收到窗口图形上下文设置事件，实体ID: {}", static_cast<uint32_t>(event.entity));
+    ui::UiRuntime::current().logger().info("[RenderSystem] 收到窗口图形上下文设置事件，实体ID: {}",
+                                           static_cast<uint32_t>(event.entity));
     ensureInitialized();
     uint32_t windowID = m_reg->get<components::Window>(event.entity).windowID;
     SDL_Window* sdlWindow = SDL_GetWindowFromID(windowID);
@@ -244,9 +268,11 @@ void RenderSystem::onWindowsGraphicsContextSet(const events::WindowGraphicsConte
 
     if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
     {
-        ui::UiRuntime::current().logger().warn("[RenderSystem] 初始化时创建管线失败: {}", pipeResult.error().ToString());
+        ui::UiRuntime::current().logger().warn("[RenderSystem] 初始化时创建管线失败: {}",
+                                               pipeResult.error().ToString());
     }
-    ui::UiRuntime::current().logger().info("[RenderSystem] 窗口图形上下文设置完成 (Entity: {})", static_cast<uint32_t>(event.entity));
+    ui::UiRuntime::current().logger().info("[RenderSystem] 窗口图形上下文设置完成 (Entity: {})",
+                                           static_cast<uint32_t>(event.entity));
 }
 
 void RenderSystem::onWindowsGraphicsContextUnset(const events::WindowGraphicsContextUnsetEvent& event)
@@ -288,43 +314,39 @@ void RenderSystem::cleanup()
         SDL_WaitForGPUIdle(device);
     }
 
-    if (m_impl->m_textTextureCache)
-    {
-        ui::UiRuntime::current().logger().info("[RenderSystem] 清理文本纹理缓存");
-        m_impl->m_textTextureCache->clear();
-    }
-
+    // 按 GPU 资源 DAG 逆序停止借用并销毁全部外部 owner：renderer/batch ->
+    // CommandBuffer -> TextTextureCache -> PipelineCache -> Icon/Image；DeviceManager 必须最后清理。
     ui::UiRuntime::current().logger().info("[RenderSystem] 清理渲染器");
+    m_impl->m_renderQueue.clear();
     m_impl->m_renderers.clear();
     m_impl->m_batchManager.reset();
+    m_impl->m_gpuInitialization.Shutdown([this](render::GpuInitializationTransaction::Node node)
+                                         { resetGpuInitializationNode(*m_impl, node); });
     m_impl->m_iconManager.reset();
     m_impl->m_imageManager.reset();
-    m_impl->m_gpuInitialization.Shutdown(
-        [this](render::GpuInitializationTransaction::Node node)
-        {
-            switch (node)
-            {
-            case render::GpuInitializationTransaction::Node::COMMAND_BUFFER:
-                m_impl->m_commandBuffer.reset();
-                break;
-            case render::GpuInitializationTransaction::Node::TEXT_TEXTURE_CACHE:
-                m_impl->m_textTextureCache.reset();
-                break;
-            case render::GpuInitializationTransaction::Node::PIPELINE_CACHE:
-                m_impl->m_pipelineCache.reset();
-                break;
-            }
-        });
     m_impl->m_fontManager.reset();
 
-    // DeviceManager 在销毁设备前释放其唯一持有的白色纹理。
+    // DAG 根收尾：white/claim -> token invalidate -> device。保留句柄用于清理后读取可观测计数；
+    // 正常路径要求 late release skipped=0，非零表示有 owner 越过代际失效并触发防御性跳过。
+    std::uint64_t lateReleaseSkipped = 0;
+    std::uint64_t generationId = 0;
     if (m_impl->m_deviceManager != nullptr)
     {
+        const auto generation = m_impl->m_deviceManager->getGeneration();
+        generationId = generation.Id();
         ui::UiRuntime::current().logger().info("[RenderSystem] 清理设备管理器");
         m_impl->m_deviceManager->cleanup();
+        lateReleaseSkipped = generation.LateReleaseSkipped();
     }
     m_impl->m_deviceClaimState.Reset();
     ui::UiRuntime::current().logger().info("[RenderSystem] cleanup() 完成");
+    if (lateReleaseSkipped != 0U)
+    {
+        ui::UiRuntime::current().logger().error(
+            "[RenderSystem] GPU shutdown detected {} late resource releases for generation {}", lateReleaseSkipped,
+            generationId);
+        throw std::logic_error("RenderSystem GPU owners outlived their device generation");
+    }
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
@@ -340,7 +362,8 @@ void RenderSystem::ensureInitialized()
     if (!m_impl->m_forceFallback && commandLineForcesFallback)
     {
         m_impl->m_forceFallback = true;
-        ui::UiRuntime::current().logger().warn("[RenderSystem] 命令行后端 cpu/software/fallback 已启用，强制使用 SDL_Renderer fallback 后端");
+        ui::UiRuntime::current().logger().warn(
+            "[RenderSystem] 命令行后端 cpu/software/fallback 已启用，强制使用 SDL_Renderer fallback 后端");
     }
 
     if (m_impl->m_forceFallback)
@@ -350,13 +373,14 @@ void RenderSystem::ensureInitialized()
         if (!m_impl->m_backendSelectionLogged)
         {
             ui::UiRuntime::current().logger().info("[RenderSystem] 当前渲染后端: fallback (source={})",
-                         commandLineForcesFallback ? "command-line" : "environment");
+                                                   commandLineForcesFallback ? "command-line" : "environment");
             m_impl->m_backendSelectionLogged = true;
         }
     }
     else if (!m_impl->m_deviceManager->initialize())
     {
-        ui::UiRuntime::current().logger().warn("Failed to initialize RenderSystem GPU backend, switching to fallback renderer");
+        ui::UiRuntime::current().logger().warn(
+            "Failed to initialize RenderSystem GPU backend, switching to fallback renderer");
         m_impl->m_useFallback = true;
 
         if (!m_impl->m_backendSelectionLogged)
@@ -373,18 +397,19 @@ void RenderSystem::ensureInitialized()
         {
             const auto& fontBytes = fontResource.value();
             std::vector<uint8_t> fontData(fontBytes.size());
-            std::ranges::transform(
-                fontBytes.bytes, fontData.begin(), [](std::byte byte) { return std::to_integer<uint8_t>(byte); });
+            std::ranges::transform(fontBytes.bytes, fontData.begin(),
+                                   [](std::byte byte) { return std::to_integer<uint8_t>(byte); });
             if (auto loadResult = m_impl->m_fontManager->loadFromMemory(fontData.data(), fontData.size(), 14.0F);
                 !loadResult.has_value())
             {
-                ui::UiRuntime::current().logger().error("[RenderSystem] 默认字体加载失败: {}", loadResult.error().ToString());
+                ui::UiRuntime::current().logger().error("[RenderSystem] 默认字体加载失败: {}",
+                                                        loadResult.error().ToString());
             }
         }
         else
         {
-            ui::UiRuntime::current().logger().error(
-                "[RenderSystem] 默认字体资源加载失败: {} ({})", DEFAULT_FONT_RESOURCE, fontResource.error().ToString());
+            ui::UiRuntime::current().logger().error("[RenderSystem] 默认字体资源加载失败: {} ({})",
+                                                    DEFAULT_FONT_RESOURCE, fontResource.error().ToString());
         }
     }
 
@@ -402,22 +427,21 @@ void RenderSystem::ensureInitialized()
 
         return;
     }
-
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
 void RenderSystem::ensureGpuResourcesInitialized()
 {
-    if (m_impl->m_useFallback || m_impl->m_deviceClaimState.AreResourcesReady()
-        || !m_impl->m_deviceClaimState.IsDeviceLocked())
+    if (m_impl->m_useFallback || m_impl->m_deviceClaimState.AreResourcesReady() ||
+        !m_impl->m_deviceClaimState.IsDeviceLocked())
     {
         return;
     }
 
     if (!m_impl->m_backendSelectionLogged)
     {
-        ui::UiRuntime::current().logger().info(
-            "[RenderSystem] 当前渲染后端: gpu ({})", m_impl->m_deviceManager->getDriverName());
+        ui::UiRuntime::current().logger().info("[RenderSystem] 当前渲染后端: gpu ({})",
+                                               m_impl->m_deviceManager->getDriverName());
         m_impl->m_backendSelectionLogged = true;
     }
 
@@ -427,40 +451,27 @@ void RenderSystem::ensureGpuResourcesInitialized()
     }
 
     const auto rollback = [this](render::GpuInitializationTransaction::Node node)
-    {
-        switch (node)
-        {
-        case render::GpuInitializationTransaction::Node::COMMAND_BUFFER:
-            m_impl->m_commandBuffer.reset();
-            break;
-        case render::GpuInitializationTransaction::Node::TEXT_TEXTURE_CACHE:
-            m_impl->m_textTextureCache.reset();
-            break;
-        case render::GpuInitializationTransaction::Node::PIPELINE_CACHE:
-            m_impl->m_pipelineCache.reset();
-            break;
-        }
-    };
+    { resetGpuInitializationNode(*m_impl, node); };
 
     try
     {
         auto pipelineCache = std::make_unique<managers::PipelineCache>(*m_impl->m_deviceManager);
         if (auto shaderResult = pipelineCache->loadShaders(); !shaderResult.has_value())
         {
-            ui::UiRuntime::current().logger().error(
-                "[RenderSystem] GPU 初始化事务失败: {}", shaderResult.error().ToString());
+            ui::UiRuntime::current().logger().error("[RenderSystem] GPU 初始化事务失败: {}",
+                                                    shaderResult.error().ToString());
             m_impl->m_gpuInitialization.FailAndRollback(rollback);
             return;
         }
         m_impl->m_pipelineCache = std::move(pipelineCache);
-        static_cast<void>(m_impl->m_gpuInitialization.Commit(
-            render::GpuInitializationTransaction::Node::PIPELINE_CACHE));
+        static_cast<void>(
+            m_impl->m_gpuInitialization.Commit(render::GpuInitializationTransaction::Node::PIPELINE_CACHE));
 
         auto textTextureCache =
             std::make_unique<managers::TextTextureCache>(*m_impl->m_deviceManager, *m_impl->m_fontManager);
         m_impl->m_textTextureCache = std::move(textTextureCache);
-        static_cast<void>(m_impl->m_gpuInitialization.Commit(
-            render::GpuInitializationTransaction::Node::TEXT_TEXTURE_CACHE));
+        static_cast<void>(
+            m_impl->m_gpuInitialization.Commit(render::GpuInitializationTransaction::Node::TEXT_TEXTURE_CACHE));
 
         if (m_impl->m_iconManager && !m_impl->m_iconsLoaded)
         {
@@ -483,8 +494,8 @@ void RenderSystem::ensureGpuResourcesInitialized()
                 }
                 else
                 {
-                    ui::UiRuntime::current().logger().error(
-                        "[RenderSystem] 默认图标字体加载失败: {}", loadResult.error().ToString());
+                    ui::UiRuntime::current().logger().error("[RenderSystem] 默认图标字体加载失败: {}",
+                                                            loadResult.error().ToString());
                 }
             }
             else
@@ -492,8 +503,7 @@ void RenderSystem::ensureGpuResourcesInitialized()
                 if (!fontResource.has_value())
                 {
                     ui::UiRuntime::current().logger().warn("[RenderSystem] 默认图标字体资源不存在: {} ({})",
-                                                           ICON_FONT_RESOURCE,
-                                                           fontResource.error().ToString());
+                                                           ICON_FONT_RESOURCE, fontResource.error().ToString());
                 }
                 if (!codepointResource.has_value())
                 {
@@ -508,8 +518,8 @@ void RenderSystem::ensureGpuResourcesInitialized()
         auto commandBuffer =
             std::make_unique<managers::CommandBuffer>(*m_impl->m_deviceManager, *m_impl->m_pipelineCache);
         m_impl->m_commandBuffer = std::move(commandBuffer);
-        static_cast<void>(m_impl->m_gpuInitialization.Commit(
-            render::GpuInitializationTransaction::Node::COMMAND_BUFFER));
+        static_cast<void>(
+            m_impl->m_gpuInitialization.Commit(render::GpuInitializationTransaction::Node::COMMAND_BUFFER));
 
         if (m_impl->m_renderers.empty())
         {
@@ -550,4 +560,4 @@ ui::Result<void> RenderSystem::tryInitializeFallback(SDL_Window* window)
     return m_impl->m_backendRenderer->initialize(window);
 }
 
-} // namespace ui::systems
+}  // namespace ui::systems

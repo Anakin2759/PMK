@@ -109,9 +109,9 @@ namespace ui::table
     const float flexWidth = (flexCount > 0) ? (remainingWidth / static_cast<float>(flexCount)) : 0.0F;
     for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex)
     {
-        const bool hasFixedWidth = !info.columnWidths.empty()
-                                && columnIndex < static_cast<int>(info.columnWidths.size())
-                                && info.columnWidths.at(static_cast<size_t>(columnIndex)) > 0.0F;
+        const bool hasFixedWidth = !info.columnWidths.empty() &&
+                                   columnIndex < static_cast<int>(info.columnWidths.size()) &&
+                                   info.columnWidths.at(static_cast<size_t>(columnIndex)) > 0.0F;
         if (!hasFixedWidth)
         {
             widths.at(static_cast<size_t>(columnIndex)) = std::max(flexWidth, MinColumnWidthAt(info, columnIndex));
@@ -143,4 +143,4 @@ namespace ui::table
     }
 }
 
-} // namespace ui::table
+}  // namespace ui::table

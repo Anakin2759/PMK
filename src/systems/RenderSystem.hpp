@@ -52,7 +52,7 @@ struct RenderSystemImpl;
  */
 class RenderSystem final : public interface::EnableRegister<RenderSystem>
 {
-public:
+   public:
     explicit RenderSystem(UiRuntime& runtime);
     ~RenderSystem();
 
@@ -89,7 +89,7 @@ public:
 
     void update();
 
-private:
+   private:
     /**
      * @brief 处理窗口图形上下文设置事件
      * @param event 窗口图形上下文设置事件
@@ -121,4 +121,4 @@ private:
     std::unique_ptr<RenderSystemImpl> m_impl;
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

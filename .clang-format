@@ -1,5 +1,33 @@
 ---
+# VMP-ui 项目 C/C++ 格式化配置
+# 基线：Google 风格 + 项目自有约定（4 空格缩进 + 大括号换行）
 Language:        Cpp
-BasedOnStyle:  Google
+BasedOnStyle:    Google
+
+# ---- 缩进 ----
+IndentWidth:             4
+TabWidth:                4
+ContinuationIndentWidth: 4
+UseTab:                  Never
+
+# ---- 列宽 ----
+ColumnLimit:     120
+
+# ---- 指针/引用对齐（int* p） ----
 PointerAlignment: Left
-...
+DerivePointerAlignment: false
+
+# ---- 大括号：换行（Allman），与项目现状一致 ----
+BreakBeforeBraces: Allman
+
+# ---- 短语句单行化 ----
+# 枚举统一换行（大括号另起一行）
+AllowShortEnumsOnASingleLine:     false
+# 函数统一换行（与 Allman 大括号换行保持一致）
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine:     false
+
+# ---- include：保持现有顺序，不做自动重排 ----
+SortIncludes:    false
+

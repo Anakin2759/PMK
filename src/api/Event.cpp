@@ -15,9 +15,13 @@
 namespace ui::event
 {
 
-EventConnection::EventConnection(std::uint64_t token) noexcept : m_token(token) {}
+EventConnection::EventConnection(std::uint64_t token) noexcept : m_token(token)
+{
+}
 
-EventConnection::EventConnection(EventConnection&& other) noexcept : m_token(std::exchange(other.m_token, 0)) {}
+EventConnection::EventConnection(EventConnection&& other) noexcept : m_token(std::exchange(other.m_token, 0))
+{
+}
 
 EventConnection& EventConnection::operator=(EventConnection&& other) noexcept
 {
@@ -100,4 +104,4 @@ void DispatchQueued()
     detail::event_bridge::DispatchQueued();
 }
 
-} // namespace ui::event
+}  // namespace ui::event

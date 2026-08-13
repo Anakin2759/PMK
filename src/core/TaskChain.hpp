@@ -1,21 +1,14 @@
 /**
  * ************************************************************************
  *
- * @file TaskChain.h
+ * @file TaskChain.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2025-12-25
  * @version 0.1
- * @brief ui 每帧执行的任务链封装
+ * @brief UI 固定帧管线与任务组合工具
  *
- * 当前采用固定顺序的轻量帧管线：
- * 1. QueuedTask：推进帧上下文、Timer 和事件队列派发
- * 2. InputTask：轮询 SDL 输入并将原始输入事件送入事件系统
- * 3. RenderTask：触发常规帧的 UpdateLayout / UpdateRendering / EndFrame
- *
- * 这里定义的是“常规帧路径”。
- * 少数平台阻塞场景下，InteractionSystem 仍可能直接触发即时布局或渲染补救，
- * 但那不是主帧循环的默认行为。
-
+ * FrameTick 是生产帧的唯一入口，固定执行输入、队列、逻辑、布局、渲染和帧尾阶段。
+ * UpdateLayout / UpdateRendering 没有即时旁路白名单。
  *
  * ************************************************************************
  * @copyright Copyright (c) 2025 AnakinLiu
@@ -91,7 +84,7 @@ struct PipeFn
         return Combined<std::decay_t<F>, std::decay_t<G>>{std::forward<F>(firstTask), std::forward<G>(secondTask)};
     }
 };
-} // namespace pipe_cpo
+}  // namespace pipe_cpo
 inline constexpr pipe_cpo::PipeFn PIPE_COMPOSER{};
 
 // --- 5. 运算符重载 ---
@@ -110,81 +103,63 @@ auto WrapArgs(T&&... args)
     return BoundContext<std::decay_t<T>...>{std::make_tuple(std::forward<T>(args)...)};
 }
 
-// --- 6. 具体任务类实现 ---
+// --- 6. 唯一固定帧入口 ---
 
-struct RenderTask
+class FrameTick
 {
-    using is_task_tag = void;
-    uint32_t remainingTime = 0;
-    uint32_t delayTime = 16;
-    UiRuntime* runtime = nullptr;
-
-    void operator()(uint32_t delta)
+   public:
+    FrameTick(UiRuntime& runtime, SystemManager& systems) noexcept : m_runtime(&runtime), m_systems(&systems)
     {
-        if (remainingTime > delta)
-        {
-            remainingTime -= delta;
-            return;
-        }
-        remainingTime = delayTime;
-
-        auto& disp = runtime->dispatcher();
-        disp.trigger<ui::events::UpdateEvent>();
-        disp.trigger<ui::events::UpdateLayout>();
-        disp.trigger<ui::events::UpdateRendering>();
-        disp.trigger<ui::events::EndFrame>(); // 帧结束时批量应用状态更新
     }
-};
 
-struct InputTask
-{
-    using is_task_tag = void;
-    SystemManager* systems = nullptr; ///< 由 Application 注入，不可为 nullptr
-    UiRuntime* runtime = nullptr;
-    uint32_t remainingTime = 0;
-    uint32_t delayTime = 32;
-
-    void operator()(uint32_t delta)
+    void operator()(uint32_t delta) const
     {
-        if (remainingTime > delta)
+        UiRuntimeScope const runtimeScope{*m_runtime};
+        auto& frameContext = m_runtime->registry().template getOrEmplaceInCtx<globalcontext::FrameContext>();
+        struct IdleStageGuard
         {
-            remainingTime -= delta;
-            return;
-        }
-        remainingTime = delayTime;
-        systems->pollInput();
+            globalcontext::FrameContext& frame;
+            ~IdleStageGuard()
+            {
+                frame.stage = globalcontext::FrameStage::IDLE;
+            }
+        } const idleStageGuard{frameContext};
 
-        auto& disp = runtime->dispatcher();
-        disp.update<events::WindowPixelSizeChanged>();
-        disp.update<events::WindowExposed>();
-        disp.update<events::WindowMoved>();
-        disp.trigger<events::TickKeyRepeat>(); // 驱动 TextInputSystem::doProcessKeyRepeat()
-    }
-};
-
-struct QueuedTask
-{
-    using is_task_tag = void;
-    UiRuntime* runtime = nullptr;
-
-    void operator()(uint32_t delta)
-    {
-        // 调度对象显式绑定目标 Runtime，避免嵌套 Application 的 current 指向其他实例。
-        UiRuntimeScope const runtimeScope{*runtime};
-
-        // 队列阶段先推进帧上下文，再驱动定时器与缓冲事件派发。
-        auto& frameContext = runtime->registry().template getOrEmplaceInCtx<globalcontext::FrameContext>();
+        frameContext.stage = globalcontext::FrameStage::BEGIN_FRAME;
         ++frameContext.frameNumber;
         frameContext.intervalMs = delta;
         frameContext.layoutUpdateCount = 0;
         frameContext.renderUpdateCount = 0;
         frameContext.frameSlot = (frameContext.frameSlot + 1) % 2;
-        auto& disp = runtime->dispatcher();
-        disp.trigger<ui::events::UpdateTimer>();
+
+        frameContext.stage = globalcontext::FrameStage::POLL_INPUT;
+        m_systems->pollInput();
+
+        auto& disp = m_runtime->dispatcher();
+        frameContext.stage = globalcontext::FrameStage::DISPATCH_INTERNAL_QUEUED;
         disp.update();
-        // 公开 queued event 在布局/渲染前恰好派发一次；派发中入队留到下一调度帧。
+
+        frameContext.stage = globalcontext::FrameStage::LOGIC;
+        disp.trigger<ui::events::UpdateTimer>();
+        disp.trigger<events::TickKeyRepeat>();
+        disp.trigger<ui::events::UpdateEvent>();
+
+        frameContext.stage = globalcontext::FrameStage::DISPATCH_PUBLIC_QUEUED;
         detail::event_bridge::DispatchQueued();
+
+        frameContext.stage = globalcontext::FrameStage::LAYOUT;
+        disp.trigger<ui::events::UpdateLayout>();
+
+        frameContext.stage = globalcontext::FrameStage::RENDER;
+        disp.trigger<ui::events::UpdateRendering>();
+
+        frameContext.stage = globalcontext::FrameStage::END_FRAME;
+        disp.trigger<ui::events::EndFrame>();
     }
+
+   private:
+    UiRuntime* m_runtime;
+    SystemManager* m_systems;
 };
 
-} // namespace ui::tasks
+}  // namespace ui::tasks

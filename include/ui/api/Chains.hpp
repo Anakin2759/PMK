@@ -37,7 +37,7 @@ namespace ui::actions
 {
 template <auto Fn>
 struct EntityAction;
-} // namespace ui::actions
+}  // namespace ui::actions
 
 namespace ui::chains
 {
@@ -49,15 +49,15 @@ template <typename T>
 concept Action = std::invocable<T, ui::entity>;
 
 template <typename T>
-concept TaggedAsChainAction = std::derived_from<std::remove_cvref_t<T>, ChainActionTag>
-                           || requires { typename std::remove_cvref_t<T>::is_chain_action_tag; };
+concept TaggedAsChainAction = std::derived_from<std::remove_cvref_t<T>, ChainActionTag> ||
+                              requires { typename std::remove_cvref_t<T>::is_chain_action_tag; };
 
 template <typename T>
 concept ChainAction = Action<T> && TaggedAsChainAction<T>;
 
 class AnyChain : public ChainActionTag
 {
-public:
+   public:
     using is_chain_action_tag = void;
 
     struct Concept
@@ -83,20 +83,30 @@ public:
     AnyChain& operator=(const AnyChain&) = delete;
     ~AnyChain() = default;
 
-    void operator()(ui::entity entity) { m_impl->invoke(entity); }
+    void operator()(ui::entity entity)
+    {
+        m_impl->invoke(entity);
+    }
 
     friend AnyChain operator|(AnyChain&& lhs, AnyChain&& rhs);
 
-private:
+   private:
     template <ChainAction F>
     struct Model final : Concept
     {
         F func;
-        explicit Model(F callable) : func(std::move(callable)) {}
-        void invoke(ui::entity entity) override { std::invoke(func, entity); }
+        explicit Model(F callable) : func(std::move(callable))
+        {
+        }
+        void invoke(ui::entity entity) override
+        {
+            std::invoke(func, entity);
+        }
     };
 
-    explicit AnyChain(std::unique_ptr<Concept> impl) noexcept : m_impl(std::move(impl)) {}
+    explicit AnyChain(std::unique_ptr<Concept> impl) noexcept : m_impl(std::move(impl))
+    {
+    }
 
     std::unique_ptr<Concept> m_impl;
 };
@@ -106,7 +116,9 @@ inline AnyChain operator|(AnyChain&& lhs, AnyChain&& rhs)
     struct Combined final : AnyChain::Concept
     {
         AnyChain left, right;
-        Combined(AnyChain lhsChain, AnyChain rhsChain) : left(std::move(lhsChain)), right(std::move(rhsChain)) {}
+        Combined(AnyChain lhsChain, AnyChain rhsChain) : left(std::move(lhsChain)), right(std::move(rhsChain))
+        {
+        }
         void invoke(ui::entity entity) override
         {
             left(entity);
@@ -123,7 +135,9 @@ struct Chain : ChainActionTag
 
     F func;
 
-    constexpr explicit Chain(F&& callable) : func(std::move(callable)) {}
+    constexpr explicit Chain(F&& callable) : func(std::move(callable))
+    {
+    }
 
     template <typename Self, ChainAction Next>
     auto operator|(this Self&& self, Next&& next)
@@ -186,7 +200,7 @@ auto Call(Args&&... args)
     return ui::actions::EntityAction<Func>{}.bind(std::forward<Args>(args)...);
 }
 
-} // namespace ui::chains
+}  // namespace ui::chains
 
 namespace ui::actions
 {
@@ -206,4 +220,4 @@ struct EntityAction
                                  { Fn(entity, std::move(args)...); }};
     }
 };
-} // namespace ui::actions
+}  // namespace ui::actions

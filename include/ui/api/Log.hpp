@@ -48,11 +48,26 @@ void SetCallback(Callback callback);
 void SetFilePath(std::string_view path);
 void LogImpl(Level level, std::string_view message);
 
-inline void Debug(std::string_view message) { LogImpl(Level::DEBUG, message); }
-inline void Info(std::string_view message) { LogImpl(Level::INFO, message); }
-inline void Warning(std::string_view message) { LogImpl(Level::WARNING, message); }
-inline void Error(std::string_view message) { LogImpl(Level::ERROR, message); }
-inline void Critical(std::string_view message) { LogImpl(Level::CRITICAL, message); }
+inline void Debug(std::string_view message)
+{
+    LogImpl(Level::DEBUG, message);
+}
+inline void Info(std::string_view message)
+{
+    LogImpl(Level::INFO, message);
+}
+inline void Warning(std::string_view message)
+{
+    LogImpl(Level::WARNING, message);
+}
+inline void Error(std::string_view message)
+{
+    LogImpl(Level::ERROR, message);
+}
+inline void Critical(std::string_view message)
+{
+    LogImpl(Level::CRITICAL, message);
+}
 
 template <typename... Args>
 inline void Debug(std::format_string<Args...> fmt, Args&&... args)
@@ -79,7 +94,7 @@ inline void Critical(std::format_string<Args...> fmt, Args&&... args)
 {
     LogImpl(Level::CRITICAL, std::format(fmt, std::forward<Args>(args)...));
 }
-} // namespace ui::log
+}  // namespace ui::log
 
 namespace ui::chains
 {
@@ -129,4 +144,4 @@ inline auto LogCritical(std::format_string<Args...> fmt, Args&&... args)
 {
     return Chain{[msg = std::format(fmt, std::forward<Args>(args)...)](ui::entity) { ui::log::Critical(msg); }};
 }
-} // namespace ui::chains
+}  // namespace ui::chains

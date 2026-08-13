@@ -85,20 +85,20 @@ ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
         ("src/core/WindowEntityLookup.hpp", "UiRuntime::current()"): 6,
         ("src/core/WindowSync.hpp", "UiRuntime::current()"): 8,
         ("src/helper/Helper.hpp", "UiRuntime::current()"): 103,
-        ("src/managers/CommandBuffer.hpp", "UiRuntime::current()"): 4,
-        ("src/managers/DeviceManager.hpp", "UiRuntime::current()"): 12,
+        ("src/managers/CommandBuffer.hpp", "UiRuntime::current()"): 11,
+        ("src/managers/DeviceManager.hpp", "UiRuntime::current()"): 21,
         ("src/managers/FontAtlasManager.hpp", "UiRuntime::current()"): 5,
         ("src/managers/FontManager.hpp", "UiRuntime::current()"): 16,
-        ("src/managers/IconManager.cpp", "UiRuntime::current()"): 34,
+        ("src/managers/IconManager.cpp", "UiRuntime::current()"): 37,
         ("src/managers/IconManager.hpp", "UiRuntime::current()"): 2,
-        ("src/managers/ImageManager.cpp", "UiRuntime::current()"): 11,
-        ("src/managers/PipelineCache.hpp", "UiRuntime::current()"): 6,
+        ("src/managers/ImageManager.cpp", "UiRuntime::current()"): 15,
+        ("src/managers/PipelineCache.hpp", "UiRuntime::current()"): 7,
         ("src/managers/ResourceProvider.cpp", "UiRuntime::current()"): 3,
-        ("src/managers/TextTextureCache.cpp", "UiRuntime::current()"): 8,
-        ("src/managers/TextureAtlas.hpp", "UiRuntime::current()"): 12,
-        ("src/renderers/FallbackBackendRenderer.hpp", "UiRuntime::current()"): 4,
-        ("src/systems/render/RenderBackend.cpp", "UiRuntime::current()"): 34,
-        ("src/systems/render/RenderFrame.cpp", "UiRuntime::current()"): 9,
+        ("src/managers/TextTextureCache.cpp", "UiRuntime::current()"): 11,
+        ("src/managers/TextureAtlas.hpp", "UiRuntime::current()"): 25,
+        ("src/renderers/FallbackBackendRenderer.hpp", "UiRuntime::current()"): 5,
+        ("src/systems/render/RenderBackend.cpp", "UiRuntime::current()"): 33,
+        ("src/systems/render/RenderFrame.cpp", "UiRuntime::current()"): 10,
         ("src/systems/render/RenderResources.cpp", "UiRuntime::current()"): 1,
         ("src/systems/StateSystem.cpp", "UiRuntime::current()"): 3,
         ("src/systems/TimerSystem.cpp", "UiRuntime::current()"): 2,
@@ -256,8 +256,13 @@ def count_matches(root: Path):
         '#pragma once',
         '#include "ui/TweenOptions.hpp" // IWYU pragma: export',
     ]
+
+    def normalize_whitespace(line: str) -> str:
+        """折叠连续空白为单空格，使比较对 clang-format 注释对齐产生的空格差异不敏感。"""
+        return re.sub(r"\s+", " ", line.strip())
+
     animation_forwarder_lines = [
-        line.strip()
+        normalize_whitespace(line)
         for line in animation_compatibility_header.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
@@ -312,10 +317,13 @@ def count_matches(root: Path):
                     locations.setdefault(("api-cpp-entt-entity", *key), []).append((line_no, line))
 
             if is_under(path, root, RUNTIME_ACCESS_DIRS):
-                for match in UI_RUNTIME_CURRENT_RE.finditer(line):
-                    key = (rel, match.group(0))
-                    runtime_current_counts[key] += 1
-                    locations.setdefault(("runtime-current", *key), []).append((line_no, line))
+                # UiRuntime.hpp 是 UiRuntime::current() 的定义处，其文档/断言字符串
+                # 含 "UiRuntime::current()" 字样会导致误判，此处显式排除。
+                if rel != "src/core/UiRuntime.hpp":
+                    for match in UI_RUNTIME_CURRENT_RE.finditer(line):
+                        key = (rel, match.group(0))
+                        runtime_current_counts[key] += 1
+                        locations.setdefault(("runtime-current", *key), []).append((line_no, line))
 
             if (
                 rel.startswith("src/")

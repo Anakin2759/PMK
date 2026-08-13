@@ -80,7 +80,7 @@ TEST(ErrorTest, PropagationPreservesOrigin)
         auto inner = makeInner();
         if (!inner)
         {
-            return ui::Err(inner.error()); // 传播已有 Error
+            return ui::Err(inner.error());  // 传播已有 Error
         }
         return std::string("ok");
     };
@@ -152,4 +152,4 @@ TEST(FormatterTest, ErrorFormatsAsToString)
     EXPECT_EQ(std::format("{}", unexpectedError.error()), unexpectedError.error().ToString());
 }
 
-} // namespace
+}  // namespace

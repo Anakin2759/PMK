@@ -39,7 +39,7 @@ enum class BackendCapability : std::uint8_t
 
 class IBackendRenderer
 {
-public:
+   public:
     virtual ~IBackendRenderer() = default;
     IBackendRenderer() = default;
     IBackendRenderer(const IBackendRenderer&) = delete;
@@ -71,13 +71,9 @@ public:
      */
     virtual void drawBatch(const render::RenderBatch& batch, SDL_GPUTexture* whiteTextureTag) = 0;
 
-    virtual ui::Result<void> drawCachedBitmap(std::string_view cacheKey,
-                                              std::span<const std::uint8_t> rgbaPixels,
-                                              int bitmapWidth,
-                                              int bitmapHeight,
-                                              const SDL_FRect& destinationRect,
-                                              const std::optional<SDL_Rect>& scissorRect,
-                                              std::uint8_t alphaMod)
+    virtual ui::Result<void> drawCachedBitmap(std::string_view cacheKey, std::span<const std::uint8_t> rgbaPixels,
+                                              int bitmapWidth, int bitmapHeight, const SDL_FRect& destinationRect,
+                                              const std::optional<SDL_Rect>& scissorRect, std::uint8_t alphaMod)
     {
         static_cast<void>(cacheKey);
         static_cast<void>(rgbaPixels);
@@ -108,4 +104,4 @@ public:
     }
 };
 
-} // namespace ui::interface
+}  // namespace ui::interface

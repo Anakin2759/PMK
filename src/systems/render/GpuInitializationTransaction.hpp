@@ -14,7 +14,7 @@ namespace ui::systems::render
  */
 class GpuInitializationTransaction final
 {
-public:
+   public:
     enum class Node : std::uint8_t
     {
         PIPELINE_CACHE,
@@ -43,8 +43,7 @@ public:
 
     [[nodiscard]] bool Commit(Node node) noexcept
     {
-        if (m_state != State::IN_PROGRESS || m_committedCount >= NODE_COUNT
-            || expectedNode(m_committedCount) != node)
+        if (m_state != State::IN_PROGRESS || m_committedCount >= NODE_COUNT || expectedNode(m_committedCount) != node)
         {
             return false;
         }
@@ -84,23 +83,38 @@ public:
         m_state = State::SHUTDOWN;
     }
 
-    [[nodiscard]] State GetState() const noexcept { return m_state; }
-    [[nodiscard]] bool IsReady() const noexcept { return m_state == State::READY; }
-    [[nodiscard]] bool IsFailed() const noexcept { return m_state == State::FAILED; }
-    [[nodiscard]] std::size_t CommittedCount() const noexcept { return m_committedCount; }
-    [[nodiscard]] bool HadCleanupFailure() const noexcept { return m_cleanupFailed; }
+    [[nodiscard]] State GetState() const noexcept
+    {
+        return m_state;
+    }
+    [[nodiscard]] bool IsReady() const noexcept
+    {
+        return m_state == State::READY;
+    }
+    [[nodiscard]] bool IsFailed() const noexcept
+    {
+        return m_state == State::FAILED;
+    }
+    [[nodiscard]] std::size_t CommittedCount() const noexcept
+    {
+        return m_committedCount;
+    }
+    [[nodiscard]] bool HadCleanupFailure() const noexcept
+    {
+        return m_cleanupFailed;
+    }
 
-private:
+   private:
     [[nodiscard]] static constexpr Node expectedNode(std::size_t index) noexcept
     {
         switch (index)
         {
-        case 0:
-            return Node::PIPELINE_CACHE;
-        case 1:
-            return Node::TEXT_TEXTURE_CACHE;
-        default:
-            return Node::COMMAND_BUFFER;
+            case 0:
+                return Node::PIPELINE_CACHE;
+            case 1:
+                return Node::TEXT_TEXTURE_CACHE;
+            default:
+                return Node::COMMAND_BUFFER;
         }
     }
 
@@ -128,4 +142,4 @@ private:
     bool m_cleanupFailed = false;
 };
 
-} // namespace ui::systems::render
+}  // namespace ui::systems::render

@@ -55,12 +55,12 @@ namespace ui::managers
  */
 struct GlyphInfo
 {
-    int width = 0;               // 位图宽度
-    int height = 0;              // 位图高度
-    int bearingX = 0;            // 水平偏移（左侧基准）
-    int bearingY = 0;            // 垂直偏移（基线到字形顶部）
-    float advanceX = 0.0F;       // 水平前进量（像素）
-    std::vector<uint8_t> bitmap; // 灰度位图数据
+    int width = 0;                // 位图宽度
+    int height = 0;               // 位图高度
+    int bearingX = 0;             // 水平偏移（左侧基准）
+    int bearingY = 0;             // 垂直偏移（基线到字形顶部）
+    float advanceX = 0.0F;        // 水平前进量（像素）
+    std::vector<uint8_t> bitmap;  // 灰度位图数据
 };
 
 /**
@@ -68,12 +68,12 @@ struct GlyphInfo
  */
 struct ShapedGlyph
 {
-    uint32_t glyphId = 0;  // 字形索引
-    float xOffset = 0.0F;  // X 偏移（像素）
-    float yOffset = 0.0F;  // Y 偏移（像素）
-    float xAdvance = 0.0F; // X 前进量（像素）
-    float yAdvance = 0.0F; // Y 前进量（像素）
-    uint32_t cluster = 0;  // 对应的字符簇索引
+    uint32_t glyphId = 0;   // 字形索引
+    float xOffset = 0.0F;   // X 偏移（像素）
+    float yOffset = 0.0F;   // Y 偏移（像素）
+    float xAdvance = 0.0F;  // X 前进量（像素）
+    float yAdvance = 0.0F;  // Y 前进量（像素）
+    uint32_t cluster = 0;   // 对应的字符簇索引
 };
 
 struct GlyphLayout
@@ -99,7 +99,7 @@ struct TextBlendState
  */
 class FontManager
 {
-public:
+   public:
     FontManager()
     {
         FT_Library lib = nullptr;
@@ -174,14 +174,18 @@ public:
         // 创建 HarfBuzz font
         createHarfBuzzFont();
 
-        ui::UiRuntime::current().logger().info("[FontManager] Font loaded: {} at {}px", m_ftFace->family_name, fontSize);
+        ui::UiRuntime::current().logger().info("[FontManager] Font loaded: {} at {}px", m_ftFace->family_name,
+                                               fontSize);
         return Ok();
     }
 
     /**
      * @brief 检查字体是否已加载
      */
-    [[nodiscard]] bool isLoaded() const { return m_loaded && m_ftFace != nullptr; }
+    [[nodiscard]] bool isLoaded() const
+    {
+        return m_loaded && m_ftFace != nullptr;
+    }
 
     /**
      * @brief 更新当前 DPI 缩放比例
@@ -203,21 +207,26 @@ public:
         }
 
         clearCache();
-        ui::UiRuntime::current().logger().info("[FontManager] DPI scale updated: {:.2f}, oversample: {:.2f}", m_dpiScale, getOversampleScale());
+        ui::UiRuntime::current().logger().info("[FontManager] DPI scale updated: {:.2f}, oversample: {:.2f}",
+                                               m_dpiScale, getOversampleScale());
         return true;
     }
 
     /**
      * @brief 获取字体大小
      */
-    [[nodiscard]] float getFontSize() const { return m_fontSize; }
+    [[nodiscard]] float getFontSize() const
+    {
+        return m_fontSize;
+    }
 
     /**
      * @brief 获取字体高度（行高）- 像素
      */
     [[nodiscard]] int getFontHeight(float fontSize = 0.0F)
     {
-        if (m_ftFace == nullptr) return 0;
+        if (m_ftFace == nullptr)
+            return 0;
 
         const float targetSize = (fontSize > 0.0F) ? fontSize : m_fontSize;
         const bool needRestore = (std::abs(targetSize - m_fontSize) > 0.1F);
@@ -242,7 +251,8 @@ public:
      */
     [[nodiscard]] int getBaseline(float fontSize = 0.0F)
     {
-        if (m_ftFace == nullptr) return 0;
+        if (m_ftFace == nullptr)
+            return 0;
 
         const float targetSize = (fontSize > 0.0F) ? fontSize : m_fontSize;
         const bool needRestore = (std::abs(targetSize - m_fontSize) > 0.1F);
@@ -273,7 +283,8 @@ public:
     {
         if (m_ftFace == nullptr || text == nullptr || textLen == 0)
         {
-            if (outMeasuredLength != nullptr) *outMeasuredLength = 0;
+            if (outMeasuredLength != nullptr)
+                *outMeasuredLength = 0;
             return 0;
         }
 
@@ -293,12 +304,13 @@ public:
             {
                 setPixelSize(oldSize);
             }
-            if (outMeasuredLength != nullptr) *outMeasuredLength = 0;
+            if (outMeasuredLength != nullptr)
+                *outMeasuredLength = 0;
             return 0;
         }
 
         float totalWidth = 0.0F;
-        size_t measuredEnd = textLen; // 默认：测量到文本末尾
+        size_t measuredEnd = textLen;  // 默认：测量到文本末尾
 
         for (const auto& shapedGlyph : shapedGlyphs)
         {
@@ -346,7 +358,8 @@ public:
     {
         GlyphInfo info;
 
-        if (m_ftFace == nullptr) return info;
+        if (m_ftFace == nullptr)
+            return info;
 
         // 使用指定字体大小或默认大小
         const float targetSize = (fontSize > 0.0F) ? fontSize : m_fontSize;
@@ -367,7 +380,8 @@ public:
         FT_Error error = FT_Load_Glyph(m_ftFace.get(), glyphIndex, FT_LOAD_DEFAULT | FT_LOAD_TARGET_NORMAL);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Failed to load glyph for codepoint {}: error {}", codepoint, error);
+            ui::UiRuntime::current().logger().warn("[FontManager] Failed to load glyph for codepoint {}: error {}",
+                                                   codepoint, error);
             return info;
         }
 
@@ -375,7 +389,8 @@ public:
         error = FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Failed to render glyph for codepoint {}: error {}", codepoint, error);
+            ui::UiRuntime::current().logger().warn("[FontManager] Failed to render glyph for codepoint {}: error {}",
+                                                   codepoint, error);
             return info;
         }
 
@@ -400,7 +415,10 @@ public:
      * @brief 获取文本超采样缩放因子
      * @note 保留此接口以兼容旧的渲染管线
      */
-    [[nodiscard]] float getOversampleScale() const { return std::max(TEXT_OVERSAMPLE_SCALE, m_dpiScale); }
+    [[nodiscard]] float getOversampleScale() const
+    {
+        return std::max(TEXT_OVERSAMPLE_SCALE, m_dpiScale);
+    }
 
     /**
      * @brief 渲染整个文本到 alpha mask 位图
@@ -411,8 +429,8 @@ public:
      * @param fontSize 字体大小（像素），0 表示使用默认大小
      * @return 单通道（R8）位图数据，每像素 1 字节，值为字形 coverage
      */
-    std::vector<uint8_t> renderTextAlphaMask(
-        const std::string& text, uint8_t alpha, int& outWidth, int& outHeight, float fontSize = 0.0F)
+    std::vector<uint8_t> renderTextAlphaMask(const std::string& text, uint8_t alpha, int& outWidth, int& outHeight,
+                                             float fontSize = 0.0F)
     {
         std::vector<uint8_t> result;
 
@@ -466,14 +484,8 @@ public:
      * @param fontSize 字体大小（像素），0 表示使用默认大小
      * @return RGBA 位图数据
      */
-    std::vector<uint8_t> renderTextBitmap(const std::string& text,
-                                          uint8_t red,
-                                          uint8_t green,
-                                          uint8_t blue,
-                                          uint8_t alpha,
-                                          int& outWidth,
-                                          int& outHeight,
-                                          float fontSize = 0.0F)
+    std::vector<uint8_t> renderTextBitmap(const std::string& text, uint8_t red, uint8_t green, uint8_t blue,
+                                          uint8_t alpha, int& outWidth, int& outHeight, float fontSize = 0.0F)
     {
         std::vector<uint8_t> result;
 
@@ -583,7 +595,8 @@ public:
     {
         GlyphInfo info;
 
-        if (m_ftFace == nullptr) return info;
+        if (m_ftFace == nullptr)
+            return info;
 
         // 使用指定字体大小或默认大小
         const float targetSize = (fontSize > 0.0F) ? fontSize : m_fontSize;
@@ -603,7 +616,8 @@ public:
         FT_Error error = FT_Load_Glyph(m_ftFace.get(), glyphId, FT_LOAD_DEFAULT | FT_LOAD_TARGET_NORMAL);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Failed to load glyph index {}: error {}", glyphId, error);
+            ui::UiRuntime::current().logger().warn("[FontManager] Failed to load glyph index {}: error {}", glyphId,
+                                                   error);
             return info;
         }
 
@@ -611,7 +625,8 @@ public:
         error = FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Failed to render glyph index {}: error {}", glyphId, error);
+            ui::UiRuntime::current().logger().warn("[FontManager] Failed to render glyph index {}: error {}", glyphId,
+                                                   error);
             return info;
         }
 
@@ -649,7 +664,8 @@ public:
      */
     static size_t decodeUTF8(std::string_view text, int& outCodepoint)
     {
-        if (text.empty()) return 0;
+        if (text.empty())
+            return 0;
 
         const auto byte0 = static_cast<uint8_t>(text[0]);
 
@@ -663,7 +679,8 @@ public:
         // 2 字节
         if ((byte0 & 0xE0U) == 0xC0)
         {
-            if (text.size() < 2) return 0;
+            if (text.size() < 2)
+                return 0;
             outCodepoint = static_cast<int>(((byte0 & 0x1FU) << 6U) | (static_cast<uint8_t>(text[1]) & 0x3FU));
             return 2;
         }
@@ -671,26 +688,28 @@ public:
         // 3 字节
         if ((byte0 & 0xF0U) == 0xE0)
         {
-            if (text.size() < 3) return 0;
-            outCodepoint = static_cast<int>(((byte0 & 0x0FU) << 12U) | ((static_cast<uint8_t>(text[1]) & 0x3FU) << 6U)
-                                            | (static_cast<uint8_t>(text[2]) & 0x3FU));
+            if (text.size() < 3)
+                return 0;
+            outCodepoint = static_cast<int>(((byte0 & 0x0FU) << 12U) | ((static_cast<uint8_t>(text[1]) & 0x3FU) << 6U) |
+                                            (static_cast<uint8_t>(text[2]) & 0x3FU));
             return 3;
         }
 
         // 4 字节
         if ((byte0 & 0xF8U) == 0xF0)
         {
-            if (text.size() < 4) return 0;
-            outCodepoint = static_cast<int>(((byte0 & 0x07U) << 18U) | ((static_cast<uint8_t>(text[1]) & 0x3FU) << 12U)
-                                            | ((static_cast<uint8_t>(text[2]) & 0x3FU) << 6U)
-                                            | (static_cast<uint8_t>(text[3]) & 0x3FU));
+            if (text.size() < 4)
+                return 0;
+            outCodepoint = static_cast<int>(
+                ((byte0 & 0x07U) << 18U) | ((static_cast<uint8_t>(text[1]) & 0x3FU) << 12U) |
+                ((static_cast<uint8_t>(text[2]) & 0x3FU) << 6U) | (static_cast<uint8_t>(text[3]) & 0x3FU));
             return 4;
         }
 
         return 0;
     }
 
-private:
+   private:
     static constexpr float TEXT_OVERSAMPLE_SCALE = 2.0F;
     float m_dpiScale = 1.0F;
 
@@ -699,11 +718,12 @@ private:
      */
     void createHarfBuzzFont()
     {
-        m_hbFont.reset(); // 释放旧实例（如有）
+        m_hbFont.reset();  // 释放旧实例（如有）
 
         if (m_ftFace == nullptr)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Cannot create HarfBuzz font: FreeType face not loaded");
+            ui::UiRuntime::current().logger().warn(
+                "[FontManager] Cannot create HarfBuzz font: FreeType face not loaded");
             return;
         }
 
@@ -723,7 +743,8 @@ private:
      */
     void setPixelSize(float size)
     {
-        if (m_ftFace == nullptr || size <= 0.0F) return;
+        if (m_ftFace == nullptr || size <= 0.0F)
+            return;
         const FT_Error error = FT_Set_Pixel_Sizes(m_ftFace.get(), 0, static_cast<FT_UInt>(size));
         if (error == 0)
         {
@@ -748,9 +769,10 @@ private:
 
     class FontSizeGuard
     {
-    public:
+       public:
         FontSizeGuard(FontManager& manager, float targetSize)
-            : m_manager(manager), m_oldSize(manager.m_fontSize),
+            : m_manager(manager),
+              m_oldSize(manager.m_fontSize),
               m_needRestore(std::abs(targetSize - manager.m_fontSize) > 0.1F)
         {
             if (m_needRestore)
@@ -772,7 +794,7 @@ private:
         FontSizeGuard(FontSizeGuard&&) = delete;
         FontSizeGuard& operator=(FontSizeGuard&&) = delete;
 
-    private:
+       private:
         FontManager& m_manager;
         float m_oldSize;
         bool m_needRestore;
@@ -828,10 +850,7 @@ private:
         return glyph.bitmap.at(pixelIndex);
     }
 
-    static void blendAlphaMask(const std::vector<GlyphLayout>& layouts,
-                               int baseline,
-                               int outWidth,
-                               int outHeight,
+    static void blendAlphaMask(const std::vector<GlyphLayout>& layouts, int baseline, int outWidth, int outHeight,
                                std::vector<uint8_t>& result)
     {
         for (const auto& layout : layouts)
@@ -840,8 +859,8 @@ private:
         }
     }
 
-    static void blendAlphaGlyph(
-        const GlyphLayout& layout, int baseline, int outWidth, int outHeight, std::vector<uint8_t>& result)
+    static void blendAlphaGlyph(const GlyphLayout& layout, int baseline, int outWidth, int outHeight,
+                                std::vector<uint8_t>& result)
     {
         const auto& glyph = layout.glyph;
         const int xPos = static_cast<int>(std::floor(layout.xPos)) + glyph.bearingX;
@@ -853,7 +872,8 @@ private:
             {
                 const int bitmapX = xPos + xOffset;
                 const int bitmapY = yPos + yOffset;
-                if (!isInsideBitmap(bitmapX, bitmapY, outWidth, outHeight)) continue;
+                if (!isInsideBitmap(bitmapX, bitmapY, outWidth, outHeight))
+                    continue;
 
                 const auto pixelIndex =
                     (static_cast<size_t>(bitmapY) * static_cast<size_t>(outWidth)) + static_cast<size_t>(bitmapX);
@@ -863,8 +883,7 @@ private:
         }
     }
 
-    static void blendTextBitmap(const std::vector<GlyphLayout>& layouts,
-                                const TextBlendState& blendState,
+    static void blendTextBitmap(const std::vector<GlyphLayout>& layouts, const TextBlendState& blendState,
                                 std::vector<uint8_t>& result)
     {
         for (const auto& layout : layouts)
@@ -878,8 +897,8 @@ private:
         return static_cast<uint8_t>(((static_cast<uint16_t>(color) * alpha) + 127U) / 255U);
     }
 
-    static void writeSourcePixel(
-        std::vector<uint8_t>& result, size_t pixelIndex, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha)
+    static void writeSourcePixel(std::vector<uint8_t>& result, size_t pixelIndex, uint8_t red, uint8_t green,
+                                 uint8_t blue, uint8_t alpha)
     {
         result.at(pixelIndex) = red;
         result.at(pixelIndex + 1U) = green;
@@ -887,26 +906,26 @@ private:
         result.at(pixelIndex + 3U) = alpha;
     }
 
-    static void blendSourceOver(
-        std::vector<uint8_t>& result, size_t pixelIndex, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha)
+    static void blendSourceOver(std::vector<uint8_t>& result, size_t pixelIndex, uint8_t red, uint8_t green,
+                                uint8_t blue, uint8_t alpha)
     {
         const float sourceAlpha = static_cast<float>(alpha) / 255.0F;
         const float oneMinusSourceAlpha = 1.0F - sourceAlpha;
         result.at(pixelIndex) = static_cast<uint8_t>(std::lround(std::min(
             255.0F, static_cast<float>(red) + (static_cast<float>(result.at(pixelIndex)) * oneMinusSourceAlpha))));
-        result.at(pixelIndex + 1U) = static_cast<uint8_t>(std::lround(std::min(
-            255.0F,
-            static_cast<float>(green) + (static_cast<float>(result.at(pixelIndex + 1U)) * oneMinusSourceAlpha))));
-        result.at(pixelIndex + 2U) = static_cast<uint8_t>(std::lround(std::min(
-            255.0F,
-            static_cast<float>(blue) + (static_cast<float>(result.at(pixelIndex + 2U)) * oneMinusSourceAlpha))));
-        result.at(pixelIndex + 3U) = static_cast<uint8_t>(std::lround(std::min(
-            255.0F,
-            static_cast<float>(alpha) + (static_cast<float>(result.at(pixelIndex + 3U)) * oneMinusSourceAlpha))));
+        result.at(pixelIndex + 1U) = static_cast<uint8_t>(
+            std::lround(std::min(255.0F, static_cast<float>(green) +
+                                             (static_cast<float>(result.at(pixelIndex + 1U)) * oneMinusSourceAlpha))));
+        result.at(pixelIndex + 2U) = static_cast<uint8_t>(
+            std::lround(std::min(255.0F, static_cast<float>(blue) +
+                                             (static_cast<float>(result.at(pixelIndex + 2U)) * oneMinusSourceAlpha))));
+        result.at(pixelIndex + 3U) = static_cast<uint8_t>(
+            std::lround(std::min(255.0F, static_cast<float>(alpha) +
+                                             (static_cast<float>(result.at(pixelIndex + 3U)) * oneMinusSourceAlpha))));
     }
 
-    static void
-        blendTextGlyph(const GlyphLayout& layout, const TextBlendState& blendState, std::vector<uint8_t>& result)
+    static void blendTextGlyph(const GlyphLayout& layout, const TextBlendState& blendState,
+                               std::vector<uint8_t>& result)
     {
         const auto& glyph = layout.glyph;
         const int xPos = static_cast<int>(std::floor(layout.xPos)) + glyph.bearingX;
@@ -918,13 +937,15 @@ private:
             {
                 const int bitmapX = xPos + xOffset;
                 const int bitmapY = yPos + yOffset;
-                if (!isInsideBitmap(bitmapX, bitmapY, blendState.outWidth, blendState.outHeight)) continue;
+                if (!isInsideBitmap(bitmapX, bitmapY, blendState.outWidth, blendState.outHeight))
+                    continue;
 
-                const auto pixelIndex = ((static_cast<size_t>(bitmapY) * static_cast<size_t>(blendState.outWidth))
-                                         + static_cast<size_t>(bitmapX))
-                                      * 4U;
+                const auto pixelIndex = ((static_cast<size_t>(bitmapY) * static_cast<size_t>(blendState.outWidth)) +
+                                         static_cast<size_t>(bitmapX)) *
+                                        4U;
                 const auto finalAlpha = premultiplyColor(glyphAlphaAt(glyph, xOffset, yOffset), blendState.alpha);
-                if (finalAlpha == 0) continue;
+                if (finalAlpha == 0)
+                    continue;
 
                 const auto sourceRed = premultiplyColor(blendState.red, finalAlpha);
                 const auto sourceGreen = premultiplyColor(blendState.green, finalAlpha);
@@ -949,15 +970,24 @@ private:
     // RAII 包装器：负责在析构时自动释放 FreeType/HarfBuzz 资源
     struct FtLibraryDeleter
     {
-        void operator()(std::remove_pointer_t<FT_Library>* library) const noexcept { FT_Done_FreeType(library); }
+        void operator()(std::remove_pointer_t<FT_Library>* library) const noexcept
+        {
+            FT_Done_FreeType(library);
+        }
     };
     struct FtFaceDeleter
     {
-        void operator()(std::remove_pointer_t<FT_Face>* face) const noexcept { FT_Done_Face(face); }
+        void operator()(std::remove_pointer_t<FT_Face>* face) const noexcept
+        {
+            FT_Done_Face(face);
+        }
     };
     struct HbFontDeleter
     {
-        void operator()(hb_font_t* font) const noexcept { hb_font_destroy(font); }
+        void operator()(hb_font_t* font) const noexcept
+        {
+            hb_font_destroy(font);
+        }
     };
 
     // 成员销毁顺序为声明逆序：m_hbFont → m_ftFace → m_ftLibrary（正确清理顺序）
@@ -969,4 +999,4 @@ private:
     std::unordered_map<uint64_t, GlyphInfo> m_glyphCache;
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

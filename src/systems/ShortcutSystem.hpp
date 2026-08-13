@@ -47,9 +47,11 @@ namespace ui::systems
  */
 class ShortcutSystem final : public ui::interface::EnableRegister<ShortcutSystem>
 {
-public:
+   public:
     ShortcutSystem() = default;
-    explicit ShortcutSystem(UiRuntime& runtime) : m_disp(&runtime.dispatcher()) {}
+    explicit ShortcutSystem(UiRuntime& runtime) : m_disp(&runtime.dispatcher())
+    {
+    }
 
     void registerHandlersImpl()
     {
@@ -81,8 +83,8 @@ public:
      */
     static void unregister(shortcut::ShortcutId shortcutId)
     {
-        auto iter = std::find_if(
-            sShortcuts.begin(), sShortcuts.end(), [shortcutId](const Entry& entry) { return entry.id == shortcutId; });
+        auto iter = std::find_if(sShortcuts.begin(), sShortcuts.end(),
+                                 [shortcutId](const Entry& entry) { return entry.id == shortcutId; });
         if (iter != sShortcuts.end())
         {
             sShortcuts.erase(iter);
@@ -92,14 +94,17 @@ public:
     /**
      * @brief 清除所有已注册快捷键
      */
-    static void clearAll() { sShortcuts.clear(); }
+    static void clearAll()
+    {
+        sShortcuts.clear();
+    }
 
-private:
+   private:
     struct Entry
     {
         shortcut::ShortcutId id;
-        int32_t key;       // SDL 虚拟键码
-        shortcut::Mod mod; // 修饰键掩码
+        int32_t key;        // SDL 虚拟键码
+        shortcut::Mod mod;  // 修饰键掩码
         shortcut::Callback callback;
     };
 
@@ -151,4 +156,4 @@ private:
     Dispatcher* m_disp = nullptr;
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

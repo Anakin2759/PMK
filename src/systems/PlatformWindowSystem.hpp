@@ -24,17 +24,28 @@ namespace ui::systems
 
 class PlatformWindowSystem : public ui::interface::EnableRegister<PlatformWindowSystem>
 {
-public:
+   public:
     PlatformWindowSystem() = default;
-    explicit PlatformWindowSystem(UiRuntime& runtime) : m_disp(&runtime.dispatcher()) {}
+    explicit PlatformWindowSystem(UiRuntime& runtime) : m_disp(&runtime.dispatcher())
+    {
+    }
 
-    void registerHandlersImpl() { SDL_AddEventWatch(&PlatformWindowSystem::platformEventWatch, this); }
+    void registerHandlersImpl()
+    {
+        SDL_AddEventWatch(&PlatformWindowSystem::platformEventWatch, this);
+    }
 
-    void unregisterHandlersImpl() { SDL_RemoveEventWatch(&PlatformWindowSystem::platformEventWatch, this); }
+    void unregisterHandlersImpl()
+    {
+        SDL_RemoveEventWatch(&PlatformWindowSystem::platformEventWatch, this);
+    }
 
-    ui::interface::SystemPhase getPhase() { return ui::interface::SystemPhase::INPUT; }
+    ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::INPUT;
+    }
 
-private:
+   private:
     /**
      * @brief SDL 事件监听回调，桥接平台窗口事件到系统内部
      * @param userdata 用户数据指针
@@ -45,7 +56,8 @@ private:
     static bool SDLCALL platformEventWatch(void* userdata, SDL_Event* event)
     {
         (void)userdata;
-        if (event == nullptr) return true;
+        if (event == nullptr)
+            return true;
 
         auto* system = static_cast<PlatformWindowSystem*>(userdata);
         if (system != nullptr)
@@ -62,16 +74,16 @@ private:
      */
     static bool isRelevantPlatformWindowEvent(Uint32 eventType)
     {
-        return eventType == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || eventType == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
-            || eventType == SDL_EVENT_WINDOW_RESIZED || eventType == SDL_EVENT_WINDOW_MOVED
-            || eventType == SDL_EVENT_WINDOW_SHOWN
-            || eventType == SDL_EVENT_WINDOW_HIDDEN || eventType == SDL_EVENT_WINDOW_EXPOSED;
+        return eventType == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED ||
+               eventType == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED || eventType == SDL_EVENT_WINDOW_RESIZED ||
+               eventType == SDL_EVENT_WINDOW_MOVED || eventType == SDL_EVENT_WINDOW_SHOWN ||
+               eventType == SDL_EVENT_WINDOW_HIDDEN || eventType == SDL_EVENT_WINDOW_EXPOSED;
     }
 
     void enqueueWindowEvent(const SDL_WindowEvent& windowEvent)
     {
-        if (windowEvent.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
-            || windowEvent.type == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || windowEvent.type == SDL_EVENT_WINDOW_RESIZED)
+        if (windowEvent.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED ||
+            windowEvent.type == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || windowEvent.type == SDL_EVENT_WINDOW_RESIZED)
         {
             auto source = ui::events::WindowMetricChangeSource::DISPLAY_SCALE_CHANGED;
             if (windowEvent.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
@@ -103,7 +115,8 @@ private:
     void handlePlatformWindowEvent(const SDL_Event& event)
     {
         const auto eventType = event.type;
-        if (!isRelevantPlatformWindowEvent(eventType)) return;
+        if (!isRelevantPlatformWindowEvent(eventType))
+            return;
 
         enqueueWindowEvent(event.window);
     }
@@ -111,4 +124,4 @@ private:
     Dispatcher* m_disp = nullptr;
 };
 
-} // namespace ui::systems
+}  // namespace ui::systems

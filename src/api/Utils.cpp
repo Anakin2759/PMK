@@ -26,12 +26,15 @@ namespace
 {
     return UiRuntime::current().registry();
 }
-} // namespace
+}  // namespace
 
 void MarkLayoutChanged(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)){ return;}
+    if (!reg.valid(entity))
+    {
+        return;
+    }
 
     entt::entity current = detail::ToInternal(entity);
     while (current != ::entt::null && reg.valid(current))
@@ -45,7 +48,8 @@ void MarkLayoutChanged(ui::entity entity)
 void MarkVisualChanged(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
+    if (!reg.valid(entity))
+        return;
 
     reg.emplace_or_replace<components::RenderDirtyTag>(entity);
 
@@ -71,7 +75,8 @@ void MarkVisualChanged(ui::entity entity)
 
 void MarkLayoutAndVisualChanged(ui::entity entity)
 {
-    if (!CurrentRegistry().valid(entity)) return;
+    if (!CurrentRegistry().valid(entity))
+        return;
 
     MarkLayoutChanged(entity);
     MarkVisualChanged(entity);
@@ -95,7 +100,8 @@ bool HasAlignment(policies::Alignment value, policies::Alignment flag)
 void SetWindowFlag(ui::entity entity, policies::WindowFlag flag)
 {
     auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
+    if (!reg.valid(entity))
+        return;
     auto& windowComp = reg.get_or_emplace<components::Window>(entity);
 
     windowComp.flags |= flag;
@@ -104,7 +110,8 @@ void SetWindowFlag(ui::entity entity, policies::WindowFlag flag)
 void CloseWindow(ui::entity entity)
 {
     auto& reg = CurrentRegistry();
-    if (!reg.valid(entity)) return;
+    if (!reg.valid(entity))
+        return;
     UiRuntime::current().dispatcher().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
 }
 
@@ -186,9 +193,7 @@ Rect GetScrollViewportRect(ui::entity entity)
     const float right = padding->values.y();
     const float bottom = padding->values.z();
 
-    return {entityRect.x() + left,
-            entityRect.y() + top,
-            std::max(0.0F, entityRect.width() - left - right),
+    return {entityRect.x() + left, entityRect.y() + top, std::max(0.0F, entityRect.width() - left - right),
             std::max(0.0F, entityRect.height() - top - bottom)};
 }
 
@@ -246,17 +251,14 @@ VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
         return geometry;
     }
 
-    geometry.trackRect = {geometry.containerRect.x + geometry.containerRect.width
-                              - components::ScrollArea::SCROLLBAR_TRACK_WIDTH
-                              - components::ScrollArea::SCROLLBAR_TRACK_PADDING,
-                          geometry.containerRect.y,
-                          components::ScrollArea::SCROLLBAR_TRACK_WIDTH,
-                          geometry.trackHeight};
+    geometry.trackRect = {
+        geometry.containerRect.x + geometry.containerRect.width - components::ScrollArea::SCROLLBAR_TRACK_WIDTH -
+            components::ScrollArea::SCROLLBAR_TRACK_PADDING,
+        geometry.containerRect.y, components::ScrollArea::SCROLLBAR_TRACK_WIDTH, geometry.trackHeight};
 
     const float visibleRatio = geometry.viewportHeight / geometry.contentHeight;
-    geometry.thumbHeight = std::min(
-        geometry.trackHeight,
-        std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, geometry.trackHeight * visibleRatio));
+    geometry.thumbHeight = std::min(geometry.trackHeight, std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE,
+                                                                   geometry.trackHeight * visibleRatio));
 
     const float scrollRatio =
         geometry.maxScroll > 0.0F ? std::clamp(scrollArea->scrollOffset.y() / geometry.maxScroll, 0.0F, 1.0F) : 0.0F;
@@ -265,10 +267,9 @@ VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
         geometry.trackRect.y + (thumbTravel * scrollRatio) + components::ScrollArea::SCROLLBAR_THUMB_INSET;
 
     geometry.thumbRect = {
-        geometry.containerRect.x + geometry.containerRect.width - components::ScrollArea::SCROLLBAR_THUMB_WIDTH
-            - components::ScrollArea::SCROLLBAR_TRACK_PADDING - 1.0F,
-        thumbTop,
-        components::ScrollArea::SCROLLBAR_THUMB_WIDTH,
+        geometry.containerRect.x + geometry.containerRect.width - components::ScrollArea::SCROLLBAR_THUMB_WIDTH -
+            components::ScrollArea::SCROLLBAR_TRACK_PADDING - 1.0F,
+        thumbTop, components::ScrollArea::SCROLLBAR_THUMB_WIDTH,
         std::max(0.0F, geometry.thumbHeight - (components::ScrollArea::SCROLLBAR_THUMB_INSET * 2.0F))};
     geometry.visible = true;
     return geometry;
@@ -311,9 +312,8 @@ bool IsEntityExist(const std::string& alias)
     auto& reg = CurrentRegistry();
     auto view = reg.view<components::BaseInfo>();
 
-    return std::ranges::any_of(view,
-                               [&view, &alias](entt::entity entity) -> bool
+    return std::ranges::any_of(view, [&view, &alias](entt::entity entity) -> bool
                                { return view.get<components::BaseInfo>(entity).alias == alias; });
 }
 
-} // namespace ui::utils
+}  // namespace ui::utils

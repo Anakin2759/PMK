@@ -90,13 +90,19 @@ struct FrameMetricsRecorder
 {
     globalcontext::FrameContext* frame;
 
-    void onLayout(const events::UpdateLayout&) const { ++frame->layoutUpdateCount; }
-    void onRender(const events::UpdateRendering&) const { ++frame->renderUpdateCount; }
+    void onLayout(const events::UpdateLayout&) const
+    {
+        ++frame->layoutUpdateCount;
+    }
+    void onRender(const events::UpdateRendering&) const
+    {
+        ++frame->renderUpdateCount;
+    }
 };
 
 class TaskChainTest : public ::testing::Test
 {
-protected:
+   protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
@@ -114,7 +120,7 @@ protected:
         m_scope.reset();
     }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
@@ -158,10 +164,10 @@ TEST_F(TaskChainTest, QueuedTaskUpdatesFrameContextBeforeDispatchingQueuedEvents
     std::vector<std::string> observedEvents;
     EventRecorder recorder{&observedEvents};
     auto& dispatcher = UiRuntime::current().dispatcher();
-    auto updateConnection = entt::scoped_connection{
-        dispatcher.sink<events::UpdateEvent>().connect<&EventRecorder::onUpdate>(recorder)};
-    auto timerConnection = entt::scoped_connection{
-        dispatcher.sink<events::UpdateTimer>().connect<&EventRecorder::onTimer>(recorder)};
+    auto updateConnection =
+        entt::scoped_connection{dispatcher.sink<events::UpdateEvent>().connect<&EventRecorder::onUpdate>(recorder)};
+    auto timerConnection =
+        entt::scoped_connection{dispatcher.sink<events::UpdateTimer>().connect<&EventRecorder::onTimer>(recorder)};
 
     dispatcher.enqueue<events::UpdateEvent>({});
 
@@ -186,8 +192,8 @@ TEST_F(TaskChainTest, QueuedTaskAutomaticallyDispatchesPublicEventsAfterInternal
     auto& runtime = UiRuntime::current();
     auto timerConnection = entt::scoped_connection{
         runtime.dispatcher().sink<events::UpdateTimer>().connect<&EventRecorder::onTimer>(recorder)};
-    auto connection = event::On("public.event.frame", [&observedEvents](const event::EventPayload&)
-                                { observedEvents.emplace_back("public"); });
+    auto connection = event::On(
+        "public.event.frame", [&observedEvents](const event::EventPayload&) { observedEvents.emplace_back("public"); });
 
     event::Enqueue("public.event.frame");
     EXPECT_TRUE(observedEvents.empty());
@@ -203,7 +209,8 @@ TEST_F(TaskChainTest, PublicEventsEnqueuedDuringDispatchWaitForAnotherQueuedFram
 {
     auto& runtime = UiRuntime::current();
     int callCount = 0;
-    auto connection = event::On("public.event.recursive", [&callCount](const event::EventPayload&)
+    auto connection = event::On("public.event.recursive",
+                                [&callCount](const event::EventPayload&)
                                 {
                                     ++callCount;
                                     if (callCount == 1)
@@ -232,14 +239,14 @@ TEST(TaskChainRuntimeIsolationTest, QueuedTaskDispatchesOnlyItsBoundRuntime)
     std::optional<event::EventConnection> secondConnection;
     {
         UiRuntimeScope const firstScope(firstRuntime);
-        firstConnection.emplace(event::On("public.event.runtime", [&firstCalls](const event::EventPayload&)
-                                          { ++firstCalls; }));
+        firstConnection.emplace(
+            event::On("public.event.runtime", [&firstCalls](const event::EventPayload&) { ++firstCalls; }));
         event::Enqueue("public.event.runtime");
     }
     {
         UiRuntimeScope const secondScope(secondRuntime);
-        secondConnection.emplace(event::On("public.event.runtime", [&secondCalls](const event::EventPayload&)
-                                           { ++secondCalls; }));
+        secondConnection.emplace(
+            event::On("public.event.runtime", [&secondCalls](const event::EventPayload&) { ++secondCalls; }));
         event::Enqueue("public.event.runtime");
 
         tasks::QueuedTask{.runtime = &firstRuntime}(TEST_FRAME_INTERVAL_MS);
@@ -263,12 +270,12 @@ TEST_F(TaskChainTest, RenderTaskTriggersFrameStagesInFixedOrderAndHonorsDelay)
     std::vector<std::string> observedEvents;
     EventRecorder recorder{&observedEvents};
     auto& dispatcher = UiRuntime::current().dispatcher();
-    auto layoutConnection = entt::scoped_connection{
-        dispatcher.sink<events::UpdateLayout>().connect<&EventRecorder::onLayout>(recorder)};
-    auto renderConnection = entt::scoped_connection{
-        dispatcher.sink<events::UpdateRendering>().connect<&EventRecorder::onRender>(recorder)};
-    auto endFrameConnection = entt::scoped_connection{
-        dispatcher.sink<events::EndFrame>().connect<&EventRecorder::onEndFrame>(recorder)};
+    auto layoutConnection =
+        entt::scoped_connection{dispatcher.sink<events::UpdateLayout>().connect<&EventRecorder::onLayout>(recorder)};
+    auto renderConnection =
+        entt::scoped_connection{dispatcher.sink<events::UpdateRendering>().connect<&EventRecorder::onRender>(recorder)};
+    auto endFrameConnection =
+        entt::scoped_connection{dispatcher.sink<events::EndFrame>().connect<&EventRecorder::onEndFrame>(recorder)};
 
     tasks::RenderTask renderTask{.runtime = &UiRuntime::current()};
 
@@ -323,5 +330,5 @@ TEST_F(TaskChainTest, RuntimeFrameMetricsRecordRegularAndImmediateSystemUpdates)
     EXPECT_EQ(frame.renderUpdateCount, 0U);
 }
 
-} // namespace
-} // namespace ui::tests
+}  // namespace
+}  // namespace ui::tests

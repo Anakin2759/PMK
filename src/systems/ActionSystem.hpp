@@ -46,9 +46,12 @@ namespace ui::systems
 {
 class ActionSystem : public ui::interface::EnableRegister<ActionSystem>
 {
-public:
+   public:
     ActionSystem() = default;
-    explicit ActionSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()), m_logger(&runtime.logger()) {}
+    explicit ActionSystem(UiRuntime& runtime)
+        : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()), m_logger(&runtime.logger())
+    {
+    }
 
     void registerHandlersImpl()
     {
@@ -79,12 +82,18 @@ public:
         disp.sink<ui::events::DragDroppedEvent>().disconnect<&ActionSystem::onDragDroppedDefault>(*this);
     }
 
-private:
+   private:
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
     utils::Logger* m_logger = nullptr;
-    [[nodiscard]] Registry& effectiveReg() noexcept { return *m_reg; }
-    [[nodiscard]] Dispatcher& effectiveDisp() noexcept { return *m_disp; }
+    [[nodiscard]] Registry& effectiveReg() noexcept
+    {
+        return *m_reg;
+    }
+    [[nodiscard]] Dispatcher& effectiveDisp() noexcept
+    {
+        return *m_disp;
+    }
 
     [[nodiscard]] globalcontext::StateContext& stateContext()
     {
@@ -96,11 +105,8 @@ private:
         return reg.ctx().template emplace<globalcontext::StateContext>();
     }
 
-    void applyAnimation(entt::entity entity,
-                        const std::optional<Vec2>& targetScale,
-                        const std::optional<Vec2>& targetOffset,
-                        float duration,
-                        const Vec2& defaultScale,
+    void applyAnimation(entt::entity entity, const std::optional<Vec2>& targetScale,
+                        const std::optional<Vec2>& targetOffset, float duration, const Vec2& defaultScale,
                         const Vec2& defaultOffset)
     {
         ui::animation::TweenOptions options;
@@ -109,16 +115,19 @@ private:
         options.mode = policies::Play::ONCE;
         options.autoCleanup = true;
 
-        ui::detail::animation::StartTransformAnimation(entity, targetScale, targetOffset, options, defaultScale, defaultOffset);
+        ui::detail::animation::StartTransformAnimation(entity, targetScale, targetOffset, options, defaultScale,
+                                                       defaultOffset);
     }
 
     static void removeChildInternal(Registry& reg, entt::entity parent, entt::entity child)
     {
-        if (!reg.valid(parent) || !reg.valid(child)) return;
+        if (!reg.valid(parent) || !reg.valid(child))
+            return;
 
         auto* parentHierarchy = reg.try_get<components::Hierarchy>(parent);
         auto* childHierarchy = reg.try_get<components::Hierarchy>(child);
-        if (parentHierarchy == nullptr || childHierarchy == nullptr || childHierarchy->parent != parent) return;
+        if (parentHierarchy == nullptr || childHierarchy == nullptr || childHierarchy->parent != parent)
+            return;
 
         std::erase(parentHierarchy->children, child);
         childHierarchy->parent = entt::null;
@@ -130,7 +139,8 @@ private:
 
     static void addChildInternal(Registry& reg, entt::entity parent, entt::entity child)
     {
-        if (!reg.valid(parent) || !reg.valid(child)) return;
+        if (!reg.valid(parent) || !reg.valid(child))
+            return;
 
         auto& childHierarchy = reg.get_or_emplace<components::Hierarchy>(child);
         if (childHierarchy.parent != entt::null && childHierarchy.parent != parent)
@@ -152,11 +162,13 @@ private:
 
     [[nodiscard]] static bool isDropTargetEnabled(Registry& reg, entt::entity target)
     {
-        if (!reg.valid(target)) return false;
+        if (!reg.valid(target))
+            return false;
 
         const bool hasDropMarker =
             reg.any_of<components::Droppable>(target) || reg.any_of<components::DroppableTag>(target);
-        if (!hasDropMarker) return false;
+        if (!hasDropMarker)
+            return false;
 
         if (const auto* droppable = reg.try_get<components::Droppable>(target);
             droppable != nullptr && droppable->enabled != policies::Feature::ENABLED)
@@ -169,8 +181,10 @@ private:
 
     [[nodiscard]] static bool wouldCreateHierarchyCycle(Registry& reg, entt::entity source, entt::entity target)
     {
-        if (!reg.valid(source) || !reg.valid(target)) return true;
-        if (source == target) return true;
+        if (!reg.valid(source) || !reg.valid(target))
+            return true;
+        if (source == target)
+            return true;
 
         entt::entity current = target;
         while (reg.valid(current) && current != entt::null)
@@ -189,33 +203,39 @@ private:
 
     void startDragging(entt::entity entity, components::Draggable& draggable)
     {
-        if (draggable.dragging) return;
+        if (draggable.dragging)
+            return;
 
         draggable.dragging = true;
         effectiveDisp().trigger(events::DragStartEvent{entity});
-        if (draggable.onDragStart) draggable.onDragStart();
+        if (draggable.onDragStart)
+            draggable.onDragStart();
     }
 
     void applyDragDelta(Registry& reg, entt::entity entity, const components::Draggable& draggable, const Vec2& delta)
     {
         auto* pos = reg.try_get<components::Position>(entity);
-        if (pos == nullptr) return;
+        if (pos == nullptr)
+            return;
 
-        if (!draggable.lockX) pos->value.x() += delta.x();
-        if (!draggable.lockY) pos->value.y() += delta.y();
+        if (!draggable.lockX)
+            pos->value.x() += delta.x();
+        if (!draggable.lockY)
+            pos->value.y() += delta.y();
     }
 
     void applyDragAnimation(Registry& reg, entt::entity entity)
     {
         auto* interact = reg.try_get<components::InteractiveAnimation>(entity);
-        if (interact == nullptr) return;
+        if (interact == nullptr)
+            return;
 
         std::optional<Vec2> targetScale = interact->dragScale.has_value() ? interact->dragScale : interact->pressScale;
         std::optional<Vec2> targetOffset =
             interact->dragLiftOffset.has_value() ? interact->dragLiftOffset : interact->pressOffset;
 
-        applyAnimation(
-            entity, targetScale, targetOffset, interact->dragDuration, interact->normalScale, interact->normalOffset);
+        applyAnimation(entity, targetScale, targetOffset, interact->dragDuration, interact->normalScale,
+                       interact->normalOffset);
     }
 
     /**
@@ -228,12 +248,15 @@ private:
         auto& ctx = stateContext();
         entt::entity entity = ctx.activeEntity;
 
-        if (!reg.valid(entity)) return;
+        if (!reg.valid(entity))
+            return;
 
         auto* draggable = reg.try_get<components::Draggable>(entity);
-        if (draggable == nullptr || draggable->enabled != policies::Feature::ENABLED) return;
+        if (draggable == nullptr || draggable->enabled != policies::Feature::ENABLED)
+            return;
 
-        if (event.raw.delta == Vec2{0, 0}) return;
+        if (event.raw.delta == Vec2{0, 0})
+            return;
 
         startDragging(entity, *draggable);
         applyDragDelta(reg, entity, *draggable, event.raw.delta);
@@ -244,7 +267,8 @@ private:
             .hoverTarget = ctx.hoveredEntity,
         });
 
-        if (draggable->onDragMove) draggable->onDragMove(event.raw.delta);
+        if (draggable->onDragMove)
+            draggable->onDragMove(event.raw.delta);
 
         applyDragAnimation(reg, entity);
     }
@@ -254,7 +278,8 @@ private:
         auto& reg = effectiveReg();
         entt::entity entity = event.entity;
 
-        if (!reg.valid(entity)) return;
+        if (!reg.valid(entity))
+            return;
 
         if (auto* draggable = reg.try_get<components::Draggable>(entity))
         {
@@ -263,12 +288,8 @@ private:
 
         if (auto* interact = reg.try_get<components::InteractiveAnimation>(entity))
         {
-            applyAnimation(entity,
-                           interact->pressScale,
-                           interact->pressOffset,
-                           interact->pressDuration,
-                           interact->normalScale,
-                           interact->normalOffset);
+            applyAnimation(entity, interact->pressScale, interact->pressOffset, interact->pressDuration,
+                           interact->normalScale, interact->normalOffset);
         }
     }
 
@@ -278,7 +299,8 @@ private:
         auto& ctx = stateContext();
         entt::entity entity = event.entity;
 
-        if (!reg.valid(entity)) return;
+        if (!reg.valid(entity))
+            return;
 
         if (auto* draggable = reg.try_get<components::Draggable>(entity); draggable != nullptr)
         {
@@ -293,7 +315,8 @@ private:
                 }
 
                 effectiveDisp().trigger(events::DragEndEvent{.source = entity, .dropTarget = dropTarget});
-                if (draggable->onDragEnd) draggable->onDragEnd();
+                if (draggable->onDragEnd)
+                    draggable->onDragEnd();
             }
             draggable->dragging = false;
         }
@@ -304,13 +327,13 @@ private:
             bool isHovered = (ctx.hoveredEntity == entity);
 
             std::optional<Vec2> targetScale = (isHovered && interact->hoverScale.has_value())
-                                                ? interact->hoverScale
-                                                : std::optional<Vec2>(interact->normalScale);
+                                                  ? interact->hoverScale
+                                                  : std::optional<Vec2>(interact->normalScale);
             std::optional<Vec2> targetOffset = (isHovered && interact->hoverOffset.has_value())
-                                                 ? interact->hoverOffset
-                                                 : std::optional<Vec2>(interact->normalOffset);
+                                                   ? interact->hoverOffset
+                                                   : std::optional<Vec2>(interact->normalOffset);
 
-            float duration = interact->pressDuration; // 恢复速度通常快一点
+            float duration = interact->pressDuration;  // 恢复速度通常快一点
 
             applyAnimation(entity, targetScale, targetOffset, duration, interact->normalScale, interact->normalOffset);
         }
@@ -323,7 +346,8 @@ private:
     void onClickEvent(const ui::events::ClickEvent& event)
     {
         auto& reg = effectiveReg();
-        if (!reg.valid(event.entity)) return;
+        if (!reg.valid(event.entity))
+            return;
 
         // 处理点击回调
         auto* clickable = reg.try_get<ui::components::Clickable>(event.entity);
@@ -341,7 +365,8 @@ private:
     void onHoverEvent(const ui::events::HoverEvent& event)
     {
         auto& reg = effectiveReg();
-        if (!reg.valid(event.entity)) return;
+        if (!reg.valid(event.entity))
+            return;
 
         // 处理 Hover 回调
         auto* hoverable = reg.try_get<ui::components::Hoverable>(event.entity);
@@ -353,12 +378,8 @@ private:
         // 处理悬停动效
         if (auto* interact = reg.try_get<components::InteractiveAnimation>(event.entity))
         {
-            applyAnimation(event.entity,
-                           interact->hoverScale,
-                           interact->hoverOffset,
-                           interact->hoverDuration,
-                           interact->normalScale,
-                           interact->normalOffset);
+            applyAnimation(event.entity, interact->hoverScale, interact->hoverOffset, interact->hoverDuration,
+                           interact->normalScale, interact->normalOffset);
         }
     }
 
@@ -369,7 +390,8 @@ private:
     void onUnhoverEvent(const ui::events::UnhoverEvent& event)
     {
         auto& reg = effectiveReg();
-        if (!reg.valid(event.entity)) return;
+        if (!reg.valid(event.entity))
+            return;
 
         // 处理 Unhover 回调
         auto* hoverable = reg.try_get<ui::components::Hoverable>(event.entity);
@@ -382,11 +404,8 @@ private:
         if (auto* interact = reg.try_get<components::InteractiveAnimation>(event.entity))
         {
             // 恢复到 Normal Scale/Offset
-            applyAnimation(event.entity,
-                           std::optional<Vec2>(interact->normalScale),
-                           std::optional<Vec2>(interact->normalOffset),
-                           interact->hoverDuration,
-                           interact->normalScale,
+            applyAnimation(event.entity, std::optional<Vec2>(interact->normalScale),
+                           std::optional<Vec2>(interact->normalOffset), interact->hoverDuration, interact->normalScale,
                            interact->normalOffset);
         }
     }
@@ -394,11 +413,14 @@ private:
     void onDragDroppedDefault(const ui::events::DragDroppedEvent& event)
     {
         auto& reg = effectiveReg();
-        if (!reg.valid(event.source) || !reg.valid(event.target)) return;
-        if (!isDropTargetEnabled(reg, event.target)) return;
-        if (wouldCreateHierarchyCycle(reg, event.source, event.target)) return;
+        if (!reg.valid(event.source) || !reg.valid(event.target))
+            return;
+        if (!isDropTargetEnabled(reg, event.target))
+            return;
+        if (wouldCreateHierarchyCycle(reg, event.source, event.target))
+            return;
 
         addChildInternal(reg, event.target, event.source);
     }
 };
-} // namespace ui::systems
+}  // namespace ui::systems

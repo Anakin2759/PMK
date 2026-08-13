@@ -21,7 +21,7 @@
 #include "systems/TextInputSystem.hpp"
 #include "systems/HitTestSystem.hpp"
 #include "systems/LayoutSystem.hpp"
-#include "systems/StateSystem.hpp" // 保持与 Application.h 中的一致
+#include "systems/StateSystem.hpp"  // 保持与 Application.h 中的一致
 #include "systems/ActionSystem.hpp"
 #include "systems/TimerSystem.hpp"
 #include "systems/ShortcutSystem.hpp"
@@ -93,8 +93,7 @@ void SystemManager::registerAllHandlers()
     // entt::poly 是 move-only 类型，无法直接用于 stable_sort 比较器；改用索引排序后重组
     std::vector<std::size_t> indices(m_systems.size());
     std::ranges::iota(indices, std::size_t{0});
-    std::ranges::stable_sort(indices,
-                             [this](std::size_t leftIndex, std::size_t rightIndex)
+    std::ranges::stable_sort(indices, [this](std::size_t leftIndex, std::size_t rightIndex)
                              { return m_systems.at(leftIndex)->getPhase() < m_systems.at(rightIndex)->getPhase(); });
     decltype(m_systems) sorted;
     sorted.reserve(m_systems.size());
@@ -164,4 +163,4 @@ void SystemManager::clear()
     m_runtime->registry().clear();
 }
 
-} // namespace ui
+}  // namespace ui

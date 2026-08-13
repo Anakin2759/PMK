@@ -18,4 +18,4 @@ struct TweenOptions
     bool autoCleanup = true;
 };
 
-} // namespace ui::animation
+}  // namespace ui::animation

@@ -52,9 +52,17 @@ desktop.ini
 *.log
 *.bak
 
+# 运行与调试日志目录（hang/table-drag 等调试产物不入库）
+logs/
+
 # 包管理器
 node_modules/
 npm-debug.log*
+
+# Python 环境
+.venv/
+__pycache__/
+*.pyc
 
 # 密钥和证书文件
 *.pem

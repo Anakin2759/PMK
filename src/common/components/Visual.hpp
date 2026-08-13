@@ -49,8 +49,8 @@ struct Background
 {
     using is_component_tag = void;
     Color color{0.0F, 0.0F, 0.0F, 0.0F};
-    Vec4 borderRadius{0.0F, 0.0F, 0.0F, 0.0F}; // 圆角半径 (x:TopLeft, y:TopRight, z:BottomRight, w:BottomLeft)
-    policies::Feature enabled = policies::Feature::DISABLED; // 是否启用背景绘制
+    Vec4 borderRadius{0.0F, 0.0F, 0.0F, 0.0F};  // 圆角半径 (x:TopLeft, y:TopRight, z:BottomRight, w:BottomLeft)
+    policies::Feature enabled = policies::Feature::DISABLED;  // 是否启用背景绘制
 };
 
 /**
@@ -61,7 +61,7 @@ struct Border
     using is_component_tag = void;
     Color color{1.0F, 1.0F, 1.0F, 1.0F};
     float thickness = 1.0F;
-    Vec4 borderRadius{0.0F, 0.0F, 0.0F, 0.0F}; // 圆角半径
+    Vec4 borderRadius{0.0F, 0.0F, 0.0F, 0.0F};  // 圆角半径
     policies::Feature enabled = policies::Feature::DISABLED;
 };
 
@@ -71,9 +71,9 @@ struct Border
 struct Shadow
 {
     using is_component_tag = void;
-    float softness{};                    // 阴影柔和度
-    Vec2 offset{0.0F, 0.0F};             // 阴影偏移 (x, y)
-    Color color{0.0F, 0.0F, 0.0F, 1.0F}; // 阴影颜色
+    float softness{};                     // 阴影柔和度
+    Vec2 offset{0.0F, 0.0F};              // 阴影偏移 (x, y)
+    Color color{0.0F, 0.0F, 0.0F, 1.0F};  // 阴影颜色
     policies::Feature enabled = policies::Feature::DISABLED;
 };
 
@@ -108,4 +108,4 @@ struct ThemeStyleState
     std::optional<Color> managedAuxiliaryColor;
 };
 
-} // namespace ui::components
+}  // namespace ui::components

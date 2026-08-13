@@ -41,8 +41,10 @@ namespace ui::renderers
  */
 class TextRenderer : public core::IRenderer
 {
-public:
-    explicit TextRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit TextRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
     /**
      * @param entity 要检查的实体
@@ -82,9 +84,12 @@ public:
         }
     }
 
-    int getPriority() const override { return 10; }
+    int getPriority() const override
+    {
+        return 10;
+    }
 
-private:
+   private:
     struct FallbackTextBitmap
     {
         std::vector<uint8_t> pixels;
@@ -120,11 +125,26 @@ private:
         core::RenderContext* context = nullptr;
         core::RenderContext* textEditContext = nullptr;
 
-        [[nodiscard]] const components::Text& text() const { return *textComp; }
-        [[nodiscard]] const components::TextEdit& edit() const { return *textEdit; }
-        [[nodiscard]] const std::string& textValue() const { return *displayText; }
-        [[nodiscard]] core::RenderContext& renderContext() const { return *context; }
-        [[nodiscard]] core::RenderContext& clippedContext() const { return *textEditContext; }
+        [[nodiscard]] const components::Text& text() const
+        {
+            return *textComp;
+        }
+        [[nodiscard]] const components::TextEdit& edit() const
+        {
+            return *textEdit;
+        }
+        [[nodiscard]] const std::string& textValue() const
+        {
+            return *displayText;
+        }
+        [[nodiscard]] core::RenderContext& renderContext() const
+        {
+            return *context;
+        }
+        [[nodiscard]] core::RenderContext& clippedContext() const
+        {
+            return *textEditContext;
+        }
     };
 
     struct WrappedTextRenderArgs
@@ -140,8 +160,14 @@ private:
         float fontSize = 0.0F;
         core::RenderContext* context = nullptr;
 
-        [[nodiscard]] const std::string& textValue() const { return *text; }
-        [[nodiscard]] core::RenderContext& renderContext() const { return *context; }
+        [[nodiscard]] const std::string& textValue() const
+        {
+            return *text;
+        }
+        [[nodiscard]] core::RenderContext& renderContext() const
+        {
+            return *context;
+        }
     };
 
     static uint8_t quantizeColor(float value)
@@ -151,23 +177,21 @@ private:
 
     [[nodiscard]] bool isUsingFallbackBackend(const core::RenderContext& context) const
     {
-        return context.backendRenderer != nullptr
-            && context.backendRenderer->getType() == interface::BackendType::FALLBACK;
+        return context.backendRenderer != nullptr &&
+               context.backendRenderer->getType() == interface::BackendType::FALLBACK;
     }
 
-    static std::string
-        buildFallbackTextCacheKey(const std::string& text, const Eigen::Vector4f& color, float fontSize, float scale)
+    static std::string buildFallbackTextCacheKey(const std::string& text, const Eigen::Vector4f& color, float fontSize,
+                                                 float scale)
     {
-        return text + "_" + std::to_string(static_cast<int>(fontSize * 10.0F)) + "_"
-             + std::to_string(static_cast<int>(scale * 100.0F)) + "_" + std::to_string(quantizeColor(color.x())) + "_"
-             + std::to_string(quantizeColor(color.y())) + "_" + std::to_string(quantizeColor(color.z())) + "_"
-             + std::to_string(quantizeColor(color.w()));
+        return text + "_" + std::to_string(static_cast<int>(fontSize * 10.0F)) + "_" +
+               std::to_string(static_cast<int>(scale * 100.0F)) + "_" + std::to_string(quantizeColor(color.x())) + "_" +
+               std::to_string(quantizeColor(color.y())) + "_" + std::to_string(quantizeColor(color.z())) + "_" +
+               std::to_string(quantizeColor(color.w()));
     }
 
-    const FallbackTextBitmap* getOrCreateFallbackTextBitmap(const std::string& text,
-                                                            const Eigen::Vector4f& color,
-                                                            float fontSize,
-                                                            managers::FontManager& fontManager)
+    const FallbackTextBitmap* getOrCreateFallbackTextBitmap(const std::string& text, const Eigen::Vector4f& color,
+                                                            float fontSize, managers::FontManager& fontManager)
     {
         const float oversampleScale = fontManager.getOversampleScale();
         const std::string cacheKey = buildFallbackTextCacheKey(text, color, fontSize, oversampleScale);
@@ -250,8 +274,8 @@ private:
                     const auto lineHeight = static_cast<float>(context.fontManager->getFontHeight(fontSize));
                     if (lineHeight > 0.0F)
                     {
-                        const auto lines = ui::utils::WrapTextLines(
-                            textComp.content, static_cast<int>(wrapWidth), wrapMode, measureFunc);
+                        const auto lines = ui::utils::WrapTextLines(textComp.content, static_cast<int>(wrapWidth),
+                                                                    wrapMode, measureFunc);
                         const auto desiredHeight = static_cast<float>(lines.size()) * lineHeight;
                         if (std::abs(sizeComp->size.y() - desiredHeight) > 0.5F)
                         {
@@ -262,33 +286,18 @@ private:
                 }
             }
 
-            addWrappedText(WrappedTextRenderArgs{&textComp.content,
-                                                 context.position,
-                                                 context.size,
-                                                 color,
-                                                 textComp.alignment,
-                                                 wrapMode,
-                                                 wrapWidth,
-                                                 context.alpha,
-                                                 fontSize,
+            addWrappedText(WrappedTextRenderArgs{&textComp.content, context.position, context.size, color,
+                                                 textComp.alignment, wrapMode, wrapWidth, context.alpha, fontSize,
                                                  &context});
         }
         else
         {
-            addText(textComp.content,
-                    context.position,
-                    context.size,
-                    color,
-                    textComp.alignment,
-                    context.alpha,
-                    fontSize,
-                    context);
+            addText(textComp.content, context.position, context.size, color, textComp.alignment, context.alpha,
+                    fontSize, context);
         }
     }
 
-    void renderTextEdit(entt::entity entity,
-                        const components::Text& textComp,
-                        const components::TextEdit& textEdit,
+    void renderTextEdit(entt::entity entity, const components::Text& textComp, const components::TextEdit& textEdit,
                         core::RenderContext& context)
     {
         const float fontSize = textComp.fontSize;
@@ -300,17 +309,8 @@ private:
         std::string displayText = textEdit.buffer;
         const Eigen::Vector4f color = resolveTextEditColor(entity, textEdit, context.alpha, displayText);
         const auto lineHeight = static_cast<float>(context.fontManager->getFontHeight(fontSize));
-        TextEditRenderArgs textEditArgs{entity,
-                                        &textComp,
-                                        &textEdit,
-                                        &displayText,
-                                        textPos,
-                                        textSize,
-                                        color,
-                                        lineHeight,
-                                        fontSize,
-                                        &context,
-                                        &textEditContext};
+        TextEditRenderArgs textEditArgs{entity, &textComp,  &textEdit, &displayText, textPos,         textSize,
+                                        color,  lineHeight, fontSize,  &context,     &textEditContext};
 
         if (isMultilineTextEdit(textEdit))
         {
@@ -324,9 +324,7 @@ private:
         textEditContext.popScissor();
     }
 
-    void prepareTextEditLayout(entt::entity entity,
-                               Eigen::Vector2f& textPos,
-                               Eigen::Vector2f& textSize,
+    void prepareTextEditLayout(entt::entity entity, Eigen::Vector2f& textPos, Eigen::Vector2f& textSize,
                                core::RenderContext& textEditContext) const
     {
         if (const auto* padding = m_reg->try_get<components::Padding>(entity))
@@ -345,9 +343,7 @@ private:
         textEditContext.pushScissor(currentScissor);
     }
 
-    Eigen::Vector4f resolveTextEditColor(entt::entity entity,
-                                         const components::TextEdit& textEdit,
-                                         float contextAlpha,
+    Eigen::Vector4f resolveTextEditColor(entt::entity entity, const components::TextEdit& textEdit, float contextAlpha,
                                          std::string& displayText) const
     {
         const auto& effectiveColor = textEdit.textColor;
@@ -380,9 +376,7 @@ private:
         return context.sdlWindow != nullptr && caret != nullptr && caret->visible;
     }
 
-    void drawTextEditCaret(const Eigen::Vector2f& cursorPos,
-                           float lineHeight,
-                           const core::RenderContext& context,
+    void drawTextEditCaret(const Eigen::Vector2f& cursorPos, float lineHeight, const core::RenderContext& context,
                            const core::RenderContext& textEditContext) const
     {
         render::UiPushConstants pushConstants{};
@@ -404,10 +398,8 @@ private:
     }
 
     TextEditCursorLineInfo calculateCursorLineInfo(const std::vector<std::string>& lines,
-                                                   const components::TextEdit& textEdit,
-                                                   const std::string& displayText,
-                                                   float fontSize,
-                                                   managers::FontManager& fontManager) const
+                                                   const components::TextEdit& textEdit, const std::string& displayText,
+                                                   float fontSize, managers::FontManager& fontManager) const
     {
         TextEditCursorLineInfo cursorInfo{};
         cursorInfo.lineIndex = static_cast<int>(lines.size()) - 1;
@@ -437,10 +429,8 @@ private:
         return cursorInfo;
     }
 
-    TextEditSingleLineView buildSingleLineTextView(const components::TextEdit& textEdit,
-                                                   const std::string& displayText,
-                                                   const Eigen::Vector2f& textSize,
-                                                   float fontSize,
+    TextEditSingleLineView buildSingleLineTextView(const components::TextEdit& textEdit, const std::string& displayText,
+                                                   const Eigen::Vector2f& textSize, float fontSize,
                                                    core::RenderContext& context) const
     {
         auto measureFunc = [fontManager = context.fontManager, fontSize](const std::string& str)
@@ -448,48 +438,35 @@ private:
 
         TextEditSingleLineView textView{};
         const std::string leftOfCursor = displayText.substr(0, textEdit.cursorPosition);
-        const std::string visibleLeft = ui::utils::GetTailThatFits(
-            leftOfCursor, static_cast<int>(textSize.x()), measureFunc, textView.cursorOffsetInVisible);
+        const std::string visibleLeft = ui::utils::GetTailThatFits(leftOfCursor, static_cast<int>(textSize.x()),
+                                                                   measureFunc, textView.cursorOffsetInVisible);
 
         const std::string rightOfCursor = displayText.substr(textEdit.cursorPosition);
         size_t rightCharsFit = 0;
-        context.fontManager->measureString(rightOfCursor.c_str(),
-                                           rightOfCursor.size(),
+        context.fontManager->measureString(rightOfCursor.c_str(), rightOfCursor.size(),
                                            static_cast<int>(textSize.x() - textView.cursorOffsetInVisible),
-                                           &rightCharsFit,
-                                           fontSize);
+                                           &rightCharsFit, fontSize);
         textView.visibleText = visibleLeft + rightOfCursor.substr(0, rightCharsFit);
         return textView;
     }
 
-    void renderTextEditLines(const TextEditRenderArgs& args,
-                             const std::vector<std::string>& lines,
-                             size_t startIndex,
-                             size_t endIndex,
-                             float startDrawY)
+    void renderTextEditLines(const TextEditRenderArgs& args, const std::vector<std::string>& lines, size_t startIndex,
+                             size_t endIndex, float startDrawY)
     {
         float drawY = startDrawY;
         for (size_t lineIndex = startIndex; lineIndex < endIndex; ++lineIndex)
         {
             if (!lines[lineIndex].empty())
             {
-                addText(lines[lineIndex],
-                        {args.textPos.x(), drawY},
-                        {args.textSize.x(), args.lineHeight},
-                        args.color,
-                        policies::Alignment::LEFT,
-                        args.renderContext().alpha,
-                        args.fontSize,
-                        args.clippedContext());
+                addText(lines[lineIndex], {args.textPos.x(), drawY}, {args.textSize.x(), args.lineHeight}, args.color,
+                        policies::Alignment::LEFT, args.renderContext().alpha, args.fontSize, args.clippedContext());
             }
             drawY += args.lineHeight;
         }
     }
 
-    void renderScrollAreaTextEdit(const TextEditRenderArgs& args,
-                                  components::ScrollArea& scrollArea,
-                                  const std::vector<std::string>& lines,
-                                  float totalTextHeight)
+    void renderScrollAreaTextEdit(const TextEditRenderArgs& args, components::ScrollArea& scrollArea,
+                                  const std::vector<std::string>& lines, float totalTextHeight)
     {
         updateTextEditScrollArea(scrollArea, totalTextHeight, args.textSize.y(), args.textSize.x());
 
@@ -499,9 +476,8 @@ private:
         const size_t startIndex =
             std::min(static_cast<size_t>(scrollOffsetLines), lines.empty() ? size_t{0} : lines.size() - size_t{1});
         const size_t endIndex = std::min(startIndex + static_cast<size_t>(maxVisibleLines) + size_t{1}, lines.size());
-        const float startDrawY =
-            args.textPos.y()
-            - (scrollArea.scrollOffset.y() - (static_cast<float>(scrollOffsetLines) * args.lineHeight));
+        const float startDrawY = args.textPos.y() - (scrollArea.scrollOffset.y() -
+                                                     (static_cast<float>(scrollOffsetLines) * args.lineHeight));
 
         renderTextEditLines(args, lines, startIndex, endIndex, startDrawY);
 
@@ -510,8 +486,8 @@ private:
             return;
         }
 
-        const auto cursorInfo = calculateCursorLineInfo(
-            lines, args.edit(), args.textValue(), args.fontSize, *args.renderContext().fontManager);
+        const auto cursorInfo = calculateCursorLineInfo(lines, args.edit(), args.textValue(), args.fontSize,
+                                                        *args.renderContext().fontManager);
         if (cursorInfo.lineIndex < scrollOffsetLines || cursorInfo.lineIndex >= scrollOffsetLines + maxVisibleLines)
         {
             return;
@@ -520,19 +496,17 @@ private:
         const int visibleLineIndex = cursorInfo.lineIndex - scrollOffsetLines;
         drawTextEditCaret(
             {args.textPos.x() + cursorInfo.lineOffsetX,
-             args.textPos.y() + (static_cast<float>(visibleLineIndex) * args.lineHeight)
-                 - (scrollArea.scrollOffset.y() - (static_cast<float>(scrollOffsetLines) * args.lineHeight))},
-            args.lineHeight,
-            args.renderContext(),
-            args.clippedContext());
+             args.textPos.y() + (static_cast<float>(visibleLineIndex) * args.lineHeight) -
+                 (scrollArea.scrollOffset.y() - (static_cast<float>(scrollOffsetLines) * args.lineHeight))},
+            args.lineHeight, args.renderContext(), args.clippedContext());
     }
 
     void renderPlainMultilineTextEdit(const TextEditRenderArgs& args, const std::vector<std::string>& lines)
     {
         const int maxLines = args.lineHeight > 0.0F ? static_cast<int>(args.textSize.y() / args.lineHeight) : 0;
         const size_t startIndex = (maxLines > 0 && lines.size() > static_cast<size_t>(maxLines))
-                                    ? (lines.size() - static_cast<size_t>(maxLines))
-                                    : 0ULL;
+                                      ? (lines.size() - static_cast<size_t>(maxLines))
+                                      : 0ULL;
 
         renderTextEditLines(args, lines, startIndex, lines.size(), args.textPos.y());
 
@@ -541,8 +515,8 @@ private:
             return;
         }
 
-        const auto cursorInfo = calculateCursorLineInfo(
-            lines, args.edit(), args.textValue(), args.fontSize, *args.renderContext().fontManager);
+        const auto cursorInfo = calculateCursorLineInfo(lines, args.edit(), args.textValue(), args.fontSize,
+                                                        *args.renderContext().fontManager);
         if (cursorInfo.lineIndex < static_cast<int>(startIndex))
         {
             return;
@@ -550,9 +524,7 @@ private:
 
         const int relativeLine = cursorInfo.lineIndex - static_cast<int>(startIndex);
         const float cursorY = args.textPos.y() + (static_cast<float>(relativeLine) * args.lineHeight);
-        drawTextEditCaret({args.textPos.x() + cursorInfo.lineOffsetX, cursorY},
-                          args.lineHeight,
-                          args.renderContext(),
+        drawTextEditCaret({args.textPos.x() + cursorInfo.lineOffsetX, cursorY}, args.lineHeight, args.renderContext(),
                           args.clippedContext());
     }
 
@@ -564,14 +536,8 @@ private:
         const policies::Alignment align = policies::Alignment::LEFT | policies::Alignment::VCENTER;
         if (!textView.visibleText.empty())
         {
-            addText(textView.visibleText,
-                    args.textPos,
-                    args.textSize,
-                    args.color,
-                    align,
-                    args.renderContext().alpha,
-                    args.fontSize,
-                    args.clippedContext());
+            addText(textView.visibleText, args.textPos, args.textSize, args.color, align, args.renderContext().alpha,
+                    args.fontSize, args.clippedContext());
         }
 
         if (!shouldRenderTextEditCaret(args.entity, args.renderContext()))
@@ -581,14 +547,10 @@ private:
 
         drawTextEditCaret({args.textPos.x() + textView.cursorOffsetInVisible,
                            args.textPos.y() + ((args.textSize.y() - args.lineHeight) * 0.5F)},
-                          args.lineHeight,
-                          args.renderContext(),
-                          args.clippedContext());
+                          args.lineHeight, args.renderContext(), args.clippedContext());
     }
 
-    void updateTextEditScrollArea(components::ScrollArea& scrollArea,
-                                  float totalTextHeight,
-                                  float viewportHeight,
+    void updateTextEditScrollArea(components::ScrollArea& scrollArea, float totalTextHeight, float viewportHeight,
                                   float contentWidth) const
     {
         if (scrollArea.contentSize.y() != totalTextHeight)
@@ -651,15 +613,18 @@ private:
         while (current != entt::null)
         {
             const auto* hierarchy = m_reg->try_get<components::Hierarchy>(current);
-            if (hierarchy == nullptr) break;
+            if (hierarchy == nullptr)
+                break;
 
             current = hierarchy->parent;
-            if (current == entt::null) break;
+            if (current == entt::null)
+                break;
 
             if (m_reg->any_of<components::ScrollArea>(current))
             {
                 const auto* size = m_reg->try_get<components::Size>(current);
-                if (size == nullptr) return 0.0F;
+                if (size == nullptr)
+                    return 0.0F;
 
                 float width = size->size.x();
                 if (const auto* padding = m_reg->try_get<components::Padding>(current))
@@ -672,16 +637,12 @@ private:
         return 0.0F;
     }
 
-    void addText(const std::string& text,
-                 const Eigen::Vector2f& pos,
-                 const Eigen::Vector2f& size,
-                 const Eigen::Vector4f& color,
-                 policies::Alignment alignment,
-                 float opacity,
-                 float fontSize,
+    void addText(const std::string& text, const Eigen::Vector2f& pos, const Eigen::Vector2f& size,
+                 const Eigen::Vector4f& color, policies::Alignment alignment, float opacity, float fontSize,
                  core::RenderContext& context)
     {
-        if (!context.fontManager->isLoaded() || text.empty()) return;
+        if (!context.fontManager->isLoaded() || text.empty())
+            return;
 
         const bool useFallbackText = isUsingFallbackBackend(context);
 
@@ -759,13 +720,9 @@ private:
                 return;
             }
 
-            if (!context.backendRenderer->drawCachedBitmap(fallbackCacheKey,
-                                                           fallbackBitmap->pixels,
-                                                           static_cast<int>(fallbackBitmap->rasterWidth),
-                                                           static_cast<int>(fallbackBitmap->rasterHeight),
-                                                           destinationRect,
-                                                           context.currentScissor,
-                                                           alphaMod))
+            if (!context.backendRenderer->drawCachedBitmap(
+                    fallbackCacheKey, fallbackBitmap->pixels, static_cast<int>(fallbackBitmap->rasterWidth),
+                    static_cast<int>(fallbackBitmap->rasterHeight), destinationRect, context.currentScissor, alphaMod))
             {
                 return;
             }
@@ -801,9 +758,9 @@ private:
 
     [[nodiscard]] static policies::Alignment resolveWrappedTextHorizontalAlignment(policies::Alignment alignment)
     {
-        const uint8_t horizontalMask = static_cast<uint8_t>(policies::Alignment::LEFT)
-                                     | static_cast<uint8_t>(policies::Alignment::HCENTER)
-                                     | static_cast<uint8_t>(policies::Alignment::RIGHT);
+        const uint8_t horizontalMask = static_cast<uint8_t>(policies::Alignment::LEFT) |
+                                       static_cast<uint8_t>(policies::Alignment::HCENTER) |
+                                       static_cast<uint8_t>(policies::Alignment::RIGHT);
         const auto alignValue = static_cast<uint8_t>(alignment);
         auto horizontalAlign = static_cast<policies::Alignment>(alignValue & horizontalMask);
         if (horizontalAlign == policies::Alignment::NONE)
@@ -814,25 +771,16 @@ private:
         return horizontalAlign;
     }
 
-    void renderWrappedTextLines(const WrappedTextRenderArgs& args,
-                                const std::vector<std::string>& lines,
-                                float lineHeight,
-                                float startY,
-                                policies::Alignment horizontalAlign)
+    void renderWrappedTextLines(const WrappedTextRenderArgs& args, const std::vector<std::string>& lines,
+                                float lineHeight, float startY, policies::Alignment horizontalAlign)
     {
         float drawY = startY;
         for (const auto& line : lines)
         {
             if (!line.empty())
             {
-                addText(line,
-                        {args.pos.x(), drawY},
-                        {args.wrapWidth, lineHeight},
-                        args.color,
-                        horizontalAlign,
-                        args.opacity,
-                        args.fontSize,
-                        args.renderContext());
+                addText(line, {args.pos.x(), drawY}, {args.wrapWidth, lineHeight}, args.color, horizontalAlign,
+                        args.opacity, args.fontSize, args.renderContext());
             }
             drawY += lineHeight;
         }
@@ -840,10 +788,12 @@ private:
 
     void addWrappedText(const WrappedTextRenderArgs& args)
     {
-        if (!args.renderContext().fontManager->isLoaded() || args.textValue().empty() || args.wrapWidth <= 0.0F) return;
+        if (!args.renderContext().fontManager->isLoaded() || args.textValue().empty() || args.wrapWidth <= 0.0F)
+            return;
 
         const auto lineHeight = static_cast<float>(args.renderContext().fontManager->getFontHeight(args.fontSize));
-        if (lineHeight <= 0.0F) return;
+        if (lineHeight <= 0.0F)
+            return;
 
         auto measureFunc =
             [fontManager = args.renderContext().fontManager, fontSize = args.fontSize](const std::string& str)
@@ -862,4 +812,4 @@ private:
     std::unordered_map<std::string, FallbackTextBitmap> m_fallbackTextCache;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

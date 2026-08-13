@@ -28,7 +28,7 @@ namespace ui::core
  */
 class IRenderer
 {
-public:
+   public:
     IRenderer() = default;
     virtual ~IRenderer() = default;
     IRenderer(const IRenderer&) = delete;
@@ -54,7 +54,10 @@ public:
      * @brief 获取渲染器的优先级（用于排序）
      * @return 优先级值，越小越先执行
      */
-    [[nodiscard]] virtual int getPriority() const { return 0; }
+    [[nodiscard]] virtual int getPriority() const
+    {
+        return 0;
+    }
 };
 
-} // namespace ui::core
+}  // namespace ui::core

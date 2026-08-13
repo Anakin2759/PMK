@@ -80,6 +80,13 @@ add_executable(ui_fallback_lifecycle_tests
 )
 configure_ui_test_target(ui_fallback_lifecycle_tests)
 
+# 观测型并发压测（P0-4）：仅作为 lost-wakeup 复现/观测工具，不加入默认 ui_tests 聚合目标，
+# 由开发者显式运行（例如 ctest -L stress）。严守「无实测不改无锁路径」门槛。
+add_executable(ui_eventloop_stress_tests
+    test_EventLoopStress.cpp
+)
+configure_ui_test_target(ui_eventloop_stress_tests)
+
 # Backward-compatible aggregate target name for existing workflows.
 add_custom_target(ui_tests DEPENDS ui_unit_tests ui_ecs_tests ui_api_tests ui_fallback_lifecycle_tests)
 
@@ -132,7 +139,11 @@ add_dependencies(ui_api_tests
 include(GoogleTest)
 gtest_discover_tests(ui_unit_tests
     DISCOVERY_TIMEOUT 60
-    PROPERTIES LABELS "unit"
+    PROPERTIES
+    LABELS "unit"
+    RUN_SERIAL TRUE
+    RESOURCE_LOCK ui_sdl_video
+    TIMEOUT 900
 )
 gtest_discover_tests(ui_ecs_tests
     DISCOVERY_TIMEOUT 60
@@ -142,11 +153,19 @@ gtest_discover_tests(ui_api_tests
     DISCOVERY_TIMEOUT 60
     PROPERTIES LABELS "api"
 )
-gtest_discover_tests(ui_fallback_lifecycle_tests PROPERTIES
+gtest_discover_tests(ui_fallback_lifecycle_tests
     DISCOVERY_TIMEOUT 60
+    PROPERTIES
     LABELS "integration;sdl;lifecycle"
     ENVIRONMENT "SDL_VIDEODRIVER=offscreen"
     RUN_SERIAL TRUE
     RESOURCE_LOCK ui_sdl_video
     TIMEOUT 60
+)
+gtest_discover_tests(ui_eventloop_stress_tests
+    DISCOVERY_TIMEOUT 60
+    PROPERTIES
+    LABELS "stress;concurrency"
+    RUN_SERIAL TRUE
+    TIMEOUT 300
 )

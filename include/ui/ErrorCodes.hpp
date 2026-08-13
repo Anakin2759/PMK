@@ -61,7 +61,7 @@ enum class UiErrc : std::uint16_t
 
 [[nodiscard]] std::string_view ToStringView(UiErrc errorCode) noexcept;
 
-} // namespace ui
+}  // namespace ui
 
 template <>
 struct std::formatter<ui::UiErrc> : std::formatter<std::string_view>

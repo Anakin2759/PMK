@@ -63,5 +63,5 @@ TEST(ApplicationLifecycleTest, ShutdownStillQuitsWhenSystemDestructionThrows)
     EXPECT_EQ(quitCount, 1);
 }
 
-} // namespace
-} // namespace ui::tests
+}  // namespace
+}  // namespace ui::tests

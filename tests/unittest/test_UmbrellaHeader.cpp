@@ -12,5 +12,5 @@ TEST(UmbrellaHeaderTest, IncludesPublicUiHeader)
     SUCCEED();
 }
 
-} // namespace
-} // namespace ui::tests
+}  // namespace
+}  // namespace ui::tests

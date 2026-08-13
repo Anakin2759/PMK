@@ -24,10 +24,15 @@ namespace ui::renderers
 
 class SliderRenderer : public core::IRenderer
 {
-public:
-    explicit SliderRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit SliderRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
-    bool canHandle(entt::entity entity) const override { return m_reg->any_of<components::SliderInfo>(entity); }
+    bool canHandle(entt::entity entity) const override
+    {
+        return m_reg->any_of<components::SliderInfo>(entity);
+    }
 
     void collect(entt::entity entity, core::RenderContext& context) override
     {
@@ -115,10 +120,13 @@ public:
         }
     }
 
-    int getPriority() const override { return 10; }
+    int getPriority() const override
+    {
+        return 10;
+    }
 
-private:
+   private:
     Registry* m_reg = nullptr;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

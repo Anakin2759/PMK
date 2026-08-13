@@ -12,7 +12,7 @@ example/      → example_ui_demo 可执行示例
 tests/        → ui_tests 单元测试
 ```
 
-**设计要点**：UI 模块使用 `Registry` 全局单例访问 `entt::registry`；System 均使用 `EnableRegister<Derived>` CRTP，接口方法名为 `registerHandlersImpl`。事件循环基于 ASIO `io_context`（`src/core/EventLoop.hpp`）。
+**设计要点**：UI 模块使用 `Registry`（内部持有 `entt::registry`，通过 `UiRuntime` 注入 System，非全局单例）；System 均使用 `EnableRegister<Derived>` CRTP，接口方法名为 `registerHandlersImpl`。事件循环为自研 `src/utils/EventLoop.hpp`（有界 MPSC 单消费者）+ `src/core/EventLoop.hpp`（帧调度器，16ms 节流投递帧回调）；**不使用 ASIO**。
 
 ## 构建命令
 
@@ -29,11 +29,18 @@ cmake -B build -DENABLE_CLANG_TIDY=ON
 
 VS Code 任务 `build Debug (CMake)` 可直接运行构建。
 
+## 编译结构与优化
+
+- ui 源码拆分为 7 个 **OBJECT 库**（`ui_core/systems/render/managers/renderers/api/resources_objects`），再聚合成静态库 `ui`（`VMPUI::ui`），对外行为不变。
+- PCH 仅对重型模板模块（core/systems/render/managers）开启；api/renderers/resources 不开，避免重复生成 PCH。`-DUI_ENABLE_PCH=OFF` 可整体关闭。
+- 模块级并行度：`UI_POOL_<MODULE>`（如 `-DUI_POOL_API=6 -DUI_POOL_RENDER=1`）覆盖全局 `UI_COMPILE_JOB_LIMIT`；空值继承全局。
+- 架构门禁：`ui_architecture_boundary_check`（`tools/check_architecture_boundaries.py`）与公共头自包含门禁 `ui_public_headers_self_contained_check`（`tools/check_public_headers_self_contained.py`）均为默认构建（ALL）目标，新增边界债务或第三方 include 会导致构建失败。
+
 ## 核心模式与约定
 
 ### 管道 DSL（UI 构建）
 
-UI 实体通过 `operator|` 链式配置，定义在 `src/api/Chains.hpp`：
+UI 实体通过 `operator|` 链式配置，定义在 `include/ui/api/Chains.hpp`：
 
 ```cpp
 using namespace ui::chains;
@@ -122,12 +129,21 @@ TRY_VOID(expr);               // Result<void> 版本
 
 | 库 | 用途 | 注意事项 |
 |----|------|----------|
-| SDL3 | GPU 渲染 + 窗口 | **SDL3 API**（非 SDL2），无 `SDL_setenv` 等旧接口 |
-| EnTT | ECS 框架 | `entt::registry` + `entt::dispatcher` + `entt::poly` |
-| Yoga | Flexbox 布局 | 通过 `YGNodeRef` 管理布局树 |
-| ASIO | 事件循环异步 I/O | Standalone 模式（`ASIO_STANDALONE`），非 Boost；用于 `EventLoop` |
+| SDL3 | GPU 渲染 + 窗口 | **SDL3 API**（非 SDL2）；静态模式下对象会被合并进 VMPUI.lib |
+| EnTT | ECS 框架 | header-only；仅内部使用，不出现在公共头 |
+| Yoga | Flexbox 布局 | 编译型；合并进 VMPUI.lib |
+| freetype / harfbuzz | 字体光栅化 / 文本成形 | 编译型；合并进 VMPUI.lib |
 | spdlog | 日志 | Header-only 模式 |
-| Eigen | 线性代数 | `Vec2 = Eigen::Vector2f` 用于 UI 数学类型 |
+| Eigen | 内部线性代数 | **公共头不依赖 Eigen**：`ui::Vec2/Vec4/Rect` 是自包含公共类型（`include/ui/MathTypes.hpp`），内部经 `EigenConversions.hpp` 边界转换 |
+
+## 自包含发行模式
+
+- 公共头 `include/ui/**` **零第三方依赖**（仅允许 C++ 标准库与平台 SDK，如 `Windows.h`）；门禁脚本 `tools/check_public_headers_self_contained.py` 强制检查。
+- 静态模式：`ui` 库在 POST_BUILD 阶段用 `lib.exe`/`llvm-lib` 把 SDL3/yogacore/freetype/harfbuzz（CMRC 模式含 ui_fonts）合并为**单文件 `VMPUI.lib`**。
+- 动态模式：`BUILD_SHARED_LIBS=ON` 产出单 `VMPUI.dll`（公共 API 的 `VMP_UI_API` 导出宏为 P1 工作）。
+- 发行默认资源后端为 `STD_EMBED`（资源表生成 .cpp 直接编进库，无 cmrc 依赖）；CMRC 仅开发/测试用。
+- 消费者只需 `find_package(VMPUI CONFIG REQUIRED)` + `target_link_libraries(app PRIVATE VMPUI::ui)`，无需安装/链接任何第三方库；系统平台库由 `VMPUITargets.cmake` 以 `$<LINK_ONLY:...>` 带出。
+- 发布构建建议 `-DENABLE_LTO=OFF`（默认 OFF），保证合并库消费者任意配置即插即用。
 
 ## 测试
 

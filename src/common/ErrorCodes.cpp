@@ -84,4 +84,4 @@ std::string_view ToStringView(UiErrc errorCode) noexcept
     return "unrecognized";
 }
 
-} // namespace ui
+}  // namespace ui

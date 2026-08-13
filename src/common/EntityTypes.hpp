@@ -17,4 +17,4 @@
  */
 #pragma once
 
-#include "ui/api/Entity.hpp" // IWYU pragma: export
+#include "ui/api/Entity.hpp"  // IWYU pragma: export

@@ -12,8 +12,11 @@ namespace ui::tests
 
 class UiRuntimeTest : public ::testing::Test
 {
-protected:
-    void SetUp() override { m_scope = std::make_unique<UiRuntimeScope>(m_runtime); }
+   protected:
+    void SetUp() override
+    {
+        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
+    }
 
     void TearDown() override
     {
@@ -21,12 +24,18 @@ protected:
         m_scope.reset();
     }
 
-    UiRuntime& runtime() { return m_runtime; }
-    const UiRuntime& runtime() const { return m_runtime; }
+    UiRuntime& runtime()
+    {
+        return m_runtime;
+    }
+    const UiRuntime& runtime() const
+    {
+        return m_runtime;
+    }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
 
-} // namespace ui::tests
+}  // namespace ui::tests

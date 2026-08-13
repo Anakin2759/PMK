@@ -21,7 +21,7 @@ namespace ui::components
 struct AnimationTime
 {
     using is_component_tag = void;
-    float duration = 200.0F; // 默认200毫秒
+    float duration = 200.0F;  // 默认200毫秒
     float elapsed = 0.0F;
     policies::Easing easing = policies::Easing::LINEAR;
     policies::Play mode = policies::Play::ONCE;
@@ -90,17 +90,17 @@ struct InteractiveAnimation
 
     // 悬停配置
     std::optional<Vec2> hoverScale;
-    std::optional<Vec2> hoverOffset; // 悬停位移
-    float hoverDuration = 200.0F;    // 毫秒
+    std::optional<Vec2> hoverOffset;  // 悬停位移
+    float hoverDuration = 200.0F;     // 毫秒
 
     // 按下配置
     std::optional<Vec2> pressScale;
-    std::optional<Vec2> pressOffset; // 按下位移
-    float pressDuration = 100.0F;    // 毫秒
+    std::optional<Vec2> pressOffset;  // 按下位移
+    float pressDuration = 100.0F;     // 毫秒
 
     // 拖曳配置 (当组件支持拖拽时)
     std::optional<Vec2> dragScale;
-    std::optional<Vec2> dragLiftOffset; // 拖起时的视觉偏移
+    std::optional<Vec2> dragLiftOffset;  // 拖起时的视觉偏移
     float dragDuration = 200.0F;
 
     // 原始状态记录（用于恢复）
@@ -108,4 +108,4 @@ struct InteractiveAnimation
     Vec2 normalOffset{0.0F, 0.0F};
 };
 
-} // namespace ui::components
+}  // namespace ui::components

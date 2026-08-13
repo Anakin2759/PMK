@@ -21,7 +21,7 @@ namespace ui::tests
 
 class ThemeSystemTest : public ::testing::Test
 {
-protected:
+   protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
@@ -36,9 +36,15 @@ protected:
         m_scope.reset();
     }
 
-    static void triggerThemeUpdate() { UiRuntime::current().dispatcher().trigger(events::UpdateEvent{}); }
+    static void triggerThemeUpdate()
+    {
+        UiRuntime::current().dispatcher().trigger(events::UpdateEvent{});
+    }
 
-    static Registry& registry() { return UiRuntime::current().registry(); }
+    static Registry& registry()
+    {
+        return UiRuntime::current().registry();
+    }
 
     static std::vector<entt::entity> popupChildren(ui::entity popupEntity)
     {
@@ -51,10 +57,10 @@ protected:
         return hierarchy->children;
     }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
     std::unique_ptr<systems::ThemeSystem> m_themeSystem;
 };
 
-} // namespace ui::tests
+}  // namespace ui::tests

@@ -33,4 +33,4 @@ struct Window
     Vec2 pixelSize{0.0F, 0.0F};
 };
 
-} // namespace ui::components
+}  // namespace ui::components

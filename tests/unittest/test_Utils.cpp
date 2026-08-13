@@ -26,16 +26,22 @@ Registry& ActiveRegistry()
 
 class UtilsTest : public ::testing::Test
 {
-protected:
-    void SetUp() override { m_scope = std::make_unique<UiRuntimeScope>(m_runtime); }
-    void TearDown() override { m_scope.reset(); }
+   protected:
+    void SetUp() override
+    {
+        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
+    }
+    void TearDown() override
+    {
+        m_scope.reset();
+    }
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
 
-} // namespace
+}  // namespace
 
 // ===================== MarkLayoutChanged =====================
 
@@ -315,4 +321,4 @@ TEST_F(UtilsTest, IsEntityExistReturnsFalseAfterRegistryClear)
     EXPECT_FALSE(utils::IsEntityExist("gone_alias"));
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

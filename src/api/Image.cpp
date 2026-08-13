@@ -14,13 +14,14 @@ namespace
 {
     return UiRuntime::current().registry();
 }
-} // namespace
+}  // namespace
 
 void SetImagePath(ui::entity entity, std::string_view path)
 {
     auto& reg = CurrentRegistry();
     const auto internal = detail::ToInternal(entity);
-    if (!reg.valid(internal)) return;
+    if (!reg.valid(internal))
+        return;
 
     auto& src = reg.get_or_emplace<components::ImageSource>(internal);
     src.path = std::string(path);
@@ -32,7 +33,8 @@ void SetImageTint(ui::entity entity, Color color)
 {
     auto& reg = CurrentRegistry();
     const auto internal = detail::ToInternal(entity);
-    if (!reg.valid(internal)) return;
+    if (!reg.valid(internal))
+        return;
 
     auto& img = reg.get_or_emplace<components::Image>(internal);
     img.tintColor = color;
@@ -42,11 +44,12 @@ void SetImageUV(ui::entity entity, Vec2 uvMin, Vec2 uvMax)
 {
     auto& reg = CurrentRegistry();
     const auto internal = detail::ToInternal(entity);
-    if (!reg.valid(internal)) return;
+    if (!reg.valid(internal))
+        return;
 
     auto& img = reg.get_or_emplace<components::Image>(internal);
     img.uvMin = uvMin;
     img.uvMax = uvMax;
 }
 
-} // namespace ui::image
+}  // namespace ui::image

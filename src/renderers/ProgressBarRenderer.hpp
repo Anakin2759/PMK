@@ -14,10 +14,15 @@ namespace ui::renderers
 
 class ProgressBarRenderer : public core::IRenderer
 {
-public:
-    explicit ProgressBarRenderer(Registry& reg) : m_reg(&reg) {}
+   public:
+    explicit ProgressBarRenderer(Registry& reg) : m_reg(&reg)
+    {
+    }
 
-    bool canHandle(entt::entity entity) const override { return m_reg->any_of<components::ProgressBar>(entity); }
+    bool canHandle(entt::entity entity) const override
+    {
+        return m_reg->any_of<components::ProgressBar>(entity);
+    }
 
     void collect(entt::entity entity, core::RenderContext& context) override
     {
@@ -27,7 +32,8 @@ public:
         }
 
         const auto* progressBar = m_reg->try_get<components::ProgressBar>(entity);
-        if (progressBar == nullptr) return;
+        if (progressBar == nullptr)
+            return;
 
         // background
         render::UiPushConstants pc{};
@@ -41,10 +47,8 @@ public:
         pc.radius[3] = 4.0F;
         pc.opacity = context.alpha;
 
-        Eigen::Vector4f bgColor(progressBar->backgroundColor.red,
-                                progressBar->backgroundColor.green,
-                                progressBar->backgroundColor.blue,
-                                progressBar->backgroundColor.alpha);
+        Eigen::Vector4f bgColor(progressBar->backgroundColor.red, progressBar->backgroundColor.green,
+                                progressBar->backgroundColor.blue, progressBar->backgroundColor.alpha);
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pc);
         context.batchManager->addRect(context.position, context.size, bgColor);
 
@@ -57,18 +61,19 @@ public:
         fillPc.rect_size[0] = fillSize.x();
         fillPc.rect_size[1] = fillSize.y();
 
-        Eigen::Vector4f fillColor(progressBar->fillColor.red,
-                                  progressBar->fillColor.green,
-                                  progressBar->fillColor.blue,
+        Eigen::Vector4f fillColor(progressBar->fillColor.red, progressBar->fillColor.green, progressBar->fillColor.blue,
                                   progressBar->fillColor.alpha);
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, fillPc);
         context.batchManager->addRect(fillPos, fillSize, fillColor);
     }
 
-    int getPriority() const override { return 5; }
+    int getPriority() const override
+    {
+        return 5;
+    }
 
-private:
+   private:
     Registry* m_reg = nullptr;
 };
 
-} // namespace ui::renderers
+}  // namespace ui::renderers

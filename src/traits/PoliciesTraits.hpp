@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <utility> // for std::to_underlying (C++23)
+#include <utility>  // for std::to_underlying (C++23)
 
 #include "Contains.hpp"
 #include "ui/Policies.hpp"
@@ -33,7 +33,7 @@ enum class Position : uint8_t;
 enum class TextFlag : uint16_t;
 enum class ScrollBar : uint8_t;
 enum class IconFlag : uint8_t;
-} // namespace ui::policies
+}  // namespace ui::policies
 
 namespace ui::traits
 {
@@ -41,17 +41,10 @@ namespace ui::traits
 // ===================== 元编程辅助工具 =====================
 
 // ===================== 组件列表 =====================
-using policies = TypeList<ui::policies::Size,
-                          ui::policies::Position,
-                          ui::policies::LayoutDirection,
-                          ui::policies::Alignment,
-                          ui::policies::Play,
-                          ui::policies::Easing,
-                          ui::policies::WindowFlag,
-                          ui::policies::TextFlag,
-                          ui::policies::TextFlag,
-                          ui::policies::ScrollBar,
-                          ui::policies::IconFlag>;
+using policies =
+    TypeList<ui::policies::Size, ui::policies::Position, ui::policies::LayoutDirection, ui::policies::Alignment,
+             ui::policies::Play, ui::policies::Easing, ui::policies::WindowFlag, ui::policies::TextFlag,
+             ui::policies::TextFlag, ui::policies::ScrollBar, ui::policies::IconFlag>;
 
 // ===================== 策略检测 =====================
 
@@ -59,7 +52,7 @@ using policies = TypeList<ui::policies::Size,
  * @brief
  */
 template <typename T>
-inline constexpr bool is_policies_v = contains_v<T, policies>; // NOLINT
+inline constexpr bool is_policies_v = contains_v<T, policies>;  // NOLINT
 
 /**
  * @brief 概念 Definitions (C++20)
@@ -68,6 +61,6 @@ inline constexpr bool is_policies_v = contains_v<T, policies>; // NOLINT
 template <typename T>
 concept Policies = is_policies_v<T>;
 
-} // namespace ui::traits
+}  // namespace ui::traits
 
 // 位运算与 HasFlag 的权威实现位于公开头 ui/Policies.hpp。

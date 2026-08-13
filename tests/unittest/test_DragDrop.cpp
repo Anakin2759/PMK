@@ -33,17 +33,19 @@ void TriggerDragDropped(ui::entity source, ui::entity target)
 
 void TriggerDragDropped(entt::entity source, ui::entity target)
 {
-    UiRuntime::current().dispatcher().trigger<events::DragDroppedEvent>({.source = source, .target = detail::ToInternal(target)});
+    UiRuntime::current().dispatcher().trigger<events::DragDroppedEvent>(
+        {.source = source, .target = detail::ToInternal(target)});
 }
 
 void TriggerDragDropped(ui::entity source, entt::entity target)
 {
-    UiRuntime::current().dispatcher().trigger<events::DragDroppedEvent>({.source = detail::ToInternal(source), .target = target});
+    UiRuntime::current().dispatcher().trigger<events::DragDroppedEvent>(
+        {.source = detail::ToInternal(source), .target = target});
 }
 
 class DragDropTest : public ::testing::Test
 {
-protected:
+   protected:
     void SetUp() override
     {
         m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
@@ -60,12 +62,12 @@ protected:
 
     std::unique_ptr<systems::ActionSystem> m_actionSystem;
 
-private:
+   private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
 };
 
-} // namespace
+}  // namespace
 
 // ===================== SetDraggable DSL =====================
 
@@ -124,11 +126,12 @@ TEST_F(DragDropTest, OnDragStartChainTransfersMoveOnlyCallbackOwnership)
     auto owner = std::make_unique<int>(RESOURCE_VALUE);
     bool called = false;
 
-    entity | chains::OnDragStart([resource = std::move(owner), &called, expected = RESOURCE_VALUE]
-                                 {
-                                     EXPECT_EQ(*resource, expected);
-                                     called = true;
-                                 });
+    entity | chains::OnDragStart(
+                 [resource = std::move(owner), &called, expected = RESOURCE_VALUE]
+                 {
+                     EXPECT_EQ(*resource, expected);
+                     called = true;
+                 });
 
     EXPECT_EQ(owner, nullptr);
     auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
@@ -229,7 +232,7 @@ TEST_F(DragDropTest, DragDroppedIsBlockedWhenTargetDroppableDisabled)
     const auto source = factory::CreateLabel("SRC", "dd_source_3");
     const auto target = factory::CreateVBoxLayout("dd_target_3");
 
-    controls::SetDroppable(target, false); // 存在但禁用
+    controls::SetDroppable(target, false);  // 存在但禁用
 
     TriggerDragDropped(source, target);
 
@@ -345,4 +348,4 @@ TEST_F(DragDropTest, DragDroppedWithInvalidTargetIsNoOp)
     EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(source, static_cast<entt::entity>(entt::null)));
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

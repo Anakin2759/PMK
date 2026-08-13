@@ -151,4 +151,4 @@ TEST_F(ThemeSystemTest, ButtonDisabledUsesDisabledThemeColors)
     EXPECT_FLOAT_EQ(text.color.red, theme::CurrentTheme().textDisabled.red);
 }
 
-} // namespace ui::tests
+}  // namespace ui::tests

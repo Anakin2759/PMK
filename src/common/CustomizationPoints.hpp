@@ -24,13 +24,13 @@ namespace ui::interface
  * @brief 后端渲染器接口，定义了渲染器的基本功能和行为规范。
  */
 enum class BackendCapability : std::uint8_t;
-} // namespace ui::interface
+}  // namespace ui::interface
 
 namespace ui::cpo
 {
 
 // NOLINTBEGIN(readability-identifier-naming)
-void tag_invoke(); // 声明一个无定义的 tag_invoke，所有 CPO 实现都通过重载此函数实现
+void tag_invoke();  // 声明一个无定义的 tag_invoke，所有 CPO 实现都通过重载此函数实现
 
 template <typename Tag, typename... Args>
 concept TagInvocable = requires(Tag tag, Args&&... args) { tag_invoke(tag, std::forward<Args>(args)...); };
@@ -104,28 +104,18 @@ struct MeasureTextWidth
 struct LoadIconFontFromMemory
 {
     template <typename IconLoader>
-    [[nodiscard]] auto operator()(IconLoader& iconLoader,
-                                  std::string_view fontName,
-                                  std::span<const std::byte> fontBytes,
-                                  std::span<const std::byte> codepointBytes,
+    [[nodiscard]] auto operator()(IconLoader& iconLoader, std::string_view fontName,
+                                  std::span<const std::byte> fontBytes, std::span<const std::byte> codepointBytes,
                                   int fontSize = 16) const
     {
-        if constexpr (TagInvocable<LoadIconFontFromMemory,
-                                   IconLoader&,
-                                   std::string_view,
-                                   std::span<const std::byte>,
-                                   std::span<const std::byte>,
-                                   int>)
+        if constexpr (TagInvocable<LoadIconFontFromMemory, IconLoader&, std::string_view, std::span<const std::byte>,
+                                   std::span<const std::byte>, int>)
         {
             return tag_invoke(*this, iconLoader, fontName, fontBytes, codepointBytes, fontSize);
         }
 
-        return iconLoader.loadIconFontFromMemory(std::string(fontName),
-                                                 fontBytes.data(),
-                                                 fontBytes.size(),
-                                                 codepointBytes.data(),
-                                                 codepointBytes.size(),
-                                                 fontSize);
+        return iconLoader.loadIconFontFromMemory(std::string(fontName), fontBytes.data(), fontBytes.size(),
+                                                 codepointBytes.data(), codepointBytes.size(), fontSize);
     }
 };
 
@@ -136,4 +126,4 @@ inline constexpr MeasureTextWidth measure_text_width{};
 inline constexpr LoadIconFontFromMemory load_icon_font_from_memory{};
 // NOLINTEND(readability-identifier-naming)
 
-} // namespace ui::cpo
+}  // namespace ui::cpo

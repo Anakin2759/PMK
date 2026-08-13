@@ -24,4 +24,4 @@ Vec2 Metric(const Vec2& value) noexcept
 {
     return {Metric(value.x()), Metric(value.y())};
 }
-} // namespace ui::scale
+}  // namespace ui::scale

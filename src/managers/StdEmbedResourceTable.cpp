@@ -29,7 +29,7 @@ namespace
 
 constexpr std::array<StdEmbedResourceEntry, 0> STD_EMBED_RESOURCE_TABLE{};
 
-} // namespace
+}  // namespace
 
 std::span<const StdEmbedResourceEntry> GetStdEmbedResourceTable()
 {
@@ -49,4 +49,4 @@ const StdEmbedResourceEntry* FindStdEmbedResource(std::string_view logicalPath)
     return nullptr;
 }
 
-} // namespace ui::managers
+}  // namespace ui::managers

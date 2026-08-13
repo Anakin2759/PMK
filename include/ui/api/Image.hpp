@@ -16,14 +16,14 @@ namespace ui::image
 void SetImagePath(ui::entity entity, std::string_view path);
 void SetImageTint(ui::entity entity, Color color);
 void SetImageUV(ui::entity entity, Vec2 uvMin, Vec2 uvMax);
-} // namespace ui::image
+}  // namespace ui::image
 
 namespace ui::actions::image
 {
 inline constexpr EntityAction<&ui::image::SetImagePath> SET_IMAGE_PATH_ACTION{};
 inline constexpr EntityAction<&ui::image::SetImageTint> SET_IMAGE_TINT_ACTION{};
 inline constexpr EntityAction<&ui::image::SetImageUV> SET_IMAGE_UV_ACTION{};
-} // namespace ui::actions::image
+}  // namespace ui::actions::image
 
 namespace ui::chains
 {
@@ -41,4 +41,4 @@ inline auto ImageUV(Vec2 uvMin, Vec2 uvMax)
 {
     return ui::actions::image::SET_IMAGE_UV_ACTION.bind(uvMin, uvMax);
 }
-} // namespace ui::chains
+}  // namespace ui::chains

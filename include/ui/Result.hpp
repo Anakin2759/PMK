@@ -44,14 +44,16 @@ struct Error
         return std::format("{} ({}) @ {}:{}", ToStringView(code), context, file, origin.line());
     }
 
-    friend bool operator==(const Error& error, UiErrc errorCode) noexcept { return error.code == errorCode; }
+    friend bool operator==(const Error& error, UiErrc errorCode) noexcept
+    {
+        return error.code == errorCode;
+    }
 };
 
 template <typename T>
 using Result = std::expected<T, Error>;
 
-[[nodiscard]] inline std::unexpected<Error> Err(UiErrc errorCode,
-                                                std::string context = {},
+[[nodiscard]] inline std::unexpected<Error> Err(UiErrc errorCode, std::string context = {},
                                                 std::source_location origin = std::source_location::current())
 {
     return std::unexpected<Error>{Error{.code = errorCode, .context = std::move(context), .origin = origin}};
@@ -76,12 +78,12 @@ template <typename T>
 #define UI_TRY_CONCAT_INNER(a, b) a##b
 #define UI_TRY_CONCAT(a, b) UI_TRY_CONCAT_INNER(a, b)
 
-#define TRY(var, expr)                                                                     \
-    auto UI_TRY_CONCAT(_try_result_, __LINE__) = (expr);                                   \
-    if (!UI_TRY_CONCAT(_try_result_, __LINE__))                                            \
-    {                                                                                      \
+#define TRY(var, expr)                                                                    \
+    auto UI_TRY_CONCAT(_try_result_, __LINE__) = (expr);                                  \
+    if (!UI_TRY_CONCAT(_try_result_, __LINE__))                                           \
+    {                                                                                     \
         return std::unexpected(std::move(UI_TRY_CONCAT(_try_result_, __LINE__)).error()); \
-    }                                                                                      \
+    }                                                                                     \
     var = *std::move(UI_TRY_CONCAT(_try_result_, __LINE__))
 
 #define TRY_VOID(expr)                                                   \
@@ -94,7 +96,7 @@ template <typename T>
         }                                                                \
     } while (false)
 
-} // namespace ui
+}  // namespace ui
 
 template <>
 struct std::formatter<ui::Error> : std::formatter<std::string_view>

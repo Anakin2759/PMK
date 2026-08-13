@@ -1,3 +1,3 @@
 #pragma once
 
-#include "ui/Application.hpp" // IWYU pragma: export
+#include "ui/Application.hpp"  // IWYU pragma: export

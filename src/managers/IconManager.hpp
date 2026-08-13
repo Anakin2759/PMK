@@ -46,8 +46,8 @@ class DeviceManager;
 
 struct FontData
 {
-    std::vector<unsigned char> buffer; // 字体数据（FreeType 需要持久内存）
-    FT_Face face;                      // FreeType Face
+    std::vector<unsigned char> buffer;  // 字体数据（FreeType 需要持久内存）
+    FT_Face face;                       // FreeType Face
     int fontSize;
 };
 
@@ -71,7 +71,8 @@ struct CachedTextureEntry
  * @brief IconFont 管理器（基于 FreeType）
  *
  * 负责加载和管理 IconFont 字体及其 codepoints 映射
- * 与 FontManager 共享相同的 FreeType 渲染管线
+ * 与 FontManager 共享相同的 FreeType 渲染管线。GPU 纹理缓存绑定创建时的设备代际，
+ * 代际变化时清空两类纹理缓存，禁止返回跨代 owner。
  *
  * 使用示例：
  * @code
@@ -82,7 +83,7 @@ struct CachedTextureEntry
  */
 class IconManager
 {
-public:
+   public:
     explicit IconManager(DeviceManager* deviceManager) : m_deviceManager(deviceManager)
     {
         FT_Error error = FT_Init_FreeType(&m_ftLibrary);
@@ -110,9 +111,7 @@ public:
      * @param fontSize 字体大小
      * @return 是否加载成功
      */
-    bool loadIconFont(const std::string& name,
-                      const std::string& fontPath,
-                      const std::string& codepointsPath,
+    bool loadIconFont(const std::string& name, const std::string& fontPath, const std::string& codepointsPath,
                       int fontSize = 16);
 
     /**
@@ -125,12 +124,8 @@ public:
      * @param fontSize 字体大小
      * @return 是否加载成功
      */
-    Result<void> loadIconFontFromMemory(const std::string& name,
-                                        const void* fontData,
-                                        size_t fontLength,
-                                        const void* codepointsData,
-                                        size_t codepointsLength,
-                                        int fontSize = 16);
+    Result<void> loadIconFontFromMemory(const std::string& name, const void* fontData, size_t fontLength,
+                                        const void* codepointsData, size_t codepointsLength, int fontSize = 16);
 
     /**
      * @brief 通过图标名称获取 Unicode 码点
@@ -175,14 +170,7 @@ public:
     /**
      * @brief 获取图标纹理信息（普通纹理图标 - 暂未实现完整逻辑，目前仅作为接口）
      */
-    [[nodiscard]] const TextureInfo* getTextureInfo(std::string_view textureId) const
-    {
-        if (auto iterator = m_imageTextureCache.find(textureId); iterator != m_imageTextureCache.end())
-        {
-            return &iterator->second.textureInfo;
-        }
-        return nullptr;
-    }
+    [[nodiscard]] const TextureInfo* getTextureInfo(std::string_view textureId) const;
 
     /**
      * @brief 获取缓存统计信息
@@ -203,12 +191,15 @@ public:
                 .evictionCount = m_evictionCount};
     }
 
-private:
+   private:
     // 使用透明哈希 (C++20/23) 以支持 string_view 查找而无需分配临时 string
     struct StringHash
     {
         using is_transparent = void;
-        size_t operator()(std::string_view stringView) const { return std::hash<std::string_view>{}(stringView); }
+        size_t operator()(std::string_view stringView) const
+        {
+            return std::hash<std::string_view>{}(stringView);
+        }
     };
 
     template <typename T>
@@ -239,7 +230,7 @@ private:
                 return standardSize;
             }
         }
-        return 128.0F; // 最大尺寸
+        return 128.0F;  // 最大尺寸
     }
 
     /**
@@ -248,15 +239,16 @@ private:
     void evictLRUFromFontCache();
 
     /**
-     * @brief 创建并上传图标纹理
+     * @brief 在指定设备代际创建并提交图标纹理上传
+     * @return 上传命令提交成功时返回同代际纹理 owner；任一阶段失败时返回空 owner
+     * @note 成功仅表示非阻塞提交已被 SDL 接受，不表示 GPU 已执行完成。
      */
-    wrappers::UniqueGPUTexture createAndUploadIconTexture(SDL_GPUDevice* device,
-                                                          const std::vector<uint32_t>& rgbaPixels,
-                                                          uint32_t width,
+    wrappers::UniqueGPUTexture createAndUploadIconTexture(const detail::GpuDeviceGenerationHandle& generation,
+                                                          const std::vector<uint32_t>& rgbaPixels, uint32_t width,
                                                           uint32_t height);
 
-    const TextureInfo*
-        cacheIconTexture(const std::string& cacheKey, wrappers::UniqueGPUTexture texture, int width, int height);
+    const TextureInfo* cacheIconTexture(const std::string& cacheKey, wrappers::UniqueGPUTexture texture, int width,
+                                        int height);
 
     DeviceManager* m_deviceManager;
     FT_Library m_ftLibrary = nullptr;
@@ -273,9 +265,10 @@ private:
     StringMap<CachedTextureEntry> m_fontTextureCache;
     // 缓存：键为 textureId
     StringMap<CachedTextureEntry> m_imageTextureCache;
+    std::uint64_t m_cacheGenerationId = 0;
 
     // 统计信息
     mutable size_t m_evictionCount = 0;
 };
 
-} // namespace ui::managers
+}  // namespace ui::managers

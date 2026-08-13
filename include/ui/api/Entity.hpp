@@ -19,4 +19,4 @@ using entity = std::uint32_t;
 /// @brief 空实体常量。
 inline constexpr entity null_entity = std::numeric_limits<entity>::max();
 
-} // namespace ui
+}  // namespace ui
