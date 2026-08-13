@@ -375,6 +375,32 @@ struct RadioGroup
     on_event<int> onChanged;
 };
 
+/**
+ * @brief TabView 标签页容器组件
+ *
+ * 持有一组 Tab 头与内容面板实体；点击 Tab 头切换选中页，
+ * 显示对应内容面板并隐藏其余（复用 VisibleTag）。
+ */
+struct TabView
+{
+    using is_component_tag = void;
+    int selectedIndex = 0;
+    std::vector<entt::entity> tabHeaders;    // Tab 头实体列表
+    std::vector<entt::entity> contentPanels; // 内容面板实体列表（与 tabHeaders 一一对应）
+    on_event<int> onChanged;
+};
+
+/**
+ * @brief TabItem 标签页头组件（属于某个 TabView）
+ */
+struct TabItem
+{
+    using is_component_tag = void;
+    entt::entity owner = entt::null;  // 所属 TabView 实体
+    int tabIndex = -1;
+    bool selected = false;
+};
+
 // ===================== Canvas 绘图组件 =====================
 
 enum class CanvasDrawType : uint8_t

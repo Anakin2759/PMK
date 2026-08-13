@@ -927,6 +927,171 @@ ui::entity CreateRadioGroup(const std::vector<std::string>& options, int selecte
 
 namespace
 {
+constexpr float kTabHeaderHeight = 28.0F;
+constexpr float kTabHeaderPaddingLeft = 12.0F;
+constexpr float kTabHeaderPaddingRight = 12.0F;
+constexpr float kTabHeaderRadius = 4.0F;
+
+// Tab 头选中/未选中配色（与 Switch/RadioButton 的 accent 一致）
+constexpr Color kTabSelectedBackground{0.31F, 0.67F, 0.98F, 1.0F};
+constexpr Color kTabUnselectedBackground{0.18F, 0.19F, 0.24F, 1.0F};
+constexpr Color kTabSelectedText{0.97F, 0.98F, 1.0F, 1.0F};
+constexpr Color kTabUnselectedText{0.72F, 0.75F, 0.82F, 1.0F};
+
+void ApplyTabVisualState(Registry& reg, entt::entity header, bool selected)
+{
+    if (auto* background = reg.try_get<components::Background>(header); background != nullptr)
+    {
+        background->color = selected ? kTabSelectedBackground : kTabUnselectedBackground;
+        background->enabled = policies::Feature::ENABLED;
+    }
+    if (auto* text = reg.try_get<components::Text>(header); text != nullptr)
+    {
+        text->color = selected ? kTabSelectedText : kTabUnselectedText;
+    }
+    if (auto* tabItem = reg.try_get<components::TabItem>(header); tabItem != nullptr)
+    {
+        tabItem->selected = selected;
+    }
+    ui::utils::MarkVisualChanged(header);
+}
+
+void SelectTab(Registry& reg, entt::entity tabViewEntity, int index)
+{
+    auto* tabView = reg.try_get<components::TabView>(tabViewEntity);
+    if (tabView == nullptr || index < 0 || index >= static_cast<int>(tabView->tabHeaders.size()))
+        return;
+
+    if (tabView->selectedIndex == index)
+        return;
+
+    tabView->selectedIndex = index;
+
+    const std::size_t tabCount = tabView->tabHeaders.size();
+    for (std::size_t i = 0; i < tabCount; ++i)
+    {
+        const bool isSelected = (static_cast<int>(i) == index);
+        if (tabView->tabHeaders[i] != entt::null && reg.valid(tabView->tabHeaders[i]))
+        {
+            ApplyTabVisualState(reg, tabView->tabHeaders[i], isSelected);
+        }
+        // 内容面板：仅选中页可见
+        if (i < tabView->contentPanels.size() && tabView->contentPanels[i] != entt::null &&
+            reg.valid(tabView->contentPanels[i]))
+        {
+            if (isSelected)
+            {
+                reg.emplace_or_replace<components::VisibleTag>(tabView->contentPanels[i]);
+            }
+            else
+            {
+                reg.remove<components::VisibleTag>(tabView->contentPanels[i]);
+            }
+            ui::utils::MarkVisualChanged(tabView->contentPanels[i]);
+        }
+    }
+
+    if (tabView->onChanged)
+    {
+        tabView->onChanged(tabView->selectedIndex);
+    }
+}
+
+}  // namespace
+
+ui::entity CreateTabView(const std::vector<std::string>& tabTitles, std::string_view alias)
+{
+    auto& reg = CurrentRegistry();
+    auto entity = CreateBaseWidget(alias);
+    reg.emplace<components::TabViewTag>(entity);
+    auto& tabView = reg.emplace<components::TabView>(entity);
+    auto& layout = reg.emplace<components::LayoutInfo>(entity);
+    layout.direction = policies::LayoutDirection::VERTICAL;
+    layout.alignment = policies::Alignment::TOP_LEFT;
+    auto& size = reg.get<components::Size>(entity);
+    size.sizePolicy = policies::Size::AUTO;
+
+    // TabBar（水平）
+    const auto tabBar = CreateBaseWidget(std::string(alias) + "_tabbar");
+    reg.emplace<components::LayoutInfo>(tabBar).direction = policies::LayoutDirection::HORIZONTAL;
+    reg.get<components::LayoutInfo>(tabBar).alignment = policies::Alignment::LEFT | policies::Alignment::VCENTER;
+    reg.get<components::Size>(tabBar).sizePolicy = policies::Size::AUTO;
+
+    const int tabCount = static_cast<int>(tabTitles.size());
+    for (int index = 0; index < tabCount; ++index)
+    {
+        const std::string& title = tabTitles[static_cast<std::size_t>(index)];
+
+        // Tab 头
+        const auto header = CreateBaseWidget(std::string(alias) + "_tab_" + std::to_string(index));
+        reg.emplace<components::TabItemTag>(header);
+        reg.emplace<components::FocusableTag>(header);
+        auto& tabItem = reg.emplace<components::TabItem>(header);
+        tabItem.owner = detail::ToInternal(entity);
+        tabItem.tabIndex = index;
+        tabItem.selected = (index == 0);
+
+        auto& text = reg.emplace<components::Text>(header);
+        text.content = title;
+        text.fontSize = scale::Metric(13.0F);
+        text.alignment = policies::Alignment::CENTER | policies::Alignment::VCENTER;
+
+        auto& background = reg.emplace<components::Background>(header);
+        background.borderRadius = Vec4{kTabHeaderRadius, kTabHeaderRadius, kTabHeaderRadius, kTabHeaderRadius};
+        background.enabled = policies::Feature::ENABLED;
+
+        auto& headerPadding = reg.get_or_emplace<components::Padding>(header);
+        headerPadding.values = {0.0F, kTabHeaderPaddingRight, 0.0F, kTabHeaderPaddingLeft};
+
+        auto& headerSize = reg.get<components::Size>(header);
+        headerSize.sizePolicy = policies::Size::AUTO;
+        headerSize.minSize = {scale::Metric(48.0F), scale::Metric(kTabHeaderHeight)};
+
+        auto& clickable = reg.emplace<components::Clickable>(header);
+        Registry* const regPtr = &reg;
+        clickable.onClick = [regPtr, entity, index]()
+        {
+            SelectTab(*regPtr, detail::ToInternal(entity), index);
+        };
+
+        tabView.tabHeaders.push_back(detail::ToInternal(header));
+        hierarchy::AddChild(tabBar, header);
+
+        // 内容面板
+        const auto panel = CreateBaseWidget(std::string(alias) + "_panel_" + std::to_string(index));
+        reg.emplace<components::LayoutInfo>(panel).direction = policies::LayoutDirection::VERTICAL;
+        reg.get<components::LayoutInfo>(panel).alignment = policies::Alignment::TOP_LEFT;
+        reg.get<components::Size>(panel).sizePolicy = policies::Size::FILL_PARENT;
+        if (index != 0)
+        {
+            reg.remove<components::VisibleTag>(panel);
+        }
+        tabView.contentPanels.push_back(detail::ToInternal(panel));
+        hierarchy::AddChild(entity, panel);
+    }
+
+    hierarchy::AddChild(entity, tabBar);
+
+    // 初始化 Tab 头选中态（index=0 选中）
+    if (!tabView.tabHeaders.empty())
+    {
+        ApplyTabVisualState(reg, tabView.tabHeaders.front(), true);
+    }
+
+    return entity;
+}
+
+ui::entity GetTabContent(ui::entity tabViewEntity, int index)
+{
+    auto& reg = CurrentRegistry();
+    auto* tabView = reg.try_get<components::TabView>(tabViewEntity);
+    if (tabView == nullptr || index < 0 || index >= static_cast<int>(tabView->contentPanels.size()))
+        return ui::null_entity;
+    return detail::ToPublic(tabView->contentPanels[static_cast<std::size_t>(index)]);
+}
+
+namespace
+{
 
 entt::entity FindWindowRoot(Registry& reg, entt::entity entity)
 {

@@ -69,6 +69,7 @@ add_executable(ui_ecs_tests
     test_OverlaySystem.cpp
     test_Tooltip.cpp
     test_SwitchRadio.cpp
+    test_TabView.cpp
 )
 configure_ui_test_target(ui_ecs_tests)
 

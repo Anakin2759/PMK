@@ -320,6 +320,22 @@ struct RadioGroupTag
 };
 
 /**
+ * @brief TabView 标签页容器标记
+ */
+struct TabViewTag
+{
+    using is_tags_tag = void;
+};
+
+/**
+ * @brief TabItem 标签页头标记
+ */
+struct TabItemTag
+{
+    using is_tags_tag = void;
+};
+
+/**
  * @brief Canvas 绘图组件标记
  */
 struct CanvasTag
