@@ -11,6 +11,7 @@
  */
 #include "FocusNavigationSystem.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -249,6 +250,10 @@ std::vector<entt::entity> FocusNavigationSystem::collectFocusables(entt::entity 
         }
         result.push_back(entity);
     }
+
+    // entt view 的遍历顺序是未指定的；此处显式按实体 id 升序（即创建顺序）排序，
+    // 保证 Tab 顺序导航的确定性。
+    std::ranges::sort(result);
     return result;
 }
 
