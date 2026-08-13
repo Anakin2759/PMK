@@ -81,6 +81,10 @@ ui::entity CreateCheckBox(const std::string& label, bool checked = false, std::s
 ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedIndex = 0, std::string_view alias = "");
 void CloseDropDownPopup(ui::entity ddEntity);
 
+/// 给目标实体附加 Tooltip 悬浮提示；悬停 delayMs 毫秒后显示，移开即隐藏。
+inline constexpr int kDefaultTooltipDelayMs = 500;
+ui::entity SetTooltip(ui::entity target, const std::string& text, int delayMs = kDefaultTooltipDelayMs);
+
 template <typename EntityLike>
     requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&
              (std::is_enum_v<std::remove_cvref_t<EntityLike>> || std::is_integral_v<std::remove_cvref_t<EntityLike>>))

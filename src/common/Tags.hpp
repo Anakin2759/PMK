@@ -288,6 +288,14 @@ struct DropDownTag
 };
 
 /**
+ * @brief Tooltip 悬浮提示标记
+ */
+struct TooltipTag
+{
+    using is_tags_tag = void;
+};
+
+/**
  * @brief Canvas 绘图组件标记
  */
 struct CanvasTag

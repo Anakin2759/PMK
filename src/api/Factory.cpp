@@ -900,6 +900,131 @@ void CloseDropDownPopup(entt::entity ddEntity)
 
 namespace
 {
+
+/// Tooltip 浮层相对目标的垂直偏移（像素）。
+constexpr float kTooltipOffsetY = 6.0F;
+constexpr float kTooltipPaddingTop = 6.0F;
+constexpr float kTooltipPaddingRight = 8.0F;
+constexpr float kTooltipPaddingBottom = 6.0F;
+constexpr float kTooltipPaddingLeft = 8.0F;
+constexpr float kTooltipFontSize = 12.0F;
+constexpr float kTooltipRadius = 4.0F;
+
+void ShowTooltipPopup(ui::entity target)
+{
+    auto& reg = CurrentRegistry();
+    auto& runtime = UiRuntime::current();
+    auto* tooltip = reg.try_get<components::Tooltip>(target);
+    if (tooltip == nullptr || !tooltip->hovered || tooltip->text.empty())
+        return;
+    if (tooltip->popupEntity != entt::null && reg.valid(tooltip->popupEntity))
+        return;
+
+    const Rect targetRect = ui::utils::GetEntityRect(target);
+    const entt::entity windowRoot = FindWindowRoot(reg, detail::ToInternal(target));
+    if (windowRoot == entt::null)
+        return;
+
+    const auto popup = CreateBaseWidget("__tooltip__");
+    auto& popupPos = reg.get<components::Position>(popup);
+    popupPos.value = {targetRect.x(), targetRect.y() + targetRect.height() + kTooltipOffsetY};
+    popupPos.positionPolicy = policies::Position::ABSOLUTE_POS;
+
+    auto& popupSize = reg.get<components::Size>(popup);
+    popupSize.sizePolicy = policies::Size::AUTO;
+
+    auto& textComp = reg.emplace<components::Text>(popup);
+    textComp.content = tooltip->text;
+    textComp.fontSize = scale::Metric(kTooltipFontSize);
+
+    auto& background = reg.emplace<components::Background>(popup);
+    background.color = Color{0.10F, 0.10F, 0.12F, 0.96F};
+    background.borderRadius = Vec4{kTooltipRadius, kTooltipRadius, kTooltipRadius, kTooltipRadius};
+    background.enabled = policies::Feature::ENABLED;
+
+    auto& padding = reg.get_or_emplace<components::Padding>(popup);
+    padding.values = {kTooltipPaddingTop, kTooltipPaddingRight, kTooltipPaddingBottom, kTooltipPaddingLeft};
+
+    hierarchy::AddChild(detail::ToPublic(windowRoot), popup);
+    tooltip->popupEntity = detail::ToInternal(popup);
+
+    runtime.dispatcher().trigger<events::OverlayOpenRequest>(
+        events::OverlayOpenRequest{detail::ToInternal(popup), detail::ToInternal(target)});
+
+    ui::utils::MarkLayoutAndVisualChanged(detail::ToPublic(windowRoot));
+}
+
+void HideTooltipPopup(ui::entity target)
+{
+    auto& reg = CurrentRegistry();
+    auto& runtime = UiRuntime::current();
+    auto* tooltip = reg.try_get<components::Tooltip>(target);
+    if (tooltip == nullptr)
+        return;
+
+    if (tooltip->pendingTask != 0)
+    {
+        systems::TimerSystem{runtime}.cancelTask(tooltip->pendingTask);
+        tooltip->pendingTask = 0;
+    }
+
+    if (tooltip->popupEntity != entt::null && reg.valid(tooltip->popupEntity))
+    {
+        const entt::entity popup = tooltip->popupEntity;
+        tooltip->popupEntity = entt::null;
+
+        runtime.dispatcher().trigger<events::OverlayCloseRequest>(events::OverlayCloseRequest{popup});
+
+        const auto* popupHierarchy = reg.try_get<components::Hierarchy>(popup);
+        if (popupHierarchy != nullptr && popupHierarchy->parent != entt::null)
+        {
+            hierarchy::RemoveChild(detail::ToPublic(popupHierarchy->parent), detail::ToPublic(popup));
+        }
+        reg.destroy(popup);
+    }
+}
+
+}  // namespace
+
+ui::entity SetTooltip(ui::entity target, const std::string& text, int delayMs)
+{
+    auto& reg = CurrentRegistry();
+    auto& tooltip = reg.get_or_emplace<components::Tooltip>(target);
+    tooltip.text = text;
+    tooltip.delayMs = delayMs;
+    reg.emplace_or_replace<components::TooltipTag>(target);
+
+    auto& hoverable = reg.get_or_emplace<components::Hoverable>(target);
+    Registry* const regPtr = &reg;
+    hoverable.onHover = [regPtr, target]()
+    {
+        auto& reg = *regPtr;
+        auto* tooltip = reg.try_get<components::Tooltip>(target);
+        if (tooltip == nullptr || tooltip->text.empty())
+            return;
+        if (tooltip->popupEntity != entt::null && reg.valid(tooltip->popupEntity))
+            return;
+
+        tooltip->hovered = true;
+        auto& runtime = UiRuntime::current();
+        tooltip->pendingTask = systems::TimerSystem{runtime}.addTask(
+            static_cast<uint32_t>(tooltip->delayMs), [target]() { ShowTooltipPopup(target); }, true);
+    };
+    hoverable.onUnhover = [regPtr, target]()
+    {
+        auto& reg = *regPtr;
+        if (auto* tooltip = reg.try_get<components::Tooltip>(target); tooltip != nullptr)
+        {
+            tooltip->hovered = false;
+        }
+        HideTooltipPopup(target);
+    };
+
+    return target;
+}
+
+namespace
+{
 void OpenDropDownPopup(ui::entity ddEntity)
 {
     auto& reg = CurrentRegistry();

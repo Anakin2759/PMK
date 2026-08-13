@@ -321,6 +321,22 @@ struct DropDownPopupItem
     int optionIndex = -1;
 };
 
+/**
+ * @brief Tooltip 悬浮提示组件
+ *
+ * 由 SetTooltip 附加到目标实体；目标悬停时延迟显示一个纯展示浮层，
+ * 复用 OverlaySystem 统一浮层栈（z-order 分配、外部点击关闭）。
+ */
+struct Tooltip
+{
+    using is_component_tag = void;
+    std::string text;
+    int delayMs = 500;
+    entt::entity popupEntity = entt::null;  // 当前显示的提示浮层（null 表示未显示）
+    uint32_t pendingTask = 0;               // 延迟显示定时任务 id（0 表示无待定任务）
+    bool hovered = false;                   // 目标是否处于悬停状态
+};
+
 // ===================== Canvas 绘图组件 =====================
 
 enum class CanvasDrawType : uint8_t

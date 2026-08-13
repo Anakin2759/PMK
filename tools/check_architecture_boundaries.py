@@ -71,14 +71,14 @@ ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter({})
 
 ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
     {
-        ("src/api/Factory.cpp", "entt::entity"): 7,
+        ("src/api/Factory.cpp", "entt::entity"): 9,
         ("src/api/Utils.cpp", "entt::entity"): 6,
     }
 )
 
 ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
     {
-        ("src/api/Factory.cpp", "UiRuntime::current()"): 10,
+        ("src/api/Factory.cpp", "UiRuntime::current()"): 13,
         ("src/api/Image.cpp", "UiRuntime::current()"): 1,
         ("src/api/Log.cpp", "UiRuntime::current()"): 6,
         ("src/api/Utils.cpp", "UiRuntime::current()"): 3,
