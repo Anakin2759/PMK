@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <vector>
 #include "Types.hpp"
 #include <entt/entt.hpp>
 
@@ -150,6 +151,20 @@ struct StateContext
 
         stopScrollbarDrag();
     }
+};
+
+/**
+ * @brief 浮层栈上下文（由 OverlaySystem 维护）
+ *
+ * - stack：当前打开的浮层根实体栈（栈底 → 栈顶）
+ * - nextZBase：统一 z-order 基值（浮层从该值开始递增分配，避免与普通控件冲突）
+ */
+struct OverlayContext
+{
+    static constexpr int kDefaultZBase = 1000;  // 首个浮层的 z-order 基值（高于普通控件默认 0）
+
+    std::vector<entt::entity> stack;  // 浮层根实体栈（后进先出）
+    int nextZBase = kDefaultZBase;    // 首个浮层的 z-order 基值
 };
 
 }  // namespace ui::globalcontext

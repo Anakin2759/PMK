@@ -92,6 +92,36 @@ struct DropDownCloseRequested
 };
 
 /**
+ * @brief 打开浮层请求事件
+ * [IMMEDIATE] 使用 trigger - 由 Factory/控件触发，OverlaySystem 统一分配 z-order 并入栈
+ */
+struct OverlayOpenRequest
+{
+    using is_event_tag = void;
+    entt::entity entity = entt::null;  // 浮层根实体
+    entt::entity owner = entt::null;   // 触发者（关闭时焦点恢复到它）
+};
+
+/**
+ * @brief 关闭浮层请求事件
+ * [IMMEDIATE] 使用 trigger - 由 OverlaySystem 或控件触发，统一出栈并恢复焦点
+ */
+struct OverlayCloseRequest
+{
+    using is_event_tag = void;
+    entt::entity entity = entt::null;  // 浮层根实体
+};
+
+/**
+ * @brief 关闭所有浮层请求事件
+ * [IMMEDIATE] 使用 trigger - 从栈顶到栈底依次关闭
+ */
+struct OverlayCloseAllRequest
+{
+    using is_event_tag = void;
+};
+
+/**
  * @brief 窗口尺寸变化事件
  * [IMMEDIATE] 使用 trigger
  */
@@ -410,6 +440,14 @@ struct RawKeyInput
     bool pressed;
     bool repeat;
     uint16_t modifiers;
+};
+
+// 焦点切换请求
+// [IMMEDIATE] 由 FocusNavigationSystem 计算目标后触发，StateSystem 订阅并复用 setFocus/clearFocus 逻辑
+struct FocusChangeRequest
+{
+    using is_event_tag = void;
+    entt::entity target = entt::null;  // 目标实体；entt::null 表示清除当前焦点
 };
 
 // =====================================================================

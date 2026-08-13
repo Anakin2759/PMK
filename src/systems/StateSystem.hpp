@@ -168,6 +168,11 @@ class StateSystem : public ui::interface::EnableRegister<StateSystem>
      */
     void clearFocus(SDL_Window* sdlWindow = nullptr);
 
+    /**
+     * @brief 处理键盘焦点切换请求（由 FocusNavigationSystem 触发）
+     */
+    void onFocusChangeRequest(const events::FocusChangeRequest& event);
+
     // ===================================================================
     // ===================================================================
 
@@ -210,7 +215,12 @@ class StateSystem : public ui::interface::EnableRegister<StateSystem>
 
     void handleEntityPress(const events::HitPointerButton& event);
 
-    void closeDropDownsOnOutsideClick(entt::entity hitEntity);
+    /**
+     * @brief 处理浮层关闭请求（由 OverlaySystem 触发），桥接 DropDown 弹出层实际销毁。
+     * 当被关闭的浮层携带 DropDownPopupPanel 时，触发 DropDownCloseRequested 通知 Factory 层销毁。
+     */
+    void onOverlayCloseRequest(const events::OverlayCloseRequest& event);
+
     /**
      * @brief 处理实体释放事件
      * @param event 点击事件

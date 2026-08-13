@@ -205,6 +205,16 @@ struct DisabledTag
 };
 
 /**
+ * @brief 静态标记：可键盘聚焦控件（区别于运行时 FocusedTag）。
+ * 由 Factory 在创建 Button/TextEdit/CheckBox/DropDown/Slider 时写入，
+ * FocusNavigationSystem 据此遍历 Tab 序。
+ */
+struct FocusableTag
+{
+    using is_tags_tag = void;
+};
+
+/**
  * @brief 运行时状态：输入焦点标记
  */
 struct FocusedTag

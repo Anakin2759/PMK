@@ -383,6 +383,7 @@ ui::entity CreateButton(const std::string& content, std::string_view alias)
     auto& reg = CurrentRegistry();
     auto entity = CreateBaseWidget(alias);
     reg.emplace<components::ButtonTag>(entity);
+    reg.emplace<components::FocusableTag>(entity);
     reg.emplace<components::Clickable>(entity);
     auto& text = reg.emplace<components::Text>(entity);
     text.content = content;
@@ -433,6 +434,7 @@ ui::entity CreateTextEdit(const std::string& placeholder, bool multiline, std::s
     reg.emplace<components::Clickable>(entity);
     reg.get<components::Size>(entity).minSize = {scale::Metric(100.0F), scale::Metric(multiline ? 80.0F : 30.0F)};
     reg.emplace<components::TextEditTag>(entity);
+    reg.emplace<components::FocusableTag>(entity);
 
     // Add Caret component for cursor rendering
     reg.emplace<components::Caret>(entity);
@@ -773,6 +775,7 @@ ui::entity CreateCheckBox(const std::string& label, bool checked, std::string_vi
     auto& reg = CurrentRegistry();
     auto entity = CreateBaseWidget(alias);
     reg.emplace<components::CheckBoxTag>(entity);
+    reg.emplace<components::FocusableTag>(entity);
     auto& checkBox = reg.emplace<components::CheckBox>(entity);
     checkBox.checked = checked;
     checkBox.label = label;
@@ -835,10 +838,17 @@ void CloseDropDownPopup(ui::entity ddEntity)
         return;
     }
 
-    const ui::entity popupToDestroy = detail::ToPublic(dropDown->popupEntity);
+    const entt::entity popupEntityInternal = dropDown->popupEntity;
+    const ui::entity popupToDestroy = detail::ToPublic(popupEntityInternal);
+
+    // 先置空 popupEntity 打断重入：OverlayCloseRequest → StateSystem 桥接 → DropDownCloseRequested
+    // → 本函数，重入时 popupEntity 已为 null 会提前返回，避免无限递归。
     dropDown->popupEntity = entt::null;
     dropDown->open = false;
     ui::utils::MarkVisualChanged(ddEntity);
+
+    // 通知 OverlaySystem 出栈并恢复焦点（幂等：已出栈时静默忽略）
+    runtime.dispatcher().trigger<events::OverlayCloseRequest>(events::OverlayCloseRequest{popupEntityInternal});
 
     auto timerSystem = systems::TimerSystem{runtime};
     timerSystem.addTask(
@@ -893,6 +903,7 @@ namespace
 void OpenDropDownPopup(ui::entity ddEntity)
 {
     auto& reg = CurrentRegistry();
+    auto& disp = UiRuntime::current().dispatcher();
     auto* dropDown = reg.try_get<components::DropDown>(ddEntity);
     if (dropDown == nullptr || dropDown->options.empty())
         return;
@@ -920,7 +931,9 @@ void OpenDropDownPopup(ui::entity ddEntity)
 
     reg.emplace<components::DropDownPopupPanel>(popup).owner = detail::ToInternal(ddEntity);
 
-    reg.emplace<components::ZOrderIndex>(popup).value = 1000;
+    // 统一浮层栈：由 OverlaySystem 分配 z-order 并压栈（替代硬编码 ZOrderIndex=1000）
+    disp.trigger<events::OverlayOpenRequest>(
+        events::OverlayOpenRequest{detail::ToInternal(popup), detail::ToInternal(ddEntity)});
 
     auto& popupLayout = reg.emplace<components::LayoutInfo>(popup);
     popupLayout.direction = policies::LayoutDirection::VERTICAL;
@@ -985,6 +998,7 @@ ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedI
     auto& reg = CurrentRegistry();
     auto entity = CreateBaseWidget(alias);
     reg.emplace<components::DropDownTag>(entity);
+    reg.emplace<components::FocusableTag>(entity);
     auto& dropDown = reg.emplace<components::DropDown>(entity);
     dropDown.options = options;
     dropDown.selectedIndex = selectedIndex;
@@ -1024,6 +1038,7 @@ ui::entity CreateSlider(std::string_view alias)
     size.sizePolicy = policies::Size::FIXED;
     reg.emplace<components::LayoutInfo>(entity);
     utils::MarkLayoutAndVisualChanged(entity);
+    reg.emplace<components::FocusableTag>(entity);
     reg.emplace<components::SliderTag>(entity);
     return entity;
 }

@@ -161,6 +161,8 @@ set(UI_OBJECT_SYSTEMS_SOURCES
     systems/ThemeSystem.cpp
     systems/TimerSystem.cpp
     systems/ShortcutSystem.cpp
+    systems/FocusNavigationSystem.cpp
+    systems/OverlaySystem.cpp
 )
 
 set(UI_OBJECT_RENDER_SOURCES
@@ -242,6 +244,7 @@ set(UI_HEADERS
     common/RenderTypes.hpp
     common/Result.hpp
     common/ErrorCodes.hpp
+    common/components/Overlay.hpp
 
     # Internal helpers
     helper/Helper.hpp
@@ -257,6 +260,8 @@ set(UI_HEADERS
     systems/TimerSystem.hpp
     systems/ShortcutSystem.hpp
     systems/ThemeSystem.hpp
+    systems/FocusNavigationSystem.hpp
+    systems/OverlaySystem.hpp
     
     # Managers
     managers/DeviceManager.hpp

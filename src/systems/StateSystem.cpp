@@ -112,6 +112,12 @@ void StateSystem::registerHandlersImpl()
     m_disp->sink<events::HitPointerButton>().connect<&StateSystem::onHitPointerButton>(*this);
     m_disp->sink<events::HitPointerWheel>().connect<&StateSystem::onHitPointerWheel>(*this);
 
+    // 键盘焦点导航（FocusNavigationSystem 触发）
+    m_disp->sink<events::FocusChangeRequest>().connect<&StateSystem::onFocusChangeRequest>(*this);
+
+    // 浮层关闭（OverlaySystem 触发，桥接 DropDown 销毁）
+    m_disp->sink<events::OverlayCloseRequest>().connect<&StateSystem::onOverlayCloseRequest>(*this);
+
     m_disp->sink<events::EndFrame>().connect<&StateSystem::onEndFrame>(*this);
 }
 
@@ -129,6 +135,8 @@ void StateSystem::unregisterHandlersImpl()
     m_disp->sink<events::HitPointerMove>().disconnect<&StateSystem::onHitPointerMove>(*this);
     m_disp->sink<events::HitPointerButton>().disconnect<&StateSystem::onHitPointerButton>(*this);
     m_disp->sink<events::HitPointerWheel>().disconnect<&StateSystem::onHitPointerWheel>(*this);
+    m_disp->sink<events::FocusChangeRequest>().disconnect<&StateSystem::onFocusChangeRequest>(*this);
+    m_disp->sink<events::OverlayCloseRequest>().disconnect<&StateSystem::onOverlayCloseRequest>(*this);
     m_disp->sink<events::EndFrame>().disconnect<&StateSystem::onEndFrame>(*this);
 }
 
@@ -1212,7 +1220,6 @@ void StateSystem::onHitPointerButton(const events::HitPointerButton& event)
     if (event.raw.pressed)
     {
         state.activePressPosition = event.raw.position;
-        closeDropDownsOnOutsideClick(event.hitEntity);
         if (ScrollbarStateHelpers::tryHandlePress(*this, event, state))
         {
             return;
@@ -1259,6 +1266,32 @@ void StateSystem::setFocus(entt::entity entity, SDL_Window* sdlWindow)
 void StateSystem::clearFocus(SDL_Window* sdlWindow)
 {
     PointerStateHelpers::clearFocus(*this, sdlWindow);
+}
+
+void StateSystem::onFocusChangeRequest(const events::FocusChangeRequest& event)
+{
+    if (event.target == entt::null)
+    {
+        clearFocus();
+        return;
+    }
+
+    // 从目标实体向上找窗口根，解析 SDL_Window（用于 TextEdit 启动文本输入）。
+    SDL_Window* sdlWindow = nullptr;
+    auto& reg = *m_reg;
+    entt::entity current = event.target;
+    while (current != entt::null && reg.valid(current))
+    {
+        if (const auto* window = reg.try_get<components::Window>(current); window != nullptr && window->windowID != 0)
+        {
+            sdlWindow = SDL_GetWindowFromID(window->windowID);
+            break;
+        }
+        const auto* hierarchy = reg.try_get<components::Hierarchy>(current);
+        current = (hierarchy != nullptr) ? hierarchy->parent : entt::null;
+    }
+
+    setFocus(event.target, sdlWindow);
 }
 
 void StateSystem::onCloseWindow(const events::CloseWindow& event)
@@ -1327,38 +1360,18 @@ void StateSystem::handleEntityPress(const events::HitPointerButton& event)
     PointerStateHelpers::handleEntityPress(*this, event);
 }
 
-void StateSystem::closeDropDownsOnOutsideClick(entt::entity hitEntity)
+void StateSystem::onOverlayCloseRequest(const events::OverlayCloseRequest& event)
 {
-    auto& reg = *m_reg;
-    auto& disp = *m_disp;
-    auto view = reg.view<components::DropDown>();
-    for (auto ddEntity : view)
+    if (event.entity == entt::null || !m_reg->valid(event.entity))
     {
-        auto& dropDown = view.template get<components::DropDown>(ddEntity);
-        if (!dropDown.open)
-            continue;
+        return;
+    }
 
-        const auto inSubtree = [&reg, hitEntity](entt::entity ancestor) -> bool
-        {
-            if (ancestor == entt::null)
-                return false;
-            entt::entity cur = hitEntity;
-            while (cur != entt::null && reg.valid(cur))
-            {
-                if (cur == ancestor)
-                    return true;
-                const auto* hier = reg.try_get<components::Hierarchy>(cur);
-                cur = (hier != nullptr) ? hier->parent : entt::null;
-            }
-            return false;
-        };
-
-        if (inSubtree(ddEntity))
-            continue;
-        if (inSubtree(dropDown.popupEntity))
-            continue;
-
-        disp.trigger<events::DropDownCloseRequested>({ddEntity});
+    // 若被关闭的浮层是 DropDown 弹出面板，桥接通知 Factory 层实际销毁并复位 DropDown 状态。
+    if (const auto* panel = m_reg->try_get<components::DropDownPopupPanel>(event.entity); panel != nullptr &&
+                                                                                         panel->owner != entt::null)
+    {
+        m_disp->trigger<events::DropDownCloseRequested>(events::DropDownCloseRequested{panel->owner});
     }
 }
 

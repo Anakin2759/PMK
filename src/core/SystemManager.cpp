@@ -26,6 +26,8 @@
 #include "systems/TimerSystem.hpp"
 #include "systems/ShortcutSystem.hpp"
 #include "systems/ThemeSystem.hpp"
+#include "systems/FocusNavigationSystem.hpp"
+#include "systems/OverlaySystem.hpp"
 namespace ui
 {
 SystemManager::SystemManager(UiRuntime* runtime, bool registerBuiltIns) : m_runtime(runtime)
@@ -75,6 +77,12 @@ void SystemManager::registerBuiltInSystems()
 
     m_runtime->logger().info("[SystemManager] 正在注册 ShortcutSystem...");
     m_systems.emplace_back(systems::ShortcutSystem{*runtime});
+
+    m_runtime->logger().info("[SystemManager] 正在注册 FocusNavigationSystem...");
+    m_systems.emplace_back(systems::FocusNavigationSystem{*runtime});
+
+    m_runtime->logger().info("[SystemManager] 正在注册 OverlaySystem...");
+    m_systems.emplace_back(systems::OverlaySystem{*runtime});
 }
 
 SystemManager::~SystemManager()
