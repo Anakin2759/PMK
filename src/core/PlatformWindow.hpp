@@ -41,13 +41,25 @@ void SetupCustomTitleBar(SDL_Window* sdlWindow, int borderWidth = 6);
  * 让 GPU 渲染的 alpha 通道控制窗口透明度。
  * 配合清屏色 {0,0,0,0}，可实现圆角外区域透明。
  *
- * - Windows: DwmExtendFrameIntoClientArea 全客户区扩展 + WS_EX_NOREDIRECTIONBITMAP + SetWindowRgn
+ * - Windows: DwmExtendFrameIntoClientArea + DWM 抗锯齿圆角；旧系统回退到 SetWindowRgn
  * - Linux: 不需要额外操作（由 compositor 处理）
  *
  * @param sdlWindow SDL窗口指针
- * @param cornerRadius 圆角半径（像素），用于 SetWindowRgn 层裁剪；0 则不裁剪
+ * @param cornerRadius 圆角半径（像素），用于旧系统的 SetWindowRgn 回退；0 则不裁剪
  */
 void EnableTransparency(SDL_Window* sdlWindow, int cornerRadius = 8);
+
+/**
+ * @brief 同步原生窗口圆角裁剪
+ *
+ * Dialog 的最终尺寸可能在 DSL 配置阶段晚于 SDL 窗口创建才确定；此函数用于
+ * 在 SDL_SetWindowSize 后同步平台裁剪。Windows 11 优先使用带 alpha coverage 的
+ * DWM 圆角；旧系统回退到按当前尺寸生成的 SetWindowRgn。
+ *
+ * @param sdlWindow SDL 窗口指针
+ * @param cornerRadius UI 逻辑像素半径；内部转换为 framebuffer 像素
+ */
+void SyncRoundedWindowRegion(SDL_Window* sdlWindow, float cornerRadius);
 
 /**
  * @brief 安装暗色客户区背景擦除兜底

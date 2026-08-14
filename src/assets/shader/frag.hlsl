@@ -10,10 +10,31 @@
 // 屏幕坐标系 Y 轴朝下: p.y<0 = 上半部分, p.y>0 = 下半部分
 float sdRoundedBox(float2 p, float2 b, float4 r)
 {
-    // p.x>0 → 右侧 → (右上, 右下); p.x<0 → 左侧 → (左上, 左下)
-    float2 q_radius = (p.x > 0.0) ? r.yz : r.xw;
-    // p.y>0 → 下半 → 取 .y (右下/左下); p.y<0 → 上半 → 取 .x (右上/左上)
-    float actual_r = (p.y > 0.0) ? q_radius.y : q_radius.x;
+    // radius 顺序：左上、右上、右下、左下。
+    // 先按矩形实际尺寸约束每个角的半径，避免半径超过短边时在角外形成
+    // 数值不连续的尖角；再根据象限选择当前像素对应的角。
+    float max_radius = min(b.x, b.y);
+    r = clamp(r, 0.0, max_radius);
+
+    // 仅逐角 clamp 仍然可能让相邻两个圆角半径之和超过矩形边长。
+    // 这种情况下 SDF 在右侧/下侧边界会出现外凸的尖角，尤其明显于
+    // dialog 这类带独立背景和边框批次的矩形。按 CSS border-radius 的
+    // 规则统一缩放四角，保证任意一条边上的两个圆角不会互相重叠。
+    float horizontal_sum = max(max(r.x + r.y, r.z + r.w), 0.0001);
+    float vertical_sum = max(max(r.x + r.w, r.y + r.z), 0.0001);
+    float horizontal_limit = min(2.0 * b.x / horizontal_sum, 1.0);
+    float vertical_limit = min(2.0 * b.y / vertical_sum, 1.0);
+    r *= min(horizontal_limit, vertical_limit);
+
+    float actual_r;
+    if (p.x > 0.0)
+    {
+        actual_r = (p.y > 0.0) ? r.z : r.y;
+    }
+    else
+    {
+        actual_r = (p.y > 0.0) ? r.w : r.x;
+    }
 
     float2 q = abs(p) - b + actual_r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - actual_r;

@@ -126,6 +126,8 @@ namespace
 constexpr UINT_PTR SUBCLASS_ID = 1;
 constexpr UINT_PTR DARK_BACKGROUND_SUBCLASS_ID = 2;
 constexpr COLORREF DARK_CLIENT_BACKGROUND_COLOR = RGB(26, 26, 31);
+constexpr DWORD DWM_WINDOW_CORNER_PREFERENCE_ATTRIBUTE = 33;
+constexpr int DWM_WINDOW_CORNER_PREFERENCE_ROUND = 2;
 
 struct SubclassData
 {
@@ -323,6 +325,23 @@ HWND GetHwndFromSDL(SDL_Window* sdlWindow)
         SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
 }
 
+[[nodiscard]] bool EnableDwmRoundedCorners(HWND hwnd)
+{
+    // Windows 11 的 DWM 圆角在桌面合成阶段计算 alpha coverage，边缘具有原生
+    // 抗锯齿。SetWindowRgn 只能表达二值像素区域，应仅作为旧系统兜底。
+    const int preference = DWM_WINDOW_CORNER_PREFERENCE_ROUND;
+    const HRESULT result = DwmSetWindowAttribute(hwnd, DWM_WINDOW_CORNER_PREFERENCE_ATTRIBUTE, &preference,
+                                                  sizeof(preference));
+    if (SUCCEEDED(result))
+    {
+        // 清除先前可能设置的 HRGN，否则二值 Region 会先裁掉 DWM 的半透明边缘。
+        SetWindowRgn(hwnd, nullptr, TRUE);
+        return true;
+    }
+
+    return false;
+}
+
 }  // anonymous namespace
 
 namespace ui::platform
@@ -430,26 +449,53 @@ void EnableTransparency(SDL_Window* sdlWindow, int cornerRadius)
     const MARGINS margins = {.cxLeftWidth = -1, .cxRightWidth = -1, .cyTopHeight = -1, .cyBottomHeight = -1};
     DwmExtendFrameIntoClientArea(hwnd, &margins);
 
-    // 3. SetWindowRgn 兜底：在 OS 层裁剪圆角，确保 DWM alpha 合成不可用时也无黑角。
-    //    WM_SIZE 子类化处理器会在窗口缩放时自动同步此区域。
+    // 3. 优先使用 DWM 的抗锯齿圆角；旧系统不支持时再回退到 SetWindowRgn。
     if (cornerRadius > 0)
     {
-        // 将 cornerRadius 写入 SubclassData，供 WM_SIZE 使用
-        DWORD_PTR dwRefData = 0;
-        if (GetWindowSubclass(hwnd, CustomFrameProc, SUBCLASS_ID, &dwRefData) != FALSE && dwRefData != 0)
+        if (!EnableDwmRoundedCorners(hwnd))
         {
-            reinterpret_cast<SubclassData*>(dwRefData)->cornerRadius = cornerRadius;  // NOLINT
-        }
+            // 将 cornerRadius 写入 SubclassData，供 WM_SIZE 同步 Region。
+            DWORD_PTR dwRefData = 0;
+            if (GetWindowSubclass(hwnd, CustomFrameProc, SUBCLASS_ID, &dwRefData) != FALSE && dwRefData != 0)
+            {
+                reinterpret_cast<SubclassData*>(dwRefData)->cornerRadius = cornerRadius;  // NOLINT
+            }
 
-        RECT rect;
-        GetWindowRect(hwnd, &rect);
-        int const winW = rect.right - rect.left;
-        int const winH = rect.bottom - rect.top;
-        if (winW > 0 && winH > 0)
-        {
-            HRGN hRgn = CreateRoundRectRgn(0, 0, winW + 1, winH + 1, cornerRadius * 2, cornerRadius * 2);
-            SetWindowRgn(hwnd, hRgn, TRUE);
+            ui::platform::SyncRoundedWindowRegion(sdlWindow, static_cast<float>(cornerRadius));
         }
+    }
+}
+
+void SyncRoundedWindowRegion(SDL_Window* sdlWindow, float cornerRadius)
+{
+    HWND hwnd = GetHwndFromSDL(sdlWindow);
+    if (hwnd == nullptr || !std::isfinite(cornerRadius) || cornerRadius <= 0.0F)
+        return;
+
+    // DWM 圆角不依赖窗口尺寸，且保留 SDF 边缘的半透明 coverage。每次尺寸
+    // 同步时重试，可在窗口移入支持该属性的桌面环境后移除旧的二值 Region。
+    if (EnableDwmRoundedCorners(hwnd))
+        return;
+
+    RECT rect{};
+    if (GetWindowRect(hwnd, &rect) == FALSE)
+        return;
+
+    const int windowWidth = rect.right - rect.left;
+    const int windowHeight = rect.bottom - rect.top;
+    if (windowWidth <= 0 || windowHeight <= 0)
+        return;
+
+    const float framebufferScale = GetSdlFramebufferScale(sdlWindow);
+    const int physicalRadius = std::max(1, static_cast<int>(std::lround(cornerRadius * framebufferScale)));
+    HRGN region = CreateRoundRectRgn(0, 0, windowWidth + 1, windowHeight + 1, physicalRadius * 2, physicalRadius * 2);
+    if (region == nullptr)
+        return;
+
+    // SetWindowRgn 成功后系统接管 region 所有权；失败时由调用方释放。
+    if (SetWindowRgn(hwnd, region, TRUE) == 0)
+    {
+        DeleteObject(region);
     }
 }
 
@@ -574,6 +620,11 @@ void EnableTransparency([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]]
     // Wayland compositor 原生支持 alpha 合成
 }
 
+void SyncRoundedWindowRegion([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]] float cornerRadius)
+{
+    // Linux 圆角由窗口合成器处理。
+}
+
 void InstallDarkClientAreaBackground([[maybe_unused]] SDL_Window* sdlWindow)
 {
 }
@@ -630,6 +681,11 @@ void SetupCustomTitleBar([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]
 }
 
 void EnableTransparency([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]] int cornerRadius)
+{
+    // 空操作
+}
+
+void SyncRoundedWindowRegion([[maybe_unused]] SDL_Window* sdlWindow, [[maybe_unused]] float cornerRadius)
 {
     // 空操作
 }

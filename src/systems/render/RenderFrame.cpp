@@ -105,16 +105,23 @@ struct ScalingSnapshot
     constexpr SDL_FColor TRANSPARENT_FALLBACK = {.r = 0.0F, .g = 0.0F, .b = 0.0F, .a = 0.0F};
 
     const bool isTransparentWindow = registry.any_of<components::DialogTag>(windowEntity);
+    // Dialog 的背景由 ShapeRenderer 以 SDF 圆角绘制。若先用背景色清空整个
+    // 交换链，SDF 在圆角外 discard 后仍会留下矩形底色，表现为圆角外尖角。
+    if (isTransparentWindow)
+    {
+        return TRANSPARENT_FALLBACK;
+    }
+
     if (const auto* background = registry.try_get<components::Background>(windowEntity);
         background != nullptr && background->enabled == policies::Feature::ENABLED)
     {
         return SDL_FColor{.r = background->color.red,
                           .g = background->color.green,
                           .b = background->color.blue,
-                          .a = isTransparentWindow ? background->color.alpha : 1.0F};
+                          .a = 1.0F};
     }
 
-    return isTransparentWindow ? TRANSPARENT_FALLBACK : OPAQUE_FALLBACK;
+    return OPAQUE_FALLBACK;
 }
 
 // NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)

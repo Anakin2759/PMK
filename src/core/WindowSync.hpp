@@ -197,6 +197,27 @@ inline void SyncWindowSize(entt::entity entity, SDL_Window* sdlWindow)
     {
         SDL_SetWindowSize(sdlWindow, targetWidth, targetHeight);
     }
+
+    // Dialog 的 Win32 Region 在窗口创建时建立，而 DSL 尺寸通常在创建后才应用。
+    // 必须按最终窗口尺寸和视觉圆角重新同步，否则旧 Region 的右侧圆角仍位于
+    // 创建时宽度处，当前右边缘会退化为方角并露出矩形清屏背景。
+    if (registry.any_of<components::DialogTag>(entity))
+    {
+        float cornerRadius = 0.0F;
+        if (const auto* background = registry.try_get<components::Background>(entity);
+            background != nullptr && background->enabled == policies::Feature::ENABLED)
+        {
+            cornerRadius = std::max({background->borderRadius.x(), background->borderRadius.y(),
+                                     background->borderRadius.z(), background->borderRadius.w()});
+        }
+        if (const auto* border = registry.try_get<components::Border>(entity);
+            border != nullptr && border->enabled == policies::Feature::ENABLED)
+        {
+            cornerRadius = std::max({cornerRadius, border->borderRadius.x(), border->borderRadius.y(),
+                                     border->borderRadius.z(), border->borderRadius.w()});
+        }
+        platform::SyncRoundedWindowRegion(sdlWindow, cornerRadius);
+    }
 }
 
 inline void SyncWindowSizeConstraints(entt::entity entity, const components::Window& windowComp, SDL_Window* sdlWindow)
