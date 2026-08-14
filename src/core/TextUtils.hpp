@@ -201,20 +201,21 @@ inline std::vector<std::string> WrapTextLines(const std::string& text, int maxWi
         return lines;
     }
 
-    // 按换行符分割
+    if (text.empty())
+    {
+        return lines;  // 空文本无段落
+    }
+
+    // 按换行符分割为段落；每个段落（含空段落）至少贡献一行。
+    // 空段落由 WrapParagraph("") 返回单个空行表示（连续换行 → 空行）。
     std::string currentParagraph;
     for (char c : text)
     {
         if (c == '\n')
         {
-            if (!currentParagraph.empty())
-            {
-                // 处理当前段落
-                auto wrappedLines = WrapParagraph(currentParagraph, maxWidth, wrapMode, measureFunc);
-                lines.insert(lines.end(), wrappedLines.begin(), wrappedLines.end());
-                currentParagraph.clear();
-            }
-            lines.push_back("");  // 空行
+            auto wrappedLines = WrapParagraph(currentParagraph, maxWidth, wrapMode, measureFunc);
+            lines.insert(lines.end(), wrappedLines.begin(), wrappedLines.end());
+            currentParagraph.clear();
         }
         else
         {
@@ -222,12 +223,9 @@ inline std::vector<std::string> WrapTextLines(const std::string& text, int maxWi
         }
     }
 
-    // 处理最后一段
-    if (!currentParagraph.empty())
-    {
-        auto wrappedLines = WrapParagraph(currentParagraph, maxWidth, wrapMode, measureFunc);
-        lines.insert(lines.end(), wrappedLines.begin(), wrappedLines.end());
-    }
+    // 处理最后一段（文本以换行符结尾时为空段落，贡献一个末尾空行）
+    auto wrappedLines = WrapParagraph(currentParagraph, maxWidth, wrapMode, measureFunc);
+    lines.insert(lines.end(), wrappedLines.begin(), wrappedLines.end());
 
     return lines;
 }

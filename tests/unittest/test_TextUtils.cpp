@@ -55,11 +55,28 @@ TEST(TextUtilsTest, WrapTextLinesPreservesBlankLinesBetweenParagraphs)
 {
     const auto lines = ui::utils::WrapTextLines("alpha\n\nbeta", 10, ui::policies::TextWrap::WORD, MeasureByByteLength);
 
-    ASSERT_EQ(lines.size(), 4U);
+    ASSERT_EQ(lines.size(), 3U);
     EXPECT_EQ(lines.at(0), "alpha");
     EXPECT_EQ(lines.at(1), "");
-    EXPECT_EQ(lines.at(2), "");
-    EXPECT_EQ(lines.at(3), "beta");
+    EXPECT_EQ(lines.at(2), "beta");
+}
+
+TEST(TextUtilsTest, WrapTextLinesSingleNewlineDoesNotAddBlankLine)
+{
+    const auto lines = ui::utils::WrapTextLines("alpha\nbeta", 10, ui::policies::TextWrap::WORD, MeasureByByteLength);
+
+    ASSERT_EQ(lines.size(), 2U);
+    EXPECT_EQ(lines.at(0), "alpha");
+    EXPECT_EQ(lines.at(1), "beta");
+}
+
+TEST(TextUtilsTest, WrapTextLinesTrailingNewlineYieldsTrailingBlankLine)
+{
+    const auto lines = ui::utils::WrapTextLines("alpha\n", 10, ui::policies::TextWrap::WORD, MeasureByByteLength);
+
+    ASSERT_EQ(lines.size(), 2U);
+    EXPECT_EQ(lines.at(0), "alpha");
+    EXPECT_EQ(lines.at(1), "");
 }
 
 TEST(TextUtilsTest, WordWrapFallsBackToCharacterWrapForLongWord)

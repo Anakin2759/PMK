@@ -8,6 +8,7 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 option(ENABLE_BUILD_TESTS "Enable building of unit tests" OFF)
+option(ENABLE_BUILD_BENCHMARKS "Enable building of benchmarks (Google Benchmark)" OFF)
 option(BUILD_EXAMPLES "Enable building examples" ON)
 # IPO/LTO 默认关闭：自包含发行模式下合并后的静态库含第三方对象，开启 LTO 会要求
 # 消费者链接时使用相同 LTO 配置（LTCG / ThinLTO），破坏"即插即用"。需要时显式启用：
@@ -152,6 +153,15 @@ if(ENABLE_BUILD_TESTS)
     add_subdirectory(third_party/googletest)
 endif()
 
+if(ENABLE_BUILD_BENCHMARKS)
+    # Google Benchmark 默认会构建其自身依赖 gtest 的单元测试并执行 install，
+    # 这里全部关闭，只引入 benchmark 库本身。
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    add_subdirectory(third_party/benchmark)
+endif()
+
 # ===================== SDK package =====================
 set(VMPUI_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/VMPUI")
 configure_package_config_file(
@@ -251,4 +261,9 @@ endif()
 if(ENABLE_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests/unittest)
+endif()
+
+# ===================== 基准测试 =====================
+if(ENABLE_BUILD_BENCHMARKS)
+    add_subdirectory(tests/benchmark)
 endif()

@@ -397,35 +397,29 @@ class TextRenderer : public core::IRenderer
         SDL_SetTextInputArea(context.sdlWindow, &rect, 0);
     }
 
-    TextEditCursorLineInfo calculateCursorLineInfo(const std::vector<std::string>& lines,
-                                                   const components::TextEdit& textEdit, const std::string& displayText,
-                                                   float fontSize, managers::FontManager& fontManager) const
+    TextEditCursorLineInfo calculateCursorLineInfo(const TextEditRenderArgs& args) const
     {
         TextEditCursorLineInfo cursorInfo{};
-        cursorInfo.lineIndex = static_cast<int>(lines.size()) - 1;
-        cursorInfo.lineOffsetX =
-            lines.empty() ? 0.0F : static_cast<float>(ui::cpo::measure_text_width(fontManager, lines.back(), fontSize));
 
-        size_t byteOffset = 0;
-        for (int lineIdx = 0; lineIdx < static_cast<int>(lines.size()); ++lineIdx)
+        const policies::TextWrap wrapMode =
+            args.text().wordWrap != policies::TextWrap::NONE ? args.text().wordWrap : policies::TextWrap::WORD;
+        auto measureFunc =
+            [fontManager = args.renderContext().fontManager, fontSize = args.fontSize](const std::string& str)
+        { return ui::cpo::measure_text_width(*fontManager, str, fontSize); };
+
+        // 光标前的文本按与渲染完全一致的规则重新换行：最后一行即光标所在行，
+        // 该行宽度即光标的 X 偏移。复用 WrapTextLines 可自动规避空行、以及换行边界
+        // 处空格被丢弃导致的字节偏移错位问题。
+        const std::string beforeCursor = args.textValue().substr(0, args.edit().cursorPosition);
+        const auto linesBefore =
+            ui::utils::WrapTextLines(beforeCursor, static_cast<int>(args.textSize.x()), wrapMode, measureFunc);
+        if (linesBefore.empty())
         {
-            const size_t lineByteEnd = byteOffset + lines[lineIdx].size();
-            if (textEdit.cursorPosition <= lineByteEnd)
-            {
-                cursorInfo.lineIndex = lineIdx;
-                const size_t offsetInLine = textEdit.cursorPosition - byteOffset;
-                cursorInfo.lineOffsetX = static_cast<float>(
-                    ui::cpo::measure_text_width(fontManager, lines[lineIdx].substr(0, offsetInLine), fontSize));
-                break;
-            }
-
-            byteOffset = lineByteEnd;
-            if (byteOffset < displayText.size() && displayText[byteOffset] == '\n')
-            {
-                byteOffset++;
-            }
+            return cursorInfo;
         }
 
+        cursorInfo.lineIndex = static_cast<int>(linesBefore.size()) - 1;
+        cursorInfo.lineOffsetX = static_cast<float>(measureFunc(linesBefore.back()));
         return cursorInfo;
     }
 
@@ -486,8 +480,7 @@ class TextRenderer : public core::IRenderer
             return;
         }
 
-        const auto cursorInfo = calculateCursorLineInfo(lines, args.edit(), args.textValue(), args.fontSize,
-                                                        *args.renderContext().fontManager);
+        const auto cursorInfo = calculateCursorLineInfo(args);
         if (cursorInfo.lineIndex < scrollOffsetLines || cursorInfo.lineIndex >= scrollOffsetLines + maxVisibleLines)
         {
             return;
@@ -515,8 +508,7 @@ class TextRenderer : public core::IRenderer
             return;
         }
 
-        const auto cursorInfo = calculateCursorLineInfo(lines, args.edit(), args.textValue(), args.fontSize,
-                                                        *args.renderContext().fontManager);
+        const auto cursorInfo = calculateCursorLineInfo(args);
         if (cursorInfo.lineIndex < static_cast<int>(startIndex))
         {
             return;
