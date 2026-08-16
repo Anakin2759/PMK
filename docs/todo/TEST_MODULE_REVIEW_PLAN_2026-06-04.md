@@ -79,8 +79,8 @@
 
 项目正在规划 `ui::entity` 与 `entt::entity` 隔离。当前测试大量直接包含内部头：
 
-- `src/singleton/Registry.hpp`
-- `src/singleton/Dispatcher.hpp`
+- `src/utils/Registry.hpp`
+- `src/utils/Dispatcher.hpp`
 - `src/systems/*`
 - `common/components/*`
 
@@ -364,7 +364,7 @@ Operation_WhenCondition_ExpectedResult
 后续写测试应避免：
 
 - 为了覆盖率写“一调用一字段”的无意义测试，却不覆盖行为风险。
-- 在 API 测试里包含 `src/singleton/Registry.hpp`。
+- 在 API 测试里包含 `src/utils/Registry.hpp`。
 - 用 `EXPECT_NO_FATAL_FAILURE` 假装验证无效输入；无效输入应验证状态没有被污染。
 - 单个测试文件继续无限膨胀。
 - 测试依赖执行顺序或共享全局状态。

@@ -71,14 +71,14 @@ ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter({})
 
 ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
     {
-        ("src/api/Factory.cpp", "entt::entity"): 14,
+        ("src/api/Factory.cpp", "entt::entity"): 21,
         ("src/api/Utils.cpp", "entt::entity"): 6,
     }
 )
 
 ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
     {
-        ("src/api/Factory.cpp", "UiRuntime::current()"): 13,
+        ("src/api/Factory.cpp", "UiRuntime::current()"): 17,
         ("src/api/Image.cpp", "UiRuntime::current()"): 1,
         ("src/api/Log.cpp", "UiRuntime::current()"): 6,
         ("src/api/Utils.cpp", "UiRuntime::current()"): 3,
@@ -91,7 +91,7 @@ ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
         ("src/managers/FontManager.hpp", "UiRuntime::current()"): 16,
         ("src/managers/IconManager.cpp", "UiRuntime::current()"): 37,
         ("src/managers/IconManager.hpp", "UiRuntime::current()"): 2,
-        ("src/managers/ImageManager.cpp", "UiRuntime::current()"): 15,
+        ("src/managers/ImageManager.cpp", "UiRuntime::current()"): 9,
         ("src/managers/PipelineCache.hpp", "UiRuntime::current()"): 7,
         ("src/managers/ResourceProvider.cpp", "UiRuntime::current()"): 3,
         ("src/managers/TextTextureCache.cpp", "UiRuntime::current()"): 11,

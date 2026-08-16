@@ -1,7 +1,7 @@
 /**
  * ************************************************************************
  *
- * @file EventLoop.h
+ * @file EventLoop.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2025-12-19
  * @version 0.1
@@ -24,9 +24,11 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <concepts>
+#include <cstdint>
 #include <functional>
-#include <memory>
+#include <mutex>
 #include <thread>
 #include <type_traits>
 #include <utility>
@@ -35,6 +37,16 @@
 
 namespace ui
 {
+
+/// 帧调度模式（P1-4 双模式设计）
+/// - FIXED_RATE：固定帧率节流（默认，向后兼容，默认 60fps）
+/// - EVENT_DRIVEN：事件驱动，空闲时 CPU 归零，任务/事件到达即唤醒
+enum class FrameScheduleMode : std::uint8_t
+{
+    FIXED_RATE,
+    EVENT_DRIVEN
+};
+
 class EventLoop
 {
    public:
@@ -51,12 +63,23 @@ class EventLoop
 
     void quit();
 
+    // 锁帧/帧率接口（后续扩展）：设置目标帧率（fps）。0 表示不锁帧。
+    void setTargetFrameRate(std::uint32_t fps);
+
+    [[nodiscard]] std::uint32_t targetFrameRate() const noexcept;
+
+    // 帧调度模式切换（运行中可用）
+    void setFrameScheduleMode(FrameScheduleMode mode);
+
+    [[nodiscard]] FrameScheduleMode frameScheduleMode() const noexcept;
+
     // 直接投递一个“零参数可调用对象”（例如带捕获的 lambda）。
     template <typename Func>
         requires std::invocable<std::decay_t<Func>>
     void invoke(Func&& func)
     {
         m_loop.PostOrThrow([callable = std::forward<Func>(func)]() mutable { std::invoke(std::move(callable)); });
+        WakeSchedulerIfEventDriven();
     }
 
     template <typename Func, typename... Args>
@@ -65,6 +88,7 @@ class EventLoop
     {
         m_loop.PostOrThrow([callable = std::forward<Func>(func), ... capturedArgs = std::forward<Args>(args)]() mutable
                            { std::invoke(std::move(callable), std::move(capturedArgs)...); });
+        WakeSchedulerIfEventDriven();
     }
 
     // 注册默认处理器（无参数版本）
@@ -88,10 +112,23 @@ class EventLoop
     void startFrameScheduler();
     void stopFrameScheduler() noexcept;
     void postDefaultHandler();
+    void frameSchedulerLoop(std::stop_token stopToken);
+    void WakeSchedulerIfEventDriven() noexcept;
 
     utils::EventLoop m_loop;
     std::jthread m_frameScheduler;
     std::atomic<bool> m_running;
     std::move_only_function<void()> m_defaultHandler;
+
+    // P1-4 双模式调度状态
+    // 默认锁帧率（fps）。0 = 不锁帧（由上层决定帧节奏）。
+    static constexpr std::uint32_t kDefaultTargetFrameRate = 60;
+    std::atomic<std::uint32_t> m_targetFrameRate{kDefaultTargetFrameRate};
+    std::atomic<FrameScheduleMode> m_scheduleMode{FrameScheduleMode::FIXED_RATE};
+    // 唤醒纪元：事件驱动模式下由 invoke/quit 递增，等待谓词检测纪元变化，
+    // 消除「notify 先于 wait 注册」的丢失窗口（与 utils::EventLoop 方案 B 同原理）。
+    std::atomic<std::uint64_t> m_scheduleEpoch{0};
+    std::mutex m_scheduleMutex;
+    std::condition_variable m_scheduleCv;
 };
 }  // namespace ui

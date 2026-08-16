@@ -162,7 +162,7 @@ RenderSystem::RenderSystem(UiRuntime& runtime)
 #ifdef UI_FORCE_CPU_RENDER
           true
 #else
-          IsTruthyEnvironmentValue(SDL_getenv("PESTMANKILL_FORCE_FALLBACK"))
+          IsTruthyEnvironmentValue(SDL_getenv("VMPUI_FORCE_FALLBACK"))
 #endif
           ))
 {
@@ -173,7 +173,7 @@ RenderSystem::RenderSystem(UiRuntime& runtime)
             "[RenderSystem] 编译选项 UI_FORCE_CPU_RENDER 已启用，强制使用 CPU software 后端");
 #else
         ui::UiRuntime::current().logger().warn(
-            "[RenderSystem] 检测到环境变量 PESTMANKILL_FORCE_FALLBACK，强制启用 SDL_Renderer fallback 后端");
+            "[RenderSystem] 检测到环境变量 VMPUI_FORCE_FALLBACK，强制启用 SDL_Renderer fallback 后端");
 #endif
     }
 }

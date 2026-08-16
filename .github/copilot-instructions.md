@@ -12,7 +12,7 @@ example/      → example_ui_demo 可执行示例
 tests/        → ui_tests 单元测试
 ```
 
-**设计要点**：UI 模块使用 `Registry`（内部持有 `entt::registry`，通过 `UiRuntime` 注入 System，非全局单例）；System 均使用 `EnableRegister<Derived>` CRTP，接口方法名为 `registerHandlersImpl`。事件循环为自研 `src/utils/EventLoop.hpp`（有界 MPSC 单消费者）+ `src/core/EventLoop.hpp`（帧调度器，16ms 节流投递帧回调）；**不使用 ASIO**。
+**设计要点**：UI 模块使用 `Registry`（内部持有 `entt::registry`，通过 `UiRuntime` 注入 System，非全局单例）；System 均使用 `EnableRegister<Derived>` CRTP，接口方法名为 `registerHandlersImpl`。事件循环为自研 `src/utils/EventLoop.hpp`（有界 MPSC 单消费者）+ `src/core/EventLoop.hpp`（帧调度器，16ms 节流投递帧回调）。
 
 ## 构建命令
 
@@ -62,6 +62,7 @@ parent | AddChild(btn);
 ### 消息协议
 
 `src/shared/messages/` 下定义所有网络消息。每条消息继承 `MessageBase<Derived>` CRTP，必须：
+
 - 定义 `static constexpr uint16_t CMD_ID`
 - 实现 `serializeImpl()` / `deserializeImpl()`（使用 `PacketWriter`/`PacketReader`）
 - 实现 `toJsonImpl()` 用于调试
@@ -75,15 +76,15 @@ parent | AddChild(btn);
 
 ## 命名约定
 
-| 类别 | 规则 | 示例 |
-|------|------|------|
-| 文件名 | PascalCase；`.hpp` 扩展名 | `Components.hpp`, `RenderSystem.hpp` |
-| 类/结构体 | PascalCase | `LayoutSystem`, `RenderSystem` |
-| 命名空间 | 小写 | `ui::factory`, `ui::chains` |
-| 公共函数 | PascalCase | `CreateButton()`, `EmplaceOrReplace()` |
-| 私有/实现函数 | camelCase | `registerHandlersImpl()` |
-| 成员变量 | `m_` 前缀 + camelCase | `m_registry`, `m_yogaConfig` |
-| 常量 | `static constexpr` UPPER_SNAKE | `CMD_ID`, `MAX_LOG_FILE_SIZE` |
+| 类别          | 规则                             | 示例                                       |
+| ------------- | -------------------------------- | ------------------------------------------ |
+| 文件名        | PascalCase；`.hpp` 扩展名      | `Components.hpp`, `RenderSystem.hpp`   |
+| 类/结构体     | PascalCase                       | `LayoutSystem`, `RenderSystem`         |
+| 命名空间      | 小写                             | `ui::factory`, `ui::chains`            |
+| 公共函数      | PascalCase                       | `CreateButton()`, `EmplaceOrReplace()` |
+| 私有/实现函数 | camelCase                        | `registerHandlersImpl()`                 |
+| 成员变量      | `m_` 前缀 + camelCase          | `m_registry`, `m_yogaConfig`           |
+| 常量          | `static constexpr` UPPER_SNAKE | `CMD_ID`, `MAX_LOG_FILE_SIZE`          |
 
 ## 错误处理约定
 
@@ -118,6 +119,7 @@ TRY_VOID(expr);               // Result<void> 版本
 ## C++23 特性使用
 
 项目广泛使用现代 C++ 特性，生成代码时应优先：
+
 - `std::expected<T, E>` 替代异常做错误处理（UI 层统一用 `ui::Result<T>`）
 - `std::move_only_function` 替代 `std::function`（事件回调）
 - Concepts 做模板约束（`Component`, `UiTag`, `Action`）
@@ -127,14 +129,14 @@ TRY_VOID(expr);               // Result<void> 版本
 
 ## 关键第三方库
 
-| 库 | 用途 | 注意事项 |
-|----|------|----------|
-| SDL3 | GPU 渲染 + 窗口 | **SDL3 API**（非 SDL2）；静态模式下对象会被合并进 VMPUI.lib |
-| EnTT | ECS 框架 | header-only；仅内部使用，不出现在公共头 |
-| Yoga | Flexbox 布局 | 编译型；合并进 VMPUI.lib |
-| freetype / harfbuzz | 字体光栅化 / 文本成形 | 编译型；合并进 VMPUI.lib |
-| spdlog | 日志 | Header-only 模式 |
-| Eigen | 内部线性代数 | **公共头不依赖 Eigen**：`ui::Vec2/Vec4/Rect` 是自包含公共类型（`include/ui/MathTypes.hpp`），内部经 `EigenConversions.hpp` 边界转换 |
+| 库                  | 用途                  | 注意事项                                                                                                                                        |
+| ------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| SDL3                | GPU 渲染 + 窗口       | **SDL3 API**（非 SDL2）；静态模式下对象会被合并进 VMPUI.lib                                                                               |
+| EnTT                | ECS 框架              | header-only；仅内部使用，不出现在公共头                                                                                                         |
+| Yoga                | Flexbox 布局          | 编译型；合并进 VMPUI.lib                                                                                                                        |
+| freetype / harfbuzz | 字体光栅化 / 文本成形 | 编译型；合并进 VMPUI.lib                                                                                                                        |
+| spdlog              | 日志                  | Header-only 模式                                                                                                                                |
+| Eigen               | 内部线性代数          | **公共头不依赖 Eigen**：`ui::Vec2/Vec4/Rect` 是自包含公共类型（`include/ui/MathTypes.hpp`），内部经 `EigenConversions.hpp` 边界转换 |
 
 ## 自包含发行模式
 

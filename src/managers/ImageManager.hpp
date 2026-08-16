@@ -14,8 +14,11 @@
  */
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <SDL3/SDL_gpu.h>
 
 #include "common/GPUWrappers.hpp"
@@ -37,6 +40,16 @@ class DeviceManager;
 class ImageManager
 {
    public:
+    /**
+     * @brief CPU fallback 使用的 RGBA8 像素缓存。
+     */
+    struct PixelBuffer
+    {
+        std::vector<std::uint8_t> rgba;
+        int width = 0;
+        int height = 0;
+    };
+
     explicit ImageManager(DeviceManager* deviceManager) : m_deviceManager(deviceManager)
     {
     }
@@ -58,32 +71,34 @@ class ImageManager
     [[nodiscard]] ui::Result<SDL_GPUTexture*> loadTexture(const std::string& path);
 
     /**
+     * @brief 解码图像为 RGBA8 像素，结果按路径缓存且不依赖 GPU 设备。
+     * @return 成功时返回由本 ImageManager 持有的只读缓存指针。
+     */
+    [[nodiscard]] ui::Result<const PixelBuffer*> loadPixels(const std::string& path);
+
+    /**
      * @brief 主动释放所有已缓存纹理（析构会自动调用，正常路径下无需手动调用）。
      */
     void releaseAll();
 
    private:
     /**
-     * @brief 通过 stb_image 加载 png/jpeg 并上传
+    * @brief 按扩展名通过 SDL_LoadBMP 或 stb_image 解码为 RGBA8。
      */
-    wrappers::UniqueGPUTexture loadWithStb(const std::string& path,
-                                           const detail::GpuDeviceGenerationHandle& generation);
-
-    /**
-     * @brief 通过 SDL_LoadBMP 加载 bmp 并上传
-     */
-    wrappers::UniqueGPUTexture loadWithSdlBmp(const std::string& path,
-                                              const detail::GpuDeviceGenerationHandle& generation);
+    [[nodiscard]] static ui::Result<PixelBuffer> decodePixels(const std::string& path);
 
     /**
      * @brief 在指定设备代际创建纹理并提交 RGBA 像素上传
      * @return 上传命令提交成功时返回同代际纹理 owner；任一阶段失败时返回空 owner
      * @note 成功仅表示非阻塞提交已被 SDL 接受，不表示 GPU 已执行完成。
      */
-    wrappers::UniqueGPUTexture uploadToGpu(const detail::GpuDeviceGenerationHandle& generation,
-                                           const unsigned char* pixels, uint32_t width, uint32_t height);
+    [[nodiscard]] static wrappers::UniqueGPUTexture uploadToGpu(
+        const detail::GpuDeviceGenerationHandle& generation, const std::uint8_t* pixels, std::uint32_t width,
+        std::uint32_t height);
 
     DeviceManager* m_deviceManager = nullptr;
+    // 路径 -> CPU RGBA8 像素；不随 GPU 设备代际变化而失效。
+    std::unordered_map<std::string, std::unique_ptr<PixelBuffer>> m_pixelCache;
     // 路径 -> 已上传的 GPU 纹理 owner；公开调用方仅借用 `.get()`。
     std::unordered_map<std::string, wrappers::UniqueGPUTexture> m_cache;
     std::uint64_t m_cacheGenerationId = 0;

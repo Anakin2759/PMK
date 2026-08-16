@@ -401,6 +401,36 @@ struct TabItem
     bool selected = false;
 };
 
+/**
+ * @brief 右键上下文菜单组件
+ *
+ * 挂在菜单容器根实体上。ShowContextMenu 打开时定位到指定位置并作为
+ * 浮层（Overlay）打开；菜单项点击后执行回调并自动关闭。外部点击由
+ * OverlaySystem 统一关闭（出栈），实体保留以便复用。
+ */
+struct ContextMenu
+{
+    using is_component_tag = void;
+    bool open = false;                      // 是否打开
+    entt::entity popupEntity = entt::null;  // 浮层根实体（打开时挂到窗口，关闭时移除）
+    entt::entity owner = entt::null;        // 触发者（关闭时焦点恢复到它）
+};
+
+/**
+ * @brief 模态对话框组件（应用内浮层，非独立窗口）
+ *
+ * 由 CreateModalDialog(parentWindow, ...) 创建，包含：
+ * - 遮罩：半透明黑，覆盖父窗口客户区，点击遮罩关闭
+ * - 内容容器：居中，圆角背景
+ * 通过 OverlaySystem 统一浮层栈管理，模态语义由遮罩拦截下层交互实现。
+ */
+struct ModalDialog
+{
+    using is_component_tag = void;
+    bool open = false;                      // 是否打开
+    entt::entity popupEntity = entt::null;  // 浮层根实体（遮罩容器）
+};
+
 // ===================== Canvas 绘图组件 =====================
 
 enum class CanvasDrawType : uint8_t

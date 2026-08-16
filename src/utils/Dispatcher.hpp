@@ -1,11 +1,11 @@
 /**
  * ************************************************************************
  *
- * @file Dispatcher.h
+ * @file Dispatcher.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2025-12-05
  * @version 0.2
- * @brief ui单例事件分发器
+ * @brief UI 模块的事件分发器封装（依赖注入，非全局单例）
  *
  * 支持两种事件分发模式：
  * 1. 紧急事件 (trigger) - 立即执行，同步调用所有监听器

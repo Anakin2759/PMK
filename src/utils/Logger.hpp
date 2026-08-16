@@ -147,12 +147,12 @@ class Logger
         auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         consoleSink->set_pattern("%^[%T] [%l] %n: %v%$");
 
-        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs/pestmankill.log", kMaxLogFileSize,
+        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs/vmpui.log", kMaxLogFileSize,
                                                                                kMaxLogFileCount);
         fileSink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%# %!] %v");
 
         std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
-        auto logger = std::make_shared<spdlog::logger>("PestManKill", sinks.begin(), sinks.end());
+        auto logger = std::make_shared<spdlog::logger>("VMP-ui", sinks.begin(), sinks.end());
         logger->set_level(spdlog::level::debug);
         logger->flush_on(spdlog::level::warn);
         return logger;

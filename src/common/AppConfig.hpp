@@ -108,7 +108,7 @@ class AppConfig
         return m_appIconPath;
     }
 
-    /// 设置日志文件路径（空字符串表示使用默认路径 logs/pestmankill.log）
+    /// 设置日志文件路径（空字符串表示使用默认路径 logs/vmpui.log）
     void setLogFilePath(std::string path)
     {
         m_logFilePath = std::move(path);

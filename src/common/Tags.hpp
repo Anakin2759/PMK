@@ -336,6 +336,22 @@ struct TabItemTag
 };
 
 /**
+ * @brief ContextMenu 右键上下文菜单标记
+ */
+struct ContextMenuTag
+{
+    using is_tags_tag = void;
+};
+
+/**
+ * @brief ModalDialog 模态对话框标记
+ */
+struct ModalDialogTag
+{
+    using is_tags_tag = void;
+};
+
+/**
  * @brief Canvas 绘图组件标记
  */
 struct CanvasTag

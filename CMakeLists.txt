@@ -261,6 +261,10 @@ endif()
 if(ENABLE_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests/unittest)
+    # P1-5 截图回归（offscreen 确定性渲染 + golden 比较），独立于默认 ui_tests
+    add_subdirectory(tests/screenshot)
+    # P1-5 交互录制骨架（EventWatch 录制 + PushEvent 回放）
+    add_subdirectory(tests/interaction)
 endif()
 
 # ===================== 基准测试 =====================

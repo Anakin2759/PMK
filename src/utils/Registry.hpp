@@ -1,11 +1,11 @@
 /**
  * ************************************************************************
  *
- * @file Registry.h
+ * @file Registry.hpp
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-01-26
  * @version 0.1
- * @brief UI模块的实体注册表封装（依赖注入，非全局单例）
+ * @brief UI 模块的实体注册表封装（依赖注入，非全局单例）
   - 内部持有 entt::registry，由 UiRuntime 持有并经 UiRuntimeScope 注入 System
   - 提供统一的实体和组件管理接口
  *
@@ -15,10 +15,6 @@
  * ************************************************************************
  */
 #pragma once
-
-#include <atomic>
-#include <cstdio>
-#include <exception>
 
 #include <entt/entt.hpp>
 
@@ -300,8 +296,9 @@ class Registry
     [[nodiscard]] auto& getOrEmplaceInCtx()
     {
         auto* found = m_registry.ctx().template find<Context>();
-        if (found == nullptr)
+        if (found == nullptr){
             found = &m_registry.ctx().template emplace<Context>();
+        }
         return *found;
     }
 

@@ -1,5 +1,25 @@
 # UI module tests
 
+# P0-2：add_executable 源文件存在性前置校验。
+# 历史教训：test_ThreadPool.cpp 悬空引用曾导致 ENABLE_BUILD_TESTS=ON 时 configure/构建失败且错误不直观。
+# 此函数在 configure 阶段校验所有引用的源文件存在，缺失时给出明确诊断，而不是留到编译期才暴露。
+function(ui_validate_sources_exist target_name)
+    foreach(source_file ${ARGN})
+        set(absolute_path "${CMAKE_CURRENT_SOURCE_DIR}/${source_file}")
+        if(NOT EXISTS "${absolute_path}")
+            message(FATAL_ERROR
+                "[P0-2] 目标 ${target_name} 引用的源文件不存在: ${absolute_path}\n"
+                "请修正 ${CMAKE_CURRENT_LIST_FILE}：删除悬空引用，或补回缺失文件。")
+        endif()
+    endforeach()
+endfunction()
+
+# 带存在性校验的 add_executable 包装：先校验后创建。
+function(add_ui_test_executable target_name)
+    ui_validate_sources_exist(${target_name} ${ARGN})
+    add_executable(${target_name} ${ARGN})
+endfunction()
+
 function(configure_ui_test_target target_name)
     target_compile_features(${target_name} PRIVATE cxx_std_23)
     target_compile_definitions(${target_name} PRIVATE
@@ -39,8 +59,10 @@ function(configure_ui_test_target target_name)
     )
 endfunction()
 
-add_executable(ui_unit_tests
+add_ui_test_executable(ui_unit_tests
     test_BatchManager.cpp
+    test_FallbackRenderer.cpp
+    test_ImageManager.cpp
     test_TextUtils.cpp
     test_ResourceProvider.cpp
     test_result.cpp
@@ -53,7 +75,7 @@ add_executable(ui_unit_tests
 )
 configure_ui_test_target(ui_unit_tests)
 
-add_executable(ui_ecs_tests
+add_ui_test_executable(ui_ecs_tests
     test_MainWindow.cpp
     test_TweenSystem.cpp
     test_TaskChain.cpp
@@ -70,25 +92,28 @@ add_executable(ui_ecs_tests
     test_Tooltip.cpp
     test_SwitchRadio.cpp
     test_TabView.cpp
+    test_ContextMenuModal.cpp
 )
 configure_ui_test_target(ui_ecs_tests)
 
-add_executable(ui_api_tests
+add_ui_test_executable(ui_api_tests
     test_UmbrellaHeader.cpp
     test_PublicLeafHeaders.cpp
     test_PublicEventApi.cpp
 )
 configure_ui_test_target(ui_api_tests)
 
-add_executable(ui_fallback_lifecycle_tests
+add_ui_test_executable(ui_fallback_lifecycle_tests
     test_FallbackWindowLifecycle.cpp
 )
 configure_ui_test_target(ui_fallback_lifecycle_tests)
 
 # 观测型并发压测（P0-4）：仅作为 lost-wakeup 复现/观测工具，不加入默认 ui_tests 聚合目标，
 # 由开发者显式运行（例如 ctest -L stress）。严守「无实测不改无锁路径」门槛。
-add_executable(ui_eventloop_stress_tests
+# P1-4：core::EventLoop 双模式帧调度（FIXED_RATE/EVENT_DRIVEN + 锁帧接口）也在此目标内验证。
+add_ui_test_executable(ui_eventloop_stress_tests
     test_EventLoopStress.cpp
+    test_CoreEventLoopScheduling.cpp
 )
 configure_ui_test_target(ui_eventloop_stress_tests)
 

@@ -13,7 +13,9 @@ Checks: >
   -readability-identifier-length,
   -misc-non-private-member-variables-in-classes
 WarningsAsErrors: ''
-HeaderFilterRegex: ''
+HeaderFilterRegex: '^(?!.*[\\/](?:third_party|extern|external|vendor|build|out|cmake-build[^\\/]*)[\\/]).*$'
+ExcludeHeaderFilterRegex: '(^|.*[\\/])(?:third_party|extern|external|vendor|build|out|cmake-build[^\\/]*)[\\/]'
+SystemHeaders: false
 FormatStyle:     none
 CheckOptions:
   llvm-else-after-return.WarnOnConditionVariables: 'false'

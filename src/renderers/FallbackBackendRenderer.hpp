@@ -31,6 +31,19 @@
 namespace ui::renderers
 {
 
+namespace detail
+{
+
+[[nodiscard]] inline bool isAxisAlignedQuad(const std::array<SDL_FPoint, 4>& points) noexcept
+{
+    constexpr float EPSILON = 0.001F;
+    const auto nearEqual = [](float lhs, float rhs) { return std::abs(lhs - rhs) <= EPSILON; };
+    return nearEqual(points[0].y, points[1].y) && nearEqual(points[1].x, points[2].x) &&
+           nearEqual(points[2].y, points[3].y) && nearEqual(points[3].x, points[0].x);
+}
+
+}  // namespace detail
+
 class FallbackBackendRenderer final : public interface::IBackendRenderer
 {
    public:
@@ -127,13 +140,16 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
         return ui::Ok();
     }
 
-    void drawBatch(const render::RenderBatch& batch, SDL_GPUTexture* whiteTextureTag) override
+    void drawBatch(const render::RenderBatch& batch, SDL_GPUTexture* whiteTextureTag) override  // NOLINT(readability-function-cognitive-complexity)
     {
         if (m_renderer == nullptr || batch.vertices.empty())
         {
-            // 图片批次携带的是 SDL_GPUTexture*，SDL_Renderer 无法直接消费。
-            // 原实现静默 return 导致图片在 CPU 路径下黑屏且无日志；此处至少告警一次，
-            // 完整修复见 ImageManager::loadPixels + ImageRenderer fallback 分支（CPU_RENDER_ISSUES 方案 B）。
+            return;
+        }
+
+        if (batch.texture != nullptr && batch.texture != whiteTextureTag)
+        {
+            // SDL_Renderer 不能消费 SDL_GPUTexture；图片像素降级由缓存位图路径负责。
             if (!m_textureSkipWarned)
             {
                 m_textureSkipWarned = true;
@@ -141,11 +157,6 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
                     "[FallbackBackendRenderer] non-white texture batch cannot be rendered by SDL_Renderer; "
                     "image batch skipped (CPU fallback limitation)");
             }
-            return;
-        }
-
-        if (batch.texture != nullptr && batch.texture != whiteTextureTag)
-        {
             return;
         }
 
@@ -164,6 +175,35 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
             const auto& vertexTopRight = batch.vertices[i + 1];
             const auto& vertexBottomRight = batch.vertices[i + 2];
             const auto& vertexBottomLeft = batch.vertices[i + 3];
+
+            const std::array<SDL_FPoint, 4> points = {
+                SDL_FPoint{vertexTopLeft.position[0], vertexTopLeft.position[1]},
+                SDL_FPoint{vertexTopRight.position[0], vertexTopRight.position[1]},
+                SDL_FPoint{vertexBottomRight.position[0], vertexBottomRight.position[1]},
+                SDL_FPoint{vertexBottomLeft.position[0], vertexBottomLeft.position[1]}};
+            const std::array<float, 4> sourceColor = {vertexTopLeft.color[0], vertexTopLeft.color[1],
+                                                      vertexTopLeft.color[2], vertexTopLeft.color[3]};
+            const std::array<float, 4> outlineColor = {sourceColor[0], sourceColor[1], sourceColor[2],
+                                                       std::clamp(sourceColor[3] * batch.pushConstants.opacity, 0.0F,
+                                                                  1.0F)};
+            const bool axisAligned = detail::isAxisAlignedQuad(points);
+
+            const float drawMode = vertexTopLeft.mode_params[2];
+            if (drawMode > kFilledModeThreshold && drawMode < kCapsuleModeThreshold)
+            {
+                if (!axisAligned || !isCircleQuad(points))
+                {
+                    warnUnsupportedPrimitiveOnce("non-circular outline batch skipped");
+                    continue;
+                }
+                renderCircleOutline(m_renderer, points, outlineColor, vertexTopLeft.mode_params[1]);
+                continue;
+            }
+            if (drawMode > kCapsuleModeThreshold)
+            {
+                warnUnsupportedPrimitiveOnce("capsule batch skipped");
+                continue;
+            }
 
             const float minX = std::min({vertexTopLeft.position[0], vertexTopRight.position[0],
                                          vertexBottomRight.position[0], vertexBottomLeft.position[0]});
@@ -189,6 +229,12 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
             const float radius = std::max({vertexTopLeft.radius[0], vertexTopRight.radius[1],
                                            vertexBottomRight.radius[2], vertexBottomLeft.radius[3]});
             const SDL_FColor color = {vertexTopLeft.color[0], vertexTopLeft.color[1], vertexTopLeft.color[2], alpha};
+
+            if (!axisAligned)
+            {
+                renderQuadGeometry(m_renderer, points, sourceColor, batch.pushConstants.opacity);
+                continue;
+            }
 
             if (radius > kMinRadius)
             {
@@ -261,11 +307,91 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
     static constexpr float kThreeHalfPi = kPi * 3.0F / 2.0F;
     static constexpr float kTwoPi = kPi * 2.0F;
     static constexpr float kMinRadius = 0.5F;
+    static constexpr float kFilledModeThreshold = 0.5F;
+    static constexpr float kCapsuleModeThreshold = 1.5F;
     static constexpr int kCornerSegments = 8;
+    static constexpr int kCircleSegments = 32;
+    static constexpr int kQuadIndexCount = 6;
+    static constexpr int kRingIndexCountPerSegment = 6;
+    static constexpr int kLastRingIndexOffset = 5;
+
+    void warnUnsupportedPrimitiveOnce(const char* primitive)
+    {
+        if (!m_unsupportedPrimitiveWarned)
+        {
+            m_unsupportedPrimitiveWarned = true;
+            ui::UiRuntime::current().logger().warn("[FallbackBackendRenderer] {}", primitive);
+        }
+    }
+
+    [[nodiscard]] static bool isCircleQuad(const std::array<SDL_FPoint, 4>& points) noexcept
+    {
+        constexpr float EPSILON = 0.001F;
+        return std::abs((points[1].x - points[0].x) - (points[2].x - points[3].x)) <= EPSILON &&
+               std::abs((points[3].y - points[0].y) - (points[2].y - points[1].y)) <= EPSILON &&
+               std::abs((points[1].x - points[0].x) - (points[3].y - points[0].y)) <= EPSILON;
+    }
+
+    static void renderQuadGeometry(SDL_Renderer* renderer, const std::array<SDL_FPoint, 4>& points,
+                                   const std::array<float, 4>& sourceColor, float opacity)
+    {
+        std::array<SDL_Vertex, 4> vertices{};
+        for (size_t i = 0; i < vertices.size(); ++i)
+        {
+            vertices.at(i).position = points.at(i);
+            vertices.at(i).color = {sourceColor.at(0), sourceColor.at(1), sourceColor.at(2),
+                                    std::clamp(sourceColor.at(3) * opacity, 0.0F, 1.0F)};
+        }
+        static constexpr std::array<int, kQuadIndexCount> INDICES = {0, 1, 2, 0, 2, 3};
+        SDL_RenderGeometry(renderer, nullptr, vertices.data(), static_cast<int>(vertices.size()), INDICES.data(),
+                           static_cast<int>(INDICES.size()));
+    }
+
+    static void renderCircleOutline(SDL_Renderer* renderer, const std::array<SDL_FPoint, 4>& points,
+                                    const std::array<float, 4>& sourceColor, float strokeWidth)
+    {
+        const float left = points[0].x;
+        const float top = points[0].y;
+        const float diameter = points[1].x - left;
+        const float outerRadius = diameter * 0.5F;
+        const float innerRadius = outerRadius - std::max(strokeWidth, 0.0F);
+        if (outerRadius <= 0.0F || innerRadius <= 0.0F)
+        {
+            return;
+        }
+
+        const SDL_FColor color = {sourceColor.at(0), sourceColor.at(1), sourceColor.at(2), sourceColor.at(3)};
+        std::array<SDL_Vertex, static_cast<size_t>(kCircleSegments) * 2> vertices{};
+        std::array<int, static_cast<size_t>(kCircleSegments) * kRingIndexCountPerSegment> indices{};
+        const float centerX = left + outerRadius;
+        const float centerY = top + outerRadius;
+        for (int i = 0; i < kCircleSegments; ++i)
+        {
+            const float angle = kTwoPi * static_cast<float>(i) / static_cast<float>(kCircleSegments);
+            const float cosine = std::cos(angle);
+            const float sine = std::sin(angle);
+            vertices.at(static_cast<size_t>(i) * 2) = {
+                {centerX + (outerRadius * cosine), centerY + (outerRadius * sine)}, color, {0.0F, 0.0F}};
+            vertices.at((static_cast<size_t>(i) * 2) + 1) = {
+                {centerX + (innerRadius * cosine), centerY + (innerRadius * sine)}, color, {0.0F, 0.0F}};
+            const int base = i * 2;
+            const int next = ((i + 1) % kCircleSegments) * 2;
+            const size_t index = static_cast<size_t>(i) * kRingIndexCountPerSegment;
+            indices.at(index) = base;
+            indices.at(index + 1) = next;
+            indices.at(index + 2) = base + 1;
+            indices.at(index + 3) = base + 1;
+            indices.at(index + 4) = next;
+            indices.at(index + kLastRingIndexOffset) = next + 1;
+        }
+        SDL_RenderGeometry(renderer, nullptr, vertices.data(), static_cast<int>(vertices.size()), indices.data(),
+                           static_cast<int>(indices.size()));
+    }
 
     CachedBitmapTexture* getOrCreateBitmapTexture(std::string_view cacheKey, std::span<const std::uint8_t> rgbaPixels,
                                                   int width, int height)
     {
+        auto& logger = ui::UiRuntime::current().logger();
         const std::string key(cacheKey);
         auto cacheIterator = m_bitmapTextureCache.find(key);
         const bool needsRecreate = (cacheIterator == m_bitmapTextureCache.end()) ||
@@ -287,8 +413,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
 
             if (newEntry.texture == nullptr)
             {
-                ui::UiRuntime::current().logger().error("[FallbackBackendRenderer] create SDL_Texture failed: {}",
-                                                        SDL_GetError());
+                logger.error("[FallbackBackendRenderer] create SDL_Texture failed: {}", SDL_GetError());
                 m_bitmapTextureCache.erase(key);
                 return nullptr;
             }
@@ -299,8 +424,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
 
         if (!SDL_UpdateTexture(cacheIterator->second.texture, nullptr, rgbaPixels.data(), width * 4))
         {
-            ui::UiRuntime::current().logger().error("[FallbackBackendRenderer] update SDL_Texture failed: {}",
-                                                    SDL_GetError());
+            logger.error("[FallbackBackendRenderer] update SDL_Texture failed: {}", SDL_GetError());
             return nullptr;
         }
 
@@ -335,14 +459,20 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
         SDL_RenderFillRect(renderer, &rightRect);
 
         // 四角圆弧（左上、右上、右下、左下）
-        renderCornerArc(renderer, left + r, top + r, r, kPi, kThreeHalfPi, color);
-        renderCornerArc(renderer, right - r, top + r, r, kThreeHalfPi, kTwoPi, color);
-        renderCornerArc(renderer, right - r, bottom - r, r, 0.0F, kHalfPi, color);
-        renderCornerArc(renderer, left + r, bottom - r, r, kHalfPi, kPi, color);
+        renderCornerArc(renderer, left + r, top + r, r, {kPi, kThreeHalfPi}, color);
+        renderCornerArc(renderer, right - r, top + r, r, {kThreeHalfPi, kTwoPi}, color);
+        renderCornerArc(renderer, right - r, bottom - r, r, {0.0F, kHalfPi}, color);
+        renderCornerArc(renderer, left + r, bottom - r, r, {kHalfPi, kPi}, color);
     }
 
-    static void renderCornerArc(SDL_Renderer* renderer, float centerX, float centerY, float radius, float startAngle,
-                                float endAngle, const SDL_FColor& color)
+    struct ArcAngles
+    {
+        float start;
+        float end;
+    };
+
+    static void renderCornerArc(SDL_Renderer* renderer, float centerX, float centerY, float radius, ArcAngles angles,
+                                const SDL_FColor& color)
     {
         std::vector<SDL_Vertex> vertices;
         vertices.reserve(static_cast<size_t>(kCornerSegments) + 2);
@@ -350,7 +480,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
         for (int i = 0; i <= kCornerSegments; ++i)
         {
             const float t = static_cast<float>(i) / static_cast<float>(kCornerSegments);
-            const float angle = startAngle + ((endAngle - startAngle) * t);
+            const float angle = angles.start + ((angles.end - angles.start) * t);
             const float px = centerX + (radius * std::cos(angle));
             const float py = centerY + (radius * std::sin(angle));
             vertices.push_back({SDL_FPoint{px, py}, color, SDL_FPoint{0.0F, 0.0F}});
@@ -372,6 +502,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
     SDL_Renderer* m_renderer = nullptr;
     SDL_WindowID m_windowID = 0;
     bool m_textureSkipWarned = false;
+    bool m_unsupportedPrimitiveWarned = false;
     std::unordered_map<std::string, CachedBitmapTexture> m_bitmapTextureCache;
 };
 

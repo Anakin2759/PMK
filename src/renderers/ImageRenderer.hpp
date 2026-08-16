@@ -14,8 +14,13 @@
  */
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+
 #include "interface/IRenderer.hpp"
+#include "interface/IBackendRenderer.hpp"
 #include "utils/Registry.hpp"
+#include "common/CustomizationPoints.hpp"
 #include "common/components/Data.hpp"
 #include "common/Tags.hpp"
 #include "managers/BatchManager.hpp"
@@ -46,6 +51,13 @@ class ImageRenderer : public core::IRenderer
 
     void collect(entt::entity entity, core::RenderContext& context) override
     {
+        if (context.backendRenderer != nullptr &&
+            context.backendRenderer->getType() == interface::BackendType::FALLBACK)
+        {
+            collectFallback(entity, context);
+            return;
+        }
+
         if (context.batchManager == nullptr || context.whiteTexture == nullptr)
         {
             return;
@@ -103,10 +115,48 @@ class ImageRenderer : public core::IRenderer
 
     [[nodiscard]] int getPriority() const override
     {
-        return 5;
+        return IMAGE_RENDER_PRIORITY;
     }
 
    private:
+    void collectFallback(entt::entity entity, core::RenderContext& context)
+    {
+        if (!ui::cpo::backend_supports(*context.backendRenderer, interface::BackendCapability::CACHED_BITMAP))
+        {
+            return;
+        }
+
+        auto* src = m_reg->try_get<components::ImageSource>(entity);
+        if (src == nullptr || src->loadFailed || src->path.empty() || context.imageManager == nullptr)
+        {
+            return;
+        }
+
+        auto pixelsResult = context.imageManager->loadPixels(src->path);
+        if (!pixelsResult)
+        {
+            src->loadFailed = true;
+            return;
+        }
+
+        const auto* pixels = *pixelsResult;
+        const auto* image = m_reg->try_get<components::Image>(entity);
+        const float tintAlpha = image != nullptr ? image->tintColor.alpha : 1.0F;
+        const float combinedAlpha = std::clamp(context.alpha * tintAlpha, 0.0F, 1.0F);
+        const auto alphaMod = static_cast<std::uint8_t>(std::lround(combinedAlpha * 255.0F));
+        const SDL_FRect destinationRect = {context.position.x(), context.position.y(), context.size.x(),
+                                           context.size.y()};
+
+        // 当前 drawCachedBitmap 仅支持整体 alpha 调制，RGB tint 暂由 CPU 后端忽略。
+        // CPU 解码成功不设置 ImageSource::loaded；该标志保留为 GPU 纹理已就绪语义。
+        if (!context.backendRenderer->drawCachedBitmap(src->path, pixels->rgba, pixels->width, pixels->height,
+                                                       destinationRect, context.currentScissor, alphaMod))
+        {
+            return;
+        }
+    }
+
+    static constexpr int IMAGE_RENDER_PRIORITY = 5;
     Registry* m_reg = nullptr;
 };
 

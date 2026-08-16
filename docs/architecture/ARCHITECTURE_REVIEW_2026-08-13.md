@@ -42,6 +42,9 @@ GPU 路径用 HLSL SDF 着色器在片元级计算圆角/阴影/描边/纹理，
 
 核心问题不是"CPU 路径比 GPU 差"——CPU 降级本身合理——而是**"静默丢弃参数 + 无日志 + 无告警"的反模式**。用户在无 GPU 机器上会看到"控件还在但样式全错"，且无法从日志定位。这属于"silent degradation"，比直接崩溃更难排查。（详见 `docs/todo/CPU_RENDER_ISSUES.md`，方案 A~D 已起草，尚未落地。）
 
+> **2026-08-14 复核状态**：P0-1 已完成——非白纹理批次不再静默丢弃，不支持图元去重告警；斜线改为
+> `SDL_RenderGeometry` 绘制有向四边形；圆形描边实现圆环几何；新增 `test_FallbackRenderer`/`test_ImageManager` 回归。
+
 ### 2.2 并发/事件循环：正确性被节流"自愈"掩盖
 
 - `src/utils/EventLoop.hpp` 是无锁 MPSC 有界队列 + condition_variable 通知，`src/core/EventLoop.hpp` 再包一层 `std::jthread` 帧调度器。
@@ -50,6 +53,10 @@ GPU 路径用 HLSL SDF 着色器在片元级计算圆角/阴影/描边/纹理，
 - 结论是理性的：**并发正确性目前靠"16ms 兜底轮询"而非"事件驱动唤醒"保证**，这本身是一种隐性耦合——一旦未来帧循环改事件驱动（见 P1-4），lost-wakeup 会立刻浮出水面。两条路必须绑定推进。
 
 已消化的历史债（记录在案，防止复发）：~1000 行无人消费的 `ThreadPool/MpmcQueue/WorkStealingDeque/Singleton` 死代码、`test_ThreadPool.cpp` 悬空引用导致 `ENABLE_BUILD_TESTS=ON` 时 configure 失败、`UI_ENABLE_MULTITHREAD` 宏名不副实。这些已移除，是好结果，但**揭示了一个系统性倾向：先建基础设施、后找使用场景**。
+
+> **2026-08-14 复核状态**：P0-4 已完成实测复现——单任务 ping 在 200ms 阈值下重复出现超时
+> （第 5 / 第 36 次迭代各 1 次），多生产者 100000 任务 drain 通过。lost-wakeup 从"理论风险"升级为
+> "可重复证据"，已允许进入同步方案评审（见 P0-4 状态）。
 
 ### 2.3 文档-代码严重脱节（P0-F 已点名，仍未收敛）
 
@@ -63,6 +70,10 @@ GPU 路径用 HLSL SDF 着色器在片元级计算圆角/阴影/描边/纹理，
 
 文档是给下一个维护者（和 Copilot 自身）的第一印象。指引文件里"ASIO/单例/路径"三处硬伤，会直接误导代码生成与新人上手。这是 P0-F 工作包明列、却因"调度失败×2"而挂起的项，优先级应上调。
 
+> **2026-08-14 复核状态**：上表是 2026-08-13 评审时的历史快照。Chains 路径、EventLoop 的
+> ASIO/1ms 描述、Registry/Dispatcher 单例描述及相关 `@file` 后缀现已修正；2026-08-09
+> 原始评审文档未保留，相关记录已改为明确说明历史来源，不再引用不存在的文件。
+
 ### 2.4 能力缺口：根能力缺失导致控件各自为战
 
 `UI_FRAMEWORK_GAP_ANALYSIS_2026-05.md` 已系统盘点，这里只强调**结构性结论**：
@@ -71,6 +82,10 @@ GPU 路径用 HLSL SDF 着色器在片元级计算圆角/阴影/描边/纹理，
 - **半成品悬空**：`ListArea`、`Menu`、`Calendar`、`Dialog`、`Draggable/Droppable` 有组件/tag 但缺工厂/renderer/契约，长期悬空比不建更危险（误导 + 维护税）。
 - 这会导致后续每个新控件（Tooltip/Menu/Tab/Modal/ComboBox）都各自实现一套浮层/焦点逻辑，债滚债。
 
+> **2026-08-14 复核状态**：三大根能力已实现——`ThemeSystem`（含 4 个主题单测）、`OverlaySystem`（统一浮层栈）、
+> `FocusNavigationSystem`（Tab/方向键/焦点陷阱），分别对应 P1-1/P1-2/P1-3。
+> 半成品悬空项（ListArea/Menu/Calendar 等）仍属 P2-5 范围。
+
 ### 2.5 测试债务：数量够、质量与机制有缺口
 
 - 209 项中 1 项失败：`FallbackWindowLifecycleTest` 因 `gtest_discover_tests` 未生成 `ENVIRONMENT=SDL_VIDEODRIVER=offscreen` 属性而用真实 windows driver（`problem-log-wp4a`）。这是 CMake 边界外问题，被记为"待人工"。
@@ -78,11 +93,19 @@ GPU 路径用 HLSL SDF 着色器在片元级计算圆角/阴影/描边/纹理，
 - VS Code 测试适配器无法发现 GTest 用例（`problem-log-wp4b`），只能靠 CTest 清单。
 - 缺截图回归、交互录制、性能基准（`TEST_MODULE_REVIEW_PLAN`、gap analysis §5 均点名）。
 
+> **2026-08-14 复核状态**：P0-2 已完成——`gtest_discover_tests` 已补 `ENVIRONMENT=SDL_VIDEODRIVER=offscreen`；
+> unittest 与 benchmark 的 `add_executable` 均改为带存在性前置校验的 `add_ui_test_executable`（缺失文件
+> configure 阶段 FATAL_ERROR）。GPU 生命周期 benchmark（`tests/benchmark/`）已建立；截图回归/交互录制仍待 P1-5。
+
 ### 2.6 组织/命名/边界残留
 
 - **模块归属未决**：`Registry/Dispatcher/Logger` 在 `src/utils/`，但语义属 core，`UiRuntime` 头注释还残留"utils"心智（pm run Q8 未决）。`utils/` 当前同时装着通用队列（`MpscQueue/EventLoop`）和 UI 领域对象（`Registry/Dispatcher/Logger`），边界不清。
 - **品牌/耦合残留**：源码头注释与 `logs/*.log` 仍带 "PestManKill" 前缀（`ThreadPool/SystemManager/FontManager` 等日志行），独立拆分不彻底。
 - **工程卫生**：`logs/` 下堆积 30+ 个 `hang-*` / `table-drag-*` / `auto-repro-*` 调试文件，未清理、未见 `.gitignore` 治理策略。`hang-fixed.err` 里还有 "Window already unclaimed!" 这类窗口生命周期告警，与 WP4 GPU 生命周期线相关。
+
+> **2026-08-14 复核状态**：Q8 已决——`Registry/Dispatcher/Logger` 暂不迁移（用户拍板，破坏性 include 留待后续）。
+> 品牌改名完成——6 处 PestManKill 残留全部改为 `VMP-ui`/`vmpui`（含环境变量 `VMPUI_FORCE_FALLBACK`，旧名不兼容）。
+> `logs/` 已入 `.gitignore`，调试产物不再入库。
 
 ### 2.7 CMake 认知负荷高（虽设计合理）
 
@@ -105,6 +128,9 @@ GPU 路径用 HLSL SDF 着色器在片元级计算圆角/阴影/描边/纹理，
 
 原则：**先正确性，再根能力，后控件，最后生态**。每阶段可独立验收、独立合入。
 
+> **进度快照（2026-08-16）**：**P0 全部收口**；P1-1/1-2/1-3/1-4/1-5 全部完成。P2：Switch/RadioGroup/TabView/Tooltip/
+> **ContextMenu/ModalDialog** 已落地（P2-1 余 ListView，P2-2 完成）；数据能力（P2-3）与动画完整化（P2-4）待做。
+
 ```mermaid
 flowchart LR
   P0[P0 止血与正确性<br/>1-2周] --> P1[P1 根能力<br/>3-6周]
@@ -118,35 +144,35 @@ flowchart LR
 
 | 工作包 | 目标 | 关键产物/验收 | 风险 |
 |---|---|---|---|
-| **P0-1** CPU fallback 渲染修复 | 关闭 4 个静默降级 BUG | 圆角/图片/Canvas 圆/抗锯齿在 `UI_FORCE_CPU_RENDER=ON` 下可回归；丢弃参数时必打 warning | 低；`CPU_RENDER_ISSUES.md` 方案 A~D 已起草 |
-| **P0-2** 测试发现机制修复 | 恢复标准 CTest 全绿 | `gtest_discover_tests` 补 `ENVIRONMENT/LABELS/RUN_SERIAL/TIMEOUT`；`ENABLE_BUILD_TESTS=ON` configure 通过；加入"引用文件存在性"前置校验 | 低 |
-| **P0-3** 文档-代码对齐 | 消除 §2.3 全部矛盾 | 修 `EventLoop.hpp`/`Registry.hpp` 头注释、copilot-instructions 的 Chains 路径；补建或删除 `ARCHITECTURE_REVIEW_2026-08-09.md` 引用 | 低；属 P0-F 收口 |
-| **P0-4** EventLoop lost-wakeup 实测 | 只加观测，不改同步结构 | 压力测试（线程数/任务数/超时/复现日志）落盘；未复现则仅记录 | 中；严守"无实测不改无锁"门槛 |
-| **P0-5** 工程卫生 | 清账 | `logs/` 调试产物清理 + `.gitignore` 治理；PestManKill 品牌残留清单 | 低 |
-| **P0-6** 待决 Q 项收敛 | 消除悬空决策 | Q1.1(Singleton)、Q5(守卫脚本)、Q8(utils→core) 出结论 | 低；需用户拍板 |
+| **P0-1** CPU fallback 渲染修复（✅ 2026-08-14 完成） | 关闭 4 个静默降级 BUG | 圆角/图片/Canvas 圆/斜线在 `UI_FORCE_CPU_RENDER=ON` 下可回归；非白纹理与不支持图元均去重告警；`test_FallbackRenderer`/`test_ImageManager` 覆盖 | 已收口 |
+| **P0-2** 测试发现机制修复（✅ 2026-08-14 完成） | 恢复标准 CTest 全绿 | `gtest_discover_tests` 补 `ENVIRONMENT/LABELS/RUN_SERIAL/TIMEOUT`；`ENABLE_BUILD_TESTS=ON` configure 通过；"引用文件存在性"前置校验已落地（unittest+benchmark，缺失文件时 FATAL_ERROR） | 已收口 |
+| **P0-3** 文档-代码对齐（✅ 2026-08-14 完成） | 消除 §2.3 全部矛盾 | 已修正 EventLoop/Registry/Dispatcher 注释、Chains 路径和旧测试规划路径；缺失的 2026-08-09 评审引用已改为历史来源说明 | 已收口 |
+| **P0-4** EventLoop lost-wakeup 实测（✅ 2026-08-16 修复落地） | 形成可重复证据并完成修复 | 方案 B（`atomic_wait/notify` 事件计数）已实施：单任务 ping 20 轮无超时，1000 次 ping 1–4ms，多生产者 drain 20 轮通过；unit 95/95；门禁通过 | 已修复；P1-4 前置解除 |
+| **P0-5** 工程卫生（✅ 2026-08-14 完成） | 清账 | `.gitignore` 已治理 `logs/` 与 `*.log`；品牌残留 6 处已全部改名 `VMP-ui`/`vmpui`（含环境变量 `VMPUI_FORCE_FALLBACK`，旧名不兼容） | 已收口 |
+| **P0-6** 待决 Q 项收敛（✅ 2026-08-14 收口） | 消除悬空决策 | Q1.1 同意删除 Singleton（已完成）；Q5 继续维护架构门禁；Q8 暂不迁移 utils→core | 已收口 |
 
 ### P1 — 根能力（3-6 周）
 
 | 工作包 | 目标 | 依赖 | 验收 |
 |---|---|---|---|
-| **P1-1** Theme/Style System | 主题 token、状态样式、默认皮肤、运行时切主题触发 RenderDirty | 无 | Button/Label/TextEdit/CheckBox/DropDown 能从统一 token 取色取尺寸；切主题有测试 |
-| **P1-2** Overlay/Popup Manager | 统一浮层栈、定位、外部点击关闭、焦点恢复、z-order | 无 | DropDown 改走统一 popup；Tooltip/Menu 复用；关闭/焦点有测试 |
-| **P1-3** Focus/键盘导航 | Tab 序、方向键、焦点环、焦点陷阱、Disabled 跳过 | 无 | Tab/Shift+Tab 遍历 + TextEdit/Button 焦点行为有测试 |
-| **P1-4** 帧循环事件驱动化 | 16ms 轮询 → 事件驱动唤醒 | **P0-4 实测结论** | 帧空闲 CPU 归零；输入延迟不退化；唤醒路径有压测 |
-| **P1-5** 测试策略落地 | 截图回归 + 交互录制 + 性能基准骨架 | P0-2 | 基准脚本可跑；视觉回归接 CI |
+| **P1-1** Theme/Style System（✅ 已实现） | 主题 token、状态样式、默认皮肤、运行时切主题触发 RenderDirty | 无 | `ThemeSystem.cpp` 已实现；`test_ThemeSystem_{Button,Input,DropDown,Window}` 覆盖 |
+| **P1-2** Overlay/Popup Manager（✅ 已实现） | 统一浮层栈、定位、外部点击关闭、焦点恢复、z-order | 无 | `OverlaySystem` 已实现；`test_OverlaySystem` 覆盖 |
+| **P1-3** Focus/键盘导航（✅ 已实现） | Tab 序、方向键、焦点环、焦点陷阱、Disabled 跳过 | 无 | `FocusNavigationSystem` 已实现；`test_FocusNavigation` 覆盖 |
+| **P1-4** 帧循环事件驱动化（✅ 2026-08-16 完成） | 16ms 轮询 → 事件驱动唤醒 | **P0-4 已修复（2026-08-16）** | 双模式帧调度：FIXED_RATE（默认，向后兼容）保留固定帧率路径；EVENT_DRIVEN 空闲 CPU 归零、invoke/退出唤醒；锁帧接口 `setTargetFrameRate`/`setFrameScheduleMode`；3 项调度测试 + stress 5/5 + unit 95/95 |
+| **P1-5** 测试策略落地（✅ 2026-08-16 完成） | 截图回归 + 交互录制 + 性能基准骨架 | P0-2 | GPU 生命周期 benchmark ✅；截图回归（tests/screenshot，golden 比较，`ctest -L screenshot` 3/3）✅；交互录制骨架（tests/interaction，EventWatch 录制 + PushEvent 回放，`ctest -L interaction` 2/2）✅；CI 已接入两项（build-linux job）✅ |
 
 > 注意：P1-4 必须与 P0-4 绑定。当前 lost-wakeup 靠 16ms 节流掩盖，一旦改事件驱动，丢失唤醒会立刻暴露——顺序反了就制造回归。
 
 ### P2 — 控件与数据能力（1-2 月）
 
-| 工作包 | 内容 | 依赖 |
-|---|---|---|
-| **P2-1** 基础输入控件 | RadioGroup/Switch/TabView/ListView | P1-1/P1-3 |
-| **P2-2** 弹出类控件 | Tooltip/ContextMenu/ModalDialog | P1-2 |
-| **P2-3** 数据能力 | VirtualList、TreeView、Table 排序/筛选/列调整、数据源绑定 | P2-1 |
-| **P2-4** 动画完整化 | timeline/sequence/parallel、暂停恢复、完成回调、取消策略 | 无 |
-| **P2-5** 半成品收口 | ListArea/Menu/Calendar/Dialog/拖放 补齐契约与测试 | P1-2/P1-3 |
-| **P2-6** 纯 CPU 并发 | 图片/字体/SVG 解码经专用 worker + `EventLoop::Post` 回主线程 | **需先有 benchmark 证明帧预算被 CPU 占用** |
+| 工作包 | 内容 | 依赖 | 状态 |
+|---|---|---|---|
+| **P2-1** 基础输入控件（🔄 部分） | RadioGroup/Switch/TabView/ListView | P1-1/P1-3 | Switch/RadioGroup/TabView 已落地；ListView 待做 |
+| **P2-2** 弹出类控件（✅ 2026-08-16 完成） | Tooltip/ContextMenu/ModalDialog | P1-2 | Tooltip ✅；**ContextMenu**（CreateContextMenu/AddContextMenuItem/Show/Close，复用 OverlaySystem）✅；**ModalDialog**（遮罩+居中内容，点击遮罩关闭，复用 OverlaySystem）✅；`test_ContextMenuModal` 7/7 |
+| **P2-3** 数据能力（⬜ 未开始） | VirtualList、TreeView、Table 排序/筛选/列调整、数据源绑定 | P2-1 | 无 |
+| **P2-4** 动画完整化（🔄 部分） | timeline/sequence/parallel、暂停恢复、完成回调、取消策略 | 无 | `TweenSystem` 已有基础动画；timeline/sequence/parallel 待确认 |
+| **P2-5** 半成品收口（⬜ 未开始） | ListArea/Menu/Calendar/Dialog/拖放 补齐契约与测试 | P1-2/P1-3 | 无 |
+| **P2-6** 纯 CPU 并发（⬜ 未开始） | 图片/字体/SVG 解码经专用 worker + `EventLoop::Post` 回主线程 | **需先有 benchmark 证明帧预算被 CPU 占用** | 无 |
 
 ### P3 — 生态与规模化（持续）
 
@@ -160,6 +186,10 @@ Accessibility 语义层 → I18N/RTL/bidi → UI Inspector/实体树/布局边�
 2. **最易误判**：并发——不要在没有可重复复现前改动无锁路径；正确动作是加观测，不是加锁。
 3. **最影响演进**：文档脱节（P0-3）——它会持续污染 Copilot 与新人判断，成本低、收益高，应优先收口。
 4. **最需用户决策**：P0-6 的三个悬空 Q 项，阻塞了 utils/core 边界与守卫脚本的长期走向。
+
+> **2026-08-14 复核状态**：P0-1/P0-3/P0-5/P0-6 已收口；P0-2 已完成（含存在性前置校验）；
+> P0-4 已从"理论风险"升级为可重复复现，进入方案评审。当前最高风险转移为 **P1-4 帧循环事件驱动化**
+> 必须在 EventLoop lost-wakeup 修复方案评审完成后实施，否则丢失唤醒会立即暴露。
 
 ---
 

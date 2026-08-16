@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "ui/Application.hpp"
+#include "ui/Callback.hpp"
 #include "ui/MathTypes.hpp"
 #include "ui/Result.hpp"
 #include "ui/WindowsMacroShield.hpp"
@@ -103,4 +104,29 @@ ui::entity CreateImageFromPath(std::string_view path, float defaultWidth = 0.0F,
                                std::string_view alias = "");
 ui::entity CreateCanvas(float width = 400.0F, float height = 300.0F, std::string_view alias = "");
 ui::entity CreateTable(int columns = 3, std::string_view alias = "");
+
+// ===================== ContextMenu（右键菜单，复用 OverlaySystem） =====================
+
+/// 创建上下文菜单容器（VBox，固定宽度，圆角背景）。
+ui::entity CreateContextMenu(std::string_view alias = "");
+
+/// 添加菜单项；点击执行 onClick 后自动关闭菜单。返回菜单项实体。
+ui::entity AddContextMenuItem(ui::entity menu, const std::string& text, ui::Callback<> onClick = {});
+
+/// 在指定窗口内坐标打开菜单（position 为窗口内逻辑坐标）。
+void ShowContextMenu(ui::entity menu, const Vec2& position, ui::entity owner = ui::null_entity);
+
+/// 关闭并收起菜单（浮层出栈，实体保留可复用）。
+void CloseContextMenu(ui::entity menu);
+
+// ===================== ModalDialog（模态浮层，复用 OverlaySystem） =====================
+
+/// 创建模态对话框（遮罩 + 居中内容容器），parentWindow 为其所属窗口根实体。
+ui::entity CreateModalDialog(ui::entity parentWindow, std::string_view alias = "");
+
+/// 打开模态对话框（遮罩覆盖父窗口客户区，作为浮层入栈）。
+void ShowModalDialog(ui::entity dialog);
+
+/// 关闭模态对话框（浮层出栈并销毁遮罩与内容）。
+void CloseModalDialog(ui::entity dialog);
 }  // namespace ui::factory

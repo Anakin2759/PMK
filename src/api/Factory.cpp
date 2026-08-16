@@ -1523,4 +1523,312 @@ ui::entity CreateTable(int columns, std::string_view alias)
     return entity;
 }
 
+// ============================================================================
+// ContextMenu（右键菜单，复用 OverlaySystem 统一浮层栈）
+// ============================================================================
+namespace
+{
+
+constexpr float kContextMenuWidth = 160.0F;
+constexpr float kContextMenuItemHeight = 26.0F;
+constexpr float kContextMenuItemPaddingLeft = 10.0F;
+constexpr float kContextMenuPaddingV = 4.0F;
+constexpr float kContextMenuPaddingH = 4.0F;
+constexpr float kContextMenuRadius = 6.0F;
+constexpr Color kContextMenuBackground{0.14F, 0.14F, 0.17F, 0.97F};
+constexpr Color kContextMenuItemHover{0.25F, 0.27F, 0.33F, 1.0F};
+constexpr Color kContextMenuItemText{0.90F, 0.91F, 0.94F, 1.0F};
+
+}  // namespace
+
+ui::entity CreateContextMenu(std::string_view alias)
+{
+    auto& reg = CurrentRegistry();
+    auto entity = CreateBaseWidget(alias);
+    reg.emplace<components::ContextMenuTag>(entity);
+    reg.emplace<components::ContextMenu>(entity);
+
+    auto& layout = reg.emplace<components::LayoutInfo>(entity);
+    layout.direction = policies::LayoutDirection::VERTICAL;
+    layout.alignment = policies::Alignment::TOP_LEFT;
+    layout.spacing = scale::Metric(0.0F);
+
+    auto& size = reg.get<components::Size>(entity);
+    size.size = {scale::Metric(kContextMenuWidth), scale::Metric(0.0F)};
+    size.sizePolicy = policies::Size::AUTO;
+
+    auto& background = reg.emplace<components::Background>(entity);
+    background.color = kContextMenuBackground;
+    background.borderRadius = Vec4{kContextMenuRadius, kContextMenuRadius, kContextMenuRadius, kContextMenuRadius};
+    background.enabled = policies::Feature::ENABLED;
+
+    auto& padding = reg.get_or_emplace<components::Padding>(entity);
+    padding.values = {kContextMenuPaddingV, kContextMenuPaddingH, kContextMenuPaddingV, kContextMenuPaddingH};
+
+    reg.remove<components::VisibleTag>(entity);
+    return entity;
+}
+
+ui::entity AddContextMenuItem(ui::entity menu, const std::string& text, ui::Callback<> onClick)
+{
+    auto& reg = CurrentRegistry();
+    auto entity = CreateBaseWidget("__context_menu_item__");
+
+    reg.emplace<components::Clickable>(entity);
+    reg.emplace<components::Hoverable>(entity);
+
+    auto& itemText = reg.emplace<components::Text>(entity);
+    itemText.content = text;
+    itemText.fontSize = scale::Metric(13.0F);
+    itemText.alignment = policies::Alignment::LEFT | policies::Alignment::VCENTER;
+    itemText.color = kContextMenuItemText;
+
+    auto& size = reg.get<components::Size>(entity);
+    size.sizePolicy = policies::Size::FILL_PARENT;
+    size.minSize = {scale::Metric(0.0F), scale::Metric(kContextMenuItemHeight)};
+
+    auto& padding = reg.get_or_emplace<components::Padding>(entity);
+    padding.values = {0.0F, 0.0F, 0.0F, kContextMenuItemPaddingLeft};
+
+    Registry* const regPtr = &reg;
+    reg.get<components::Hoverable>(entity).onHover = [regPtr, entity]()
+    {
+        auto& reg = *regPtr;
+        if (auto* bg = reg.try_get<components::Background>(entity); bg != nullptr)
+        {
+            bg->color = kContextMenuItemHover;
+            bg->enabled = policies::Feature::ENABLED;
+        }
+        ui::utils::MarkVisualChanged(entity);
+    };
+    reg.get<components::Hoverable>(entity).onUnhover = [regPtr, entity]()
+    {
+        auto& reg = *regPtr;
+        if (auto* bg = reg.try_get<components::Background>(entity); bg != nullptr)
+        {
+            bg->enabled = policies::Feature::DISABLED;
+        }
+        ui::utils::MarkVisualChanged(entity);
+    };
+
+    reg.get<components::Clickable>(entity).onClick = [regPtr, menu, onClick = std::move(onClick)]() mutable
+    {
+        auto& reg = *regPtr;
+        // 先关闭菜单（即使无回调也收起）
+        auto* menuComp = reg.try_get<components::ContextMenu>(menu);
+        if (menuComp != nullptr && menuComp->open)
+        {
+            CloseContextMenu(menu);
+        }
+        // 执行用户回调
+        if (onClick)
+        {
+            onClick();
+        }
+    };
+
+    hierarchy::AddChild(menu, entity);
+    ui::utils::MarkLayoutAndVisualChanged(menu);
+    return entity;
+}
+
+void ShowContextMenu(ui::entity menu, const Vec2& position, ui::entity owner)
+{
+    auto& reg = CurrentRegistry();
+    auto& runtime = UiRuntime::current();
+    auto* menuComp = reg.try_get<components::ContextMenu>(menu);
+    if (menuComp == nullptr)
+        return;
+
+    // 已打开则先关闭
+    if (menuComp->open)
+    {
+        CloseContextMenu(menu);
+    }
+
+    // 定位所属窗口：优先用 owner（触发者）向上找窗口根；菜单尚未挂到窗口时自动挂载
+    const entt::entity ownerInternal = detail::ToInternal(owner);
+    const entt::entity anchor = ownerInternal != entt::null ? ownerInternal : detail::ToInternal(menu);
+    const entt::entity windowRoot = FindWindowRoot(reg, anchor);
+    if (windowRoot == entt::null)
+        return;
+
+    // 菜单未挂到窗口树时，挂载到窗口根（保持 RootTag 语义：浮层子节点可复用）
+    const auto* menuHier = reg.try_get<components::Hierarchy>(menu);
+    if (menuHier == nullptr || menuHier->parent == entt::null)
+    {
+        hierarchy::AddChild(detail::ToPublic(windowRoot), menu);
+    }
+
+    // 定位并显示
+    auto& pos = reg.get<components::Position>(menu);
+    pos.value = {position.x(), position.y()};
+    pos.positionPolicy = policies::Position::ABSOLUTE_POS;
+    reg.emplace_or_replace<components::VisibleTag>(menu);
+    ui::utils::MarkLayoutAndVisualChanged(detail::ToPublic(windowRoot));
+
+    // 入浮层栈
+    runtime.dispatcher().trigger<events::OverlayOpenRequest>(
+        events::OverlayOpenRequest{detail::ToInternal(menu), detail::ToInternal(owner)});
+
+    menuComp->open = true;
+    menuComp->owner = detail::ToInternal(owner);
+}
+
+void CloseContextMenu(ui::entity menu)
+{
+    auto& reg = CurrentRegistry();
+    auto* menuComp = reg.try_get<components::ContextMenu>(menu);
+    if (menuComp == nullptr)
+        return;
+    if (!menuComp->open)
+        return;
+
+    menuComp->open = false;
+    menuComp->owner = entt::null;
+    reg.remove<components::VisibleTag>(menu);
+    ui::utils::MarkVisualChanged(menu);
+
+    UiRuntime::current().dispatcher().trigger<events::OverlayCloseRequest>(
+        events::OverlayCloseRequest{detail::ToInternal(menu)});
+}
+
+// ============================================================================
+// ModalDialog（模态浮层：遮罩 + 居中内容容器，复用 OverlaySystem）
+// ============================================================================
+namespace
+{
+
+constexpr Color kModalMaskColor{0.0F, 0.0F, 0.0F, 0.45F};
+constexpr float kModalDialogWidth = 320.0F;
+constexpr float kModalDialogMinHeight = 160.0F;
+constexpr float kModalDialogRadius = 10.0F;
+constexpr float kModalDialogPadding = 16.0F;
+constexpr Color kModalDialogBackground{0.13F, 0.13F, 0.16F, 1.0F};
+
+/// 遮罩覆盖到父窗口尺寸；内容容器居中。
+void LayoutModalOverlay(Registry& reg, entt::entity overlayRoot, entt::entity parentWindow)
+{
+    const Rect windowRect = ui::utils::GetEntityRect(detail::ToPublic(parentWindow));
+    auto& maskSize = reg.get<components::Size>(overlayRoot);
+    maskSize.size = {scale::Metric(windowRect.width()), scale::Metric(windowRect.height())};
+    maskSize.sizePolicy = policies::Size::FIXED;
+    ui::utils::MarkLayoutAndVisualChanged(detail::ToPublic(parentWindow));
+}
+
+}  // namespace
+
+ui::entity CreateModalDialog(ui::entity parentWindow, std::string_view alias)
+{
+    auto& reg = CurrentRegistry();
+    auto entity = CreateBaseWidget(alias);
+    reg.emplace<components::ModalDialogTag>(entity);
+    auto& dialog = reg.emplace<components::ModalDialog>(entity);
+
+    // 遮罩容器：半透明黑，覆盖父窗口客户区，点击遮罩关闭
+    const auto overlayRoot = CreateBaseWidget("__modal_mask__");
+    reg.emplace<components::Clickable>(overlayRoot);
+    auto& maskBackground = reg.emplace<components::Background>(overlayRoot);
+    maskBackground.color = kModalMaskColor;
+    maskBackground.enabled = policies::Feature::ENABLED;
+
+    auto& maskPos = reg.get<components::Position>(overlayRoot);
+    maskPos.value = {0.0F, 0.0F};
+    maskPos.positionPolicy = policies::Position::ABSOLUTE_POS;
+
+    // 遮罩拦截点击 → 关闭对话框
+    Registry* const regPtr = &reg;
+    reg.get<components::Clickable>(overlayRoot).onClick = [regPtr, entity]()
+    {
+        auto& reg = *regPtr;
+        auto* dialogComp = reg.try_get<components::ModalDialog>(entity);
+        if (dialogComp != nullptr && dialogComp->open)
+        {
+            CloseModalDialog(entity);
+        }
+    };
+
+    // 内容容器：居中、圆角背景
+    const auto contentRoot = CreateBaseWidget("__modal_content__");
+    auto& contentLayout = reg.emplace<components::LayoutInfo>(contentRoot);
+    contentLayout.direction = policies::LayoutDirection::VERTICAL;
+    contentLayout.alignment = policies::Alignment::TOP_LEFT;
+    contentLayout.spacing = scale::Metric(8.0F);
+
+    auto& contentSize = reg.get<components::Size>(contentRoot);
+    contentSize.size = {scale::Metric(kModalDialogWidth), scale::Metric(kModalDialogMinHeight)};
+    contentSize.sizePolicy = policies::Size::FIXED;
+
+    auto& contentBackground = reg.emplace<components::Background>(contentRoot);
+    contentBackground.color = kModalDialogBackground;
+    contentBackground.borderRadius =
+        Vec4{kModalDialogRadius, kModalDialogRadius, kModalDialogRadius, kModalDialogRadius};
+    contentBackground.enabled = policies::Feature::ENABLED;
+
+    auto& contentPadding = reg.get_or_emplace<components::Padding>(contentRoot);
+    contentPadding.values = {kModalDialogPadding, kModalDialogPadding, kModalDialogPadding, kModalDialogPadding};
+
+    hierarchy::AddChild(overlayRoot, contentRoot);
+    hierarchy::AddChild(entity, overlayRoot);
+    dialog.popupEntity = detail::ToInternal(overlayRoot);
+    reg.remove<components::VisibleTag>(entity);
+
+    // 记录父窗口（供 Show 时定位遮罩）
+    if (auto* hierarchyComp = reg.try_get<components::Hierarchy>(entity); hierarchyComp != nullptr)
+    {
+        hierarchyComp->parent = detail::ToInternal(parentWindow);
+    }
+    return entity;
+}
+
+void ShowModalDialog(ui::entity dialog)
+{
+    auto& reg = CurrentRegistry();
+    auto& runtime = UiRuntime::current();
+    auto* dialogComp = reg.try_get<components::ModalDialog>(dialog);
+    if (dialogComp == nullptr)
+        return;
+    if (dialogComp->open)
+        return;
+
+    const auto* hierarchyComp = reg.try_get<components::Hierarchy>(dialog);
+    if (hierarchyComp == nullptr || hierarchyComp->parent == entt::null)
+        return;
+    const entt::entity windowRoot = FindWindowRoot(reg, hierarchyComp->parent);
+    if (windowRoot == entt::null)
+        return;
+
+    // 遮罩覆盖父窗口
+    const entt::entity overlayRoot = dialogComp->popupEntity;
+    if (overlayRoot == entt::null || !reg.valid(overlayRoot))
+        return;
+    LayoutModalOverlay(reg, overlayRoot, hierarchyComp->parent);
+
+    reg.emplace_or_replace<components::VisibleTag>(dialog);
+    ui::utils::MarkLayoutAndVisualChanged(detail::ToPublic(windowRoot));
+
+    runtime.dispatcher().trigger<events::OverlayOpenRequest>(
+        events::OverlayOpenRequest{detail::ToInternal(dialog), hierarchyComp->parent});
+
+    dialogComp->open = true;
+}
+
+void CloseModalDialog(ui::entity dialog)
+{
+    auto& reg = CurrentRegistry();
+    auto& runtime = UiRuntime::current();
+    auto* dialogComp = reg.try_get<components::ModalDialog>(dialog);
+    if (dialogComp == nullptr)
+        return;
+    if (!dialogComp->open)
+        return;
+
+    dialogComp->open = false;
+    reg.remove<components::VisibleTag>(dialog);
+    ui::utils::MarkVisualChanged(dialog);
+
+    runtime.dispatcher().trigger<events::OverlayCloseRequest>(
+        events::OverlayCloseRequest{detail::ToInternal(dialog)});
+}
+
 }  // namespace ui::factory

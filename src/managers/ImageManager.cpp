@@ -1,4 +1,5 @@
 #include "ui/Result.hpp"
+#include <algorithm>
 #include <string>
 #include "utils/Logger.hpp"
 #include "ui/ErrorCodes.hpp"
@@ -8,6 +9,8 @@
 #include <cstring>
 #include <exception>
 #include <limits>
+#include <memory>
+#include <span>
 #include "SDL3/SDL_surface.h"
 #include "SDL3/SDL_error.h"
 #include "SDL3/SDL_pixels.h"
@@ -25,6 +28,30 @@ namespace ui::managers
 {
 namespace
 {
+struct StbiImageDeleter
+{
+    void operator()(unsigned char* pixels) const noexcept
+    {
+        stbi_image_free(pixels);
+    }
+};
+
+std::string GetLowercaseExtension(const std::string& path)
+{
+    const auto dot = path.rfind('.');
+    if (dot == std::string::npos)
+    {
+        return {};
+    }
+
+    std::string extension = path.substr(dot + 1);
+    for (auto& character : extension)
+    {
+        character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
+    }
+    return extension;
+}
+
 void WriteStderr(const char* text) noexcept
 {
     if (text == nullptr)
@@ -86,31 +113,14 @@ ui::Result<SDL_GPUTexture*> ImageManager::loadTexture(const std::string& path)
         return textureIt->second.get();
     }
 
-    wrappers::UniqueGPUTexture texture;
-
-    // 按扩展名分派加载器
-    const auto dot = path.rfind('.');
-    if (dot != std::string::npos)
+    auto pixelsResult = loadPixels(path);
+    if (!pixelsResult)
     {
-        std::string ext = path.substr(dot + 1);
-        for (auto& character : ext)
-        {
-            character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
-        }
-
-        if (ext == "bmp")
-        {
-            texture = loadWithSdlBmp(path, generation);
-        }
-        else
-        {
-            texture = loadWithStb(path, generation);
-        }
+        return ui::Err(pixelsResult.error());
     }
-    else
-    {
-        texture = loadWithStb(path, generation);
-    }
+    const PixelBuffer& pixels = **pixelsResult;
+    auto texture = uploadToGpu(generation, pixels.rgba.data(), static_cast<std::uint32_t>(pixels.width),
+                               static_cast<std::uint32_t>(pixels.height));
 
     if (texture != nullptr && generation.Status() == detail::GpuDeviceGenerationStatus::ACTIVE &&
         m_cacheGenerationId == generation.Id())
@@ -125,61 +135,117 @@ ui::Result<SDL_GPUTexture*> ImageManager::loadTexture(const std::string& path)
     return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
 }
 
+ui::Result<const ImageManager::PixelBuffer*> ImageManager::loadPixels(const std::string& path)
+{
+    if (path.empty())
+    {
+        UiRuntime::current().logger().error("[ImageManager] loadPixels: empty path");
+        return ui::Err(ui::UiErrc::INVALID_ARGUMENT, "empty path");
+    }
+
+    if (auto pixelsIt = m_pixelCache.find(path); pixelsIt != m_pixelCache.end())
+    {
+        return pixelsIt->second.get();
+    }
+
+    auto decoded = decodePixels(path);
+    if (!decoded)
+    {
+        return ui::Err(decoded.error());
+    }
+
+    auto [pixelsIt, inserted] = m_pixelCache.try_emplace(path, std::make_unique<PixelBuffer>(std::move(*decoded)));
+    static_cast<void>(inserted);
+    return pixelsIt->second.get();
+}
+
 void ImageManager::releaseAll()
 {
     m_cache.clear();
     m_cacheGenerationId = 0;
 }
 
-wrappers::UniqueGPUTexture ImageManager::loadWithStb(const std::string& path,
-                                                     const detail::GpuDeviceGenerationHandle& generation)
+ui::Result<ImageManager::PixelBuffer> ImageManager::decodePixels(const std::string& path)
 {
+    if (GetLowercaseExtension(path) == "bmp")
+    {
+        using SurfacePtr = std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)>;
+        SurfacePtr surface{SDL_LoadBMP(path.c_str()), &SDL_DestroySurface};
+        if (surface == nullptr)
+        {
+            UiRuntime::current().logger().error("[ImageManager] SDL_LoadBMP failed: {} — {}", path, SDL_GetError());
+            return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
+        }
+
+        // RGBA32 明确表示内存中的字节顺序，避免 RGBA8888 在小端平台发生通道歧义。
+        SurfacePtr converted{SDL_ConvertSurface(surface.get(), SDL_PIXELFORMAT_RGBA32), &SDL_DestroySurface};
+        if (converted == nullptr)
+        {
+            UiRuntime::current().logger().error("[ImageManager] SDL_ConvertSurface failed: {}", SDL_GetError());
+            return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
+        }
+
+        const auto width = converted->w;
+        const auto height = converted->h;
+        if (width <= 0 || height <= 0 || static_cast<std::size_t>(width) >
+                                               std::numeric_limits<std::size_t>::max() / 4U /
+                                                   static_cast<std::size_t>(height))
+        {
+            return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
+        }
+
+        PixelBuffer result;
+        result.width = width;
+        result.height = height;
+        const std::size_t rowBytes = static_cast<std::size_t>(width) * 4U;
+        if (converted->pitch <= 0 || static_cast<std::size_t>(converted->pitch) < rowBytes)
+        {
+            return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
+        }
+        result.rgba.resize(rowBytes * static_cast<std::size_t>(height));
+        const auto* sourceBytes = static_cast<const std::uint8_t*>(converted->pixels);
+        const auto sourceSize = static_cast<std::size_t>(converted->pitch) * static_cast<std::size_t>(height);
+        const std::span<const std::uint8_t> source{sourceBytes, sourceSize};
+        std::span<std::uint8_t> destination{result.rgba};
+        for (int row = 0; row < height; ++row)
+        {
+            const auto rowIndex = static_cast<std::size_t>(row);
+            const auto sourceRow = source.subspan(rowIndex * static_cast<std::size_t>(converted->pitch), rowBytes);
+            std::copy(sourceRow.begin(), sourceRow.end(), destination.subspan(rowIndex * rowBytes, rowBytes).begin());
+        }
+        return result;
+    }
+
     int width = 0;
     int height = 0;
     int channels = 0;
-
-    // 强制加载为 RGBA 4 通道
-    unsigned char* pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
+    std::unique_ptr<unsigned char, StbiImageDeleter> pixels{
+        stbi_load(path.c_str(), &width, &height, &channels, 4)};
     if (pixels == nullptr)
     {
         UiRuntime::current().logger().error("[ImageManager] stbi_load failed: {} — {}", path, stbi_failure_reason());
-        return {};
+        return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
     }
 
-    auto texture = uploadToGpu(generation, pixels, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-    stbi_image_free(pixels);
-    return texture;
-}
-
-wrappers::UniqueGPUTexture ImageManager::loadWithSdlBmp(const std::string& path,
-                                                        const detail::GpuDeviceGenerationHandle& generation)
-{
-    SDL_Surface* surface = SDL_LoadBMP(path.c_str());
-    if (surface == nullptr)
+    if (width <= 0 || height <= 0 || static_cast<std::size_t>(width) > std::numeric_limits<std::size_t>::max() / 4U /
+                                                                     static_cast<std::size_t>(height))
     {
-        UiRuntime::current().logger().error("[ImageManager] SDL_LoadBMP failed: {} — {}", path, SDL_GetError());
-        return {};
+        return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
     }
 
-    // 转换为 RGBA8
-    SDL_Surface* converted = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_RGBA8888);
-    SDL_DestroySurface(surface);
-
-    if (converted == nullptr)
-    {
-        UiRuntime::current().logger().error("[ImageManager] SDL_ConvertSurface failed: {}", SDL_GetError());
-        return {};
-    }
-
-    auto texture = uploadToGpu(generation, static_cast<const unsigned char*>(converted->pixels),
-                               static_cast<uint32_t>(converted->w), static_cast<uint32_t>(converted->h));
-    SDL_DestroySurface(converted);
-    return texture;
+    PixelBuffer result;
+    result.width = width;
+    result.height = height;
+    const std::size_t dataSize = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4U;
+    result.rgba.assign(pixels.get(), pixels.get() + dataSize);
+    return result;
 }
 
 wrappers::UniqueGPUTexture ImageManager::uploadToGpu(const detail::GpuDeviceGenerationHandle& generation,
-                                                     const unsigned char* pixels, uint32_t width, uint32_t height)
+                                                     const std::uint8_t* pixels, std::uint32_t width,
+                                                     std::uint32_t height)
 {
+    auto& logger = UiRuntime::current().logger();
     const auto activeDevice = generation.InvokeIfActive([](SDL_GPUDevice* device) { return device; });
     SDL_GPUDevice* const device = activeDevice.value_or(nullptr);
     if (device == nullptr || pixels == nullptr || width == 0 || height == 0 ||
@@ -206,7 +272,7 @@ wrappers::UniqueGPUTexture ImageManager::uploadToGpu(const detail::GpuDeviceGene
     auto texture = wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(generation, SDL_CreateGPUTexture, &texInfo);
     if (texture == nullptr)
     {
-        UiRuntime::current().logger().error("[ImageManager] SDL_CreateGPUTexture failed: {}", SDL_GetError());
+        logger.error("[ImageManager] SDL_CreateGPUTexture failed: {}", SDL_GetError());
         return {};
     }
 
@@ -225,7 +291,7 @@ wrappers::UniqueGPUTexture ImageManager::uploadToGpu(const detail::GpuDeviceGene
         generation, SDL_CreateGPUTransferBuffer, &transferInfo);
     if (transferBuffer == nullptr)
     {
-        UiRuntime::current().logger().error("[ImageManager] SDL_CreateGPUTransferBuffer failed: {}", SDL_GetError());
+        logger.error("[ImageManager] SDL_CreateGPUTransferBuffer failed: {}", SDL_GetError());
         return {};
     }
 
@@ -237,7 +303,7 @@ wrappers::UniqueGPUTexture ImageManager::uploadToGpu(const detail::GpuDeviceGene
     }
     if (mapped == nullptr)
     {
-        UiRuntime::current().logger().error("[ImageManager] SDL_MapGPUTransferBuffer failed: {}", SDL_GetError());
+        logger.error("[ImageManager] SDL_MapGPUTransferBuffer failed: {}", SDL_GetError());
         return {};
     }
 
@@ -252,7 +318,7 @@ wrappers::UniqueGPUTexture ImageManager::uploadToGpu(const detail::GpuDeviceGene
     }
     if (cmd == nullptr)
     {
-        UiRuntime::current().logger().error("[ImageManager] SDL_AcquireGPUCommandBuffer failed: {}", SDL_GetError());
+        logger.error("[ImageManager] SDL_AcquireGPUCommandBuffer failed: {}", SDL_GetError());
         return {};
     }
 
@@ -263,10 +329,10 @@ wrappers::UniqueGPUTexture ImageManager::uploadToGpu(const detail::GpuDeviceGene
     }
     if (copyPass == nullptr)
     {
-        UiRuntime::current().logger().error("[ImageManager] SDL_BeginGPUCopyPass failed: {}", SDL_GetError());
+        logger.error("[ImageManager] SDL_BeginGPUCopyPass failed: {}", SDL_GetError());
         if (!SDL_CancelGPUCommandBuffer(cmd))
         {
-            UiRuntime::current().logger().error("[ImageManager] SDL_CancelGPUCommandBuffer failed: {}", SDL_GetError());
+            logger.error("[ImageManager] SDL_CancelGPUCommandBuffer failed: {}", SDL_GetError());
         }
         return {};
     }
@@ -288,13 +354,13 @@ wrappers::UniqueGPUTexture ImageManager::uploadToGpu(const detail::GpuDeviceGene
     {
         if (!SDL_CancelGPUCommandBuffer(cmd))
         {
-            UiRuntime::current().logger().error("[ImageManager] SDL_CancelGPUCommandBuffer failed: {}", SDL_GetError());
+            logger.error("[ImageManager] SDL_CancelGPUCommandBuffer failed: {}", SDL_GetError());
         }
         return {};
     }
     if (!SDL_SubmitGPUCommandBuffer(cmd))
     {
-        UiRuntime::current().logger().error("[ImageManager] SDL_SubmitGPUCommandBuffer failed: {}", SDL_GetError());
+        logger.error("[ImageManager] SDL_SubmitGPUCommandBuffer failed: {}", SDL_GetError());
         return {};
     }
 

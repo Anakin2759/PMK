@@ -25,7 +25,7 @@ namespace ui::utils
  * - 多线程可并发 Post 任务；
  * - 单个 Exec 线程独占消费任务，避免消费者侧 CAS 开销；
  * - 使用无锁 MPSC 队列承载热路径任务投递；
- * - 空闲时通过 condition_variable 休眠，投递任务或退出时唤醒；
+ * - 空闲时通过 C++20 atomic_wait（事件计数）休眠，投递任务或退出时唤醒；
  * - 支持优雅退出和立即退出；
  * - 支持从事件循环线程内 Dispatch 直接执行任务。
  *
@@ -366,36 +366,42 @@ class EventLoop final
 
     void WaitForWork()
     {
-        std::unique_lock lock(wait_mutex_);
-        work_available_.wait(lock,
-                             [this]
-                             {
-                                 return exit_requested_.load(std::memory_order_acquire) ||
-                                        pending_tasks_.load(std::memory_order_acquire) > 0;
-                             });
+        // 方案 B（C++20 atomic_wait）：先快照唤醒纪元，再检查谓词。
+        // atomic::wait 不存在「谓词检查后睡眠」的丢失窗口：若通知发生在
+        // wait(epoch) 之前（纪元已变化），wait 立即返回；若发生在 wait 之后
+        // （已注册睡眠），notify 必然唤醒。配合 wake_epoch_ 事件计数，无需
+        // 持锁通知，保留无锁提交/通知路径（EVENTLOOP_SYNC_FIX_REVIEW 2026-08-14）。
+        const auto epoch = wake_epoch_.load(std::memory_order_acquire);
+        if (exit_requested_.load(std::memory_order_acquire) ||
+            pending_tasks_.load(std::memory_order_acquire) > 0)
+        {
+            return;
+        }
+        wake_epoch_.wait(epoch);
     }
 
     void WakeUpOne() noexcept
     {
-        work_available_.notify_one();
+        wake_epoch_.fetch_add(1, std::memory_order_release);
+        wake_epoch_.notify_one();
     }
 
     void WakeUpAll() noexcept
     {
-        work_available_.notify_all();
+        wake_epoch_.fetch_add(1, std::memory_order_release);
+        wake_epoch_.notify_all();
     }
 
     static constexpr std::size_t kDefaultQueueCapacity = 4096;
 
     MpscQueue<Task> queue_;
-    mutable std::mutex wait_mutex_;
-    std::condition_variable work_available_;
     mutable std::mutex handler_mutex_;
     ExceptionHandler exception_handler_;
     mutable std::mutex completion_mutex_;
     std::condition_variable exec_completed_condition_;
     std::thread::id loop_thread_id_;
     bool exec_completed_{true};
+    alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> wake_epoch_{0};
     alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> pending_tasks_{0};
     alignas(std::hardware_destructive_interference_size) std::atomic_bool running_{false};
     alignas(std::hardware_destructive_interference_size) std::atomic_bool accepting_{true};

@@ -148,7 +148,9 @@ TEST(SystemManagerTest, BuiltInSystemsExposeExpectedPhaseContract)
                            interface::SystemPhase::LOGIC,      // ActionSystem
                            interface::SystemPhase::FRAME,      // TimerSystem
                            interface::SystemPhase::LOGIC,      // ThemeSystem
-                           interface::SystemPhase::LOGIC}));   // ShortcutSystem
+                           interface::SystemPhase::LOGIC,      // ShortcutSystem
+                           interface::SystemPhase::LOGIC,      // FocusNavigationSystem
+                           interface::SystemPhase::LOGIC}));   // OverlaySystem
 }
 
 }  // namespace

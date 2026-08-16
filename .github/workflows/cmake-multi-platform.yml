@@ -143,6 +143,14 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ env.cxx_compiler }}
           -DCMAKE_BUILD_TYPE=Release
           -DENABLE_LTO=OFF
+          -DENABLE_BUILD_TESTS=ON
 
       - name: Build
         run: cmake --build build --config Release --parallel
+
+      # P1-5 视觉与交互回归：offscreen + software 渲染，无显卡依赖（无头可跑）
+      - name: Screenshot regression
+        run: ctest --test-dir build -L screenshot --output-on-failure
+
+      - name: Interaction replay regression
+        run: ctest --test-dir build -L interaction --output-on-failure

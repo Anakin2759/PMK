@@ -1,9 +1,9 @@
 # ThreadPool 去留决策 — 结论：完全移除
 
 > 日期：2026-08-09
-> 输入来源：架构评审 `ARCHITECTURE_REVIEW_2026-08-09.md`（S1/M1/M6）+ 用户决策（"证明没必要则完全移除"）+ 本次只读实证
+> 输入来源：2026-08-09 架构评审（原文档当前未保留；S1/M1/M6）+ 用户决策（"证明没必要则完全移除"）+ 本次只读实证
 > 作用范围：`src/utils/ThreadPool.hpp`、`src/utils/MpmcQueue.hpp`、`src/utils/WorkStealingDeque.hpp`、`src/utils/Singleton.hpp`、`src/core/UiRuntime.hpp`、`src/CMakeLists.txt`、`tests/unittest/CMakeLists.txt`、`tests/benchmark/`
-> 本次评估为只读，未改动任何源码/测试/CMake/既有文档正文
+> 本次评估结论已由本文完整保留；不依赖未保留的原始评审或规划文件
 
 ---
 
@@ -94,7 +94,7 @@
 | `.github/copilot-instructions.md` | 当前**无** ThreadPool/多线程提及（已实测），无修改点；其 ASIO 过时声明属 P0-F 范围，不随本次 |
 | `THREAD_SAFETY_CONTRACT.md`（P0-C 待办） | 移除后范围收窄为"EventLoop 线程边界 + 主线程独占 UI 状态"，**不写 ThreadPool 章节** |
 | `docs/pm/run-20260809-P0-threadpool-retain-hardening.md` | 状态需在流程内更新：P0-A → 取消、P0-G → 取消/改向（见 §4） |
-| 评审文档 `ARCHITECTURE_REVIEW_2026-08-09.md` | §7 已追加结论标注（本次交付） |
+| 2026-08-09 原始评审文档 | 当前未保留；最终 ThreadPool 决策以本文为准 |
 
 ## 4. 与既有工作包的关系
 
@@ -121,7 +121,7 @@
 
 ## 6. 遗留风险
 
-1. **EventLoop 并发修改暂缓**：此前尝试通过 `submission_mutex_` 和条件变量通知修复 M1，但该方案使 EventLoop 提交/消费路径带锁，违背无锁路径约束；现已还原。只有在压力测试明确复现丢失唤醒、任务永久挂起或其他可观测问题后，才允许重新设计和修改。
+1. **EventLoop 并发修改**：此前尝试通过 `submission_mutex_` 和条件变量通知修复 M1，但该方案使 EventLoop 提交/消费路径带锁，违背无锁路径约束；现已还原。**2026-08-16 已按方案 B（C++20 `atomic_wait/notify` 事件计数）修复 lost-wakeup**，保留无锁提交/通知路径，单任务 ping 20 轮无超时（详见 `EVENTLOOP_SYNC_FIX_REVIEW_2026-08-14.md`）。
 2. **git 历史保留**：删除的文件仍可从历史恢复，未来不应以"历史里有"作为复活理由。
 3. **P0-D 仍需落地**：`current()` 裸解引用 251 处调用点仍是 UB 扩散面，与 ThreadPool 无关。
 4. **`ENABLE_BUILD_TESTS=ON` 恢复**：本次修复悬空引用后，测试构建应可恢复；建议移除后运行一次 `cmake -B build -DENABLE_BUILD_TESTS=ON` 验证。
@@ -136,6 +136,17 @@
 - 任何后续并发修复必须先提供可重复的实测证据：测试配置、线程数量、任务数量、超时阈值、失败次数和复现日志。
 - 只有明确复现后，才进入方案评审；方案必须同时报告吞吐、延迟、CPU 占用和无锁语义影响。
 - 未复现时只允许增加观测、压力测试和文档，不允许改变并发同步结构。
+
+## 6.2 EventLoop 压测结论（2026-08-14）
+
+P0-4 观测已获得可重复失败证据，允许进入同步方案评审，但本节不直接修改无锁实现。
+
+| 场景 | 配置 | 结果 |
+|---|---|---|
+| 单任务 ping | 队列容量 64、1000 次、单消费者、单任务超时 200ms | 首次运行第 5 次迭代超时 1 次；重复运行第 36 次迭代超时 1 次 |
+| 多生产者突发排空 | 4 个生产者、总计 100000 个任务、队列容量 4096、`Exit(drain=true)` | 通过，任务全部执行 |
+
+判定：单任务 ping 的超时已在独立重复运行中再次出现，符合 lost-wakeup 候选的可重复性；多生产者入队和 drain 语义暂未发现丢任务。下一步应提交同步方案评审，比较 `condition_variable` 正确性修复与 C++20 `atomic_wait/notify`，并同时测量吞吐、P95 延迟、空闲 CPU 和无锁语义影响。在方案评审完成前，不直接修改 `Post`、消费或通知路径。
 
 ## 7. 待确认问题
 

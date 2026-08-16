@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     批量对项目自有源码运行 clang-format 与 clang-tidy，并生成 tidy 汇总报告。
 
@@ -21,7 +21,7 @@
     tidy 汇总报告输出路径，默认 docs/clang-tidy-report.md
 
 .PARAMETER Jobs
-    tidy 并发数，默认 = 逻辑 CPU 数
+    tidy 并发数，默认 2（与仓库重型 TU 的合理 compile pool 一致）
 #>
 [CmdletBinding()]
 param(
@@ -30,7 +30,8 @@ param(
     [switch]$Check,
     [string]$BuildDir = 'build',
     [string]$ReportPath = 'docs/clang-tidy-report.md',
-    [int]$Jobs = [Environment]::ProcessorCount
+    [ValidateRange(1, 256)]
+    [int]$Jobs = 2
 )
 
 $ErrorActionPreference = 'Stop'
@@ -86,17 +87,47 @@ if ($Mode -in 'tidy', 'all') {
         throw "找不到 $ccPath，请先运行 CMake 配置 (生成 compile_commands.json)。"
     }
     Write-Host "[clang-tidy] 使用 $clangTidy, 并发 $Jobs" -ForegroundColor Cyan
+    $buildDirAbs = Split-Path $ccPath -Parent
 
-    $logDir = Join-Path $env:TEMP "vmp-tidy-$([guid]::NewGuid().ToString('N'))"
-    New-Item -ItemType Directory -Path $logDir | Out-Null
+    $clangTidyVersion = (& $clangTidy --version 2>&1 | Select-Object -First 1).ToString().Trim()
+    if ($LASTEXITCODE -ne 0) {
+        throw "无法获取 clang-tidy 版本，退出码: $LASTEXITCODE"
+    }
+
+    $logDir = Join-Path $repoRoot (Join-Path $BuildDir 'clang-tidy-logs')
+    New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    Get-ChildItem $logDir -File -Filter '*.log' -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
 
     try {
-        $sourceFiles | ForEach-Object -Parallel {
-            $file = $_
-            $safe = ($file -replace '[\\/:]', '_')
-            $log = Join-Path $using:logDir "$safe.log"
-            & $using:clangTidy --quiet -p $using:BuildDir $file 2>&1 | Set-Content -Path $log -Encoding UTF8
-        } -ThrottleLimit $Jobs
+        $pending = [System.Collections.Queue]::new()
+        $sourceFiles | ForEach-Object { $pending.Enqueue($_) }
+        $running = @()
+        $invocations = @()
+        while ($pending.Count -gt 0 -or $running.Count -gt 0) {
+            while ($pending.Count -gt 0 -and $running.Count -lt $Jobs) {
+                $file = [string]$pending.Dequeue()
+                $safe = ($file -replace '[\\/:]', '_')
+                $log = Join-Path $logDir "$safe.log"
+                $running += Start-Job -ArgumentList $repoRoot, $clangTidy, $buildDirAbs, $file, $log -ScriptBlock {
+                    param($workingDirectory, $tool, $buildDir, $sourceFile, $logPath)
+                    Set-Location $workingDirectory
+                    & $tool --quiet -p $buildDir $sourceFile 2>&1 | Set-Content -Path $logPath -Encoding UTF8
+                    [pscustomobject]@{
+                        File     = $sourceFile -replace '\\', '/'
+                        ExitCode = $LASTEXITCODE
+                        Log      = $logPath
+                    }
+                }
+            }
+
+            $finished = $running | Wait-Job -Any
+            $invocations += Receive-Job $finished
+            Remove-Job $finished
+            $running = @($running | Where-Object Id -NE $finished.Id)
+        }
+
+        $failedInvocations = @($invocations | Where-Object ExitCode -NE 0)
 
         # 解析诊断
         $diagPattern = '^(?<file>[^:]+):(?<line>\d+):(?<col>\d+):\s+(?<level>warning|error):\s+(?<msg>.+?)\s+\[(?<check>[^\]]+)\]\s*$'
@@ -123,14 +154,20 @@ if ($Mode -in 'tidy', 'all') {
         [void]$sb.AppendLine('# clang-tidy 汇总报告')
         [void]$sb.AppendLine('')
         [void]$sb.AppendLine("- 生成时间: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
+        [void]$sb.AppendLine("- clang-tidy: ``$clangTidy``（$clangTidyVersion）")
         [void]$sb.AppendLine("- 扫描 TU 数: $($sourceFiles.Count)")
         [void]$sb.AppendLine("- 诊断条目: $($findings.Count)")
+        [void]$sb.AppendLine("- 非零 clang-tidy 调用: $($failedInvocations.Count)")
+        [void]$sb.AppendLine("- 并发数: $Jobs")
         [void]$sb.AppendLine("- compile_commands: $BuildDir/compile_commands.json")
         [void]$sb.AppendLine('')
         [void]$sb.AppendLine('## Summary (by check)')
         [void]$sb.AppendLine('')
         [void]$sb.AppendLine('| Check | Error | Warning | Total |')
         [void]$sb.AppendLine('|---|---:|---:|---:|')
+        if ($findings.Count -eq 0) {
+            [void]$sb.AppendLine('| 无 | 0 | 0 | 0 |')
+        }
         $findings | Group-Object Check | Sort-Object Count -Descending | ForEach-Object {
             $err = ($_.Group | Where-Object Level -EQ 'error').Count
             $warn = ($_.Group | Where-Object Level -EQ 'warning').Count
@@ -150,16 +187,34 @@ if ($Mode -in 'tidy', 'all') {
             }
             [void]$sb.AppendLine('')
         }
+        if ($failedInvocations.Count -gt 0) {
+            [void]$sb.AppendLine('## Non-zero clang-tidy invocations')
+            [void]$sb.AppendLine('')
+            [void]$sb.AppendLine('| Translation unit | Exit code | Classification | Log |')
+            [void]$sb.AppendLine('|---|---:|---|---|')
+            $failedInvocations | Sort-Object File | ForEach-Object {
+                $unsignedExitCode = [uint32]([int64]$_.ExitCode -band 0xFFFFFFFFL)
+                $hexExitCode = '0x{0:X8}' -f $unsignedExitCode
+                $classification = if ($unsignedExitCode -eq 0xC000001D) { 'Windows illegal instruction' } else { 'clang-tidy failure' }
+                $logName = Split-Path $_.Log -Leaf
+                [void]$sb.AppendLine("| ``$($_.File)`` | $($_.ExitCode) ($hexExitCode) | $classification | ``$logName`` |")
+            }
+            [void]$sb.AppendLine('')
+        }
         Set-Content -Path $reportAbs -Value $sb.ToString() -Encoding UTF8
         Write-Host "[clang-tidy] 报告已写入 $ReportPath" -ForegroundColor Green
 
         $errorCount = ($findings | Where-Object Level -EQ 'error').Count
         if ($errorCount -gt 0) {
             Write-Warning "clang-tidy 发现 $errorCount 个 error 级别诊断。"
-            if ($Check) { $exitCode = 1 }
+            $exitCode = 1
+        }
+        if ($failedInvocations.Count -gt 0) {
+            Write-Warning "clang-tidy 有 $($failedInvocations.Count) 个 TU 调用非零退出；详情见报告。"
+            $exitCode = 1
         }
     } finally {
-        Remove-Item $logDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "[clang-tidy] 原始日志保留于 $BuildDir/clang-tidy-logs" -ForegroundColor Cyan
     }
 }
 
