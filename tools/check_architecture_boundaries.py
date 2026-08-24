@@ -71,7 +71,8 @@ ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter({})
 
 ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
     {
-        ("src/api/Factory.cpp", "entt::entity"): 21,
+        # 2026-08-16: P2-1 ListView (CreateListView/AddListItem) 新增 8 处后移除死代码 ApplyListItemVisualState（21 -> 29 -> 28）
+        ("src/api/Factory.cpp", "entt::entity"): 28,
         ("src/api/Utils.cpp", "entt::entity"): 6,
     }
 )
@@ -84,7 +85,11 @@ ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
         ("src/api/Utils.cpp", "UiRuntime::current()"): 3,
         ("src/core/WindowEntityLookup.hpp", "UiRuntime::current()"): 6,
         ("src/core/WindowSync.hpp", "UiRuntime::current()"): 8,
-        ("src/helper/Helper.hpp", "UiRuntime::current()"): 103,
+        # 2026-08-16: P2-4 动画完整化（Pause/Resume/Finish/Cancel/SetAnimationCallbacks）新增 4 处（103 -> 107）
+        # 2026-08-17: 动画 helper 拆到 HelperAnimation.cpp（非 inline 摊薄模板实例化，降低编译内存）
+        #             Helper.hpp 107 -> 95；HelperAnimation.cpp 新增 12
+        ("src/helper/Helper.hpp", "UiRuntime::current()"): 95,
+        ("src/helper/HelperAnimation.cpp", "UiRuntime::current()"): 12,
         ("src/managers/CommandBuffer.hpp", "UiRuntime::current()"): 11,
         ("src/managers/DeviceManager.hpp", "UiRuntime::current()"): 21,
         ("src/managers/FontAtlasManager.hpp", "UiRuntime::current()"): 5,

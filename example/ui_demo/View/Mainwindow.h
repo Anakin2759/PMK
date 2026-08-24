@@ -484,7 +484,8 @@ inline void CreateMainWindow()  // NOLINT
                     [box]()
                     {
                         ui::animation::StartAlphaAnimation(
-                            box, 1.0F, 0.0F, {400.0F, ui::policies::Easing::EASE_OUT_QUAD, ui::policies::Play::ONCE});
+                            box, 1.0F, 0.0F,
+                            {.duration = 400.0F, .easing = ui::policies::Easing::EASE_OUT_QUAD, .mode = ui::policies::Play::ONCE});
                     });
 
             auto fadeInBtn = ui::factory::CreateButton("淡入", "animFadeInBtn");
@@ -494,7 +495,8 @@ inline void CreateMainWindow()  // NOLINT
                     [box]()
                     {
                         ui::animation::StartAlphaAnimation(
-                            box, 0.0F, 1.0F, {400.0F, ui::policies::Easing::EASE_IN_QUAD, ui::policies::Play::ONCE});
+                            box, 0.0F, 1.0F,
+                            {.duration = 400.0F, .easing = ui::policies::Easing::EASE_IN_QUAD, .mode = ui::policies::Play::ONCE});
                     });
 
             btnRow | AddChild(fadeOutBtn) | AddChild(fadeInBtn);
@@ -524,7 +526,7 @@ inline void CreateMainWindow()  // NOLINT
                     [box]()
                     {
                         ui::animation::StartRenderOffsetAnimation(box, {30.0F, 0.0F}, {-30.0F, 0.0F},
-                                                                  {500.0F, ui::policies::Easing::EASE_IN_OUT_QUAD});
+                                                                  {.duration = 500.0F, .easing = ui::policies::Easing::EASE_IN_OUT_QUAD});
                     });
 
             auto rightBtn = ui::factory::CreateButton("右移 →", "animSlideRightBtn");
@@ -534,7 +536,7 @@ inline void CreateMainWindow()  // NOLINT
                     [box]()
                     {
                         ui::animation::StartRenderOffsetAnimation(box, {-30.0F, 0.0F}, {30.0F, 0.0F},
-                                                                  {500.0F, ui::policies::Easing::EASE_IN_OUT_QUAD});
+                                                                  {.duration = 500.0F, .easing = ui::policies::Easing::EASE_IN_OUT_QUAD});
                     });
 
             btnRow | AddChild(leftBtn) | AddChild(rightBtn);
@@ -564,7 +566,7 @@ inline void CreateMainWindow()  // NOLINT
                     [box]()
                     {
                         ui::animation::StartScaleAnimation(box, {1.0F, 1.0F}, {1.35F, 1.35F},
-                                                           {300.0F, ui::policies::Easing::EASE_OUT_SINE});
+                                                           {.duration = 300.0F, .easing = ui::policies::Easing::EASE_OUT_SINE});
                     });
 
             auto downBtn = ui::factory::CreateButton("缩小", "animScaleDownBtn");
@@ -574,7 +576,7 @@ inline void CreateMainWindow()  // NOLINT
                     [box]()
                     {
                         ui::animation::StartScaleAnimation(box, {1.35F, 1.35F}, {1.0F, 1.0F},
-                                                           {300.0F, ui::policies::Easing::EASE_IN_SINE});
+                                                           {.duration = 300.0F, .easing = ui::policies::Easing::EASE_IN_SINE});
                     });
 
             btnRow | AddChild(upBtn) | AddChild(downBtn);
@@ -605,7 +607,7 @@ inline void CreateMainWindow()  // NOLINT
                     {
                         ui::animation::StartColorAnimation(box, {0.85F, 0.45F, 0.15F, 1.0F},
                                                            {0.20F, 0.50F, 0.85F, 1.0F},
-                                                           {600.0F, ui::policies::Easing::EASE_IN_OUT_SINE});
+                                                           {.duration = 600.0F, .easing = ui::policies::Easing::EASE_IN_OUT_SINE});
                     });
 
             auto toOrangeBtn = ui::factory::CreateButton("→橙", "animColorOrangeBtn");
@@ -616,7 +618,7 @@ inline void CreateMainWindow()  // NOLINT
                     {
                         ui::animation::StartColorAnimation(box, {0.20F, 0.50F, 0.85F, 1.0F},
                                                            {0.85F, 0.45F, 0.15F, 1.0F},
-                                                           {600.0F, ui::policies::Easing::EASE_IN_OUT_SINE});
+                                                           {.duration = 600.0F, .easing = ui::policies::Easing::EASE_IN_OUT_SINE});
                     });
 
             btnRow | AddChild(toBlueBtn) | AddChild(toOrangeBtn);
@@ -649,7 +651,7 @@ inline void CreateMainWindow()  // NOLINT
                     {
                         ui::animation::StartAlphaAnimation(
                             box, 1.0F, 0.15F,
-                            {800.0F, ui::policies::Easing::EASE_IN_OUT_SINE, ui::policies::Play::LOOP});
+                            {.duration = 800.0F, .easing = ui::policies::Easing::EASE_IN_OUT_SINE, .mode = ui::policies::Play::LOOP});
                     });
 
             auto stopBtn = ui::factory::CreateButton("停止", "animLoopStopBtn");
@@ -685,7 +687,7 @@ inline void CreateMainWindow()  // NOLINT
                     {
                         ui::animation::StartScaleAnimation(
                             box, {0.85F, 0.85F}, {1.15F, 1.15F},
-                            {500.0F, ui::policies::Easing::EASE_IN_OUT_SINE, ui::policies::Play::PINGPONG});
+                            {.duration = 500.0F, .easing = ui::policies::Easing::EASE_IN_OUT_SINE, .mode = ui::policies::Play::PINGPONG});
                     });
 
             auto stopBtn = ui::factory::CreateButton("停止", "animPingPongStopBtn");

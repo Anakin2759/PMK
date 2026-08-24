@@ -105,6 +105,32 @@ TEST_F(DragDropTest, SetDragLockAxisPreservesFlags)
     EXPECT_FALSE(comp->lockY);
 }
 
+TEST_F(DragDropTest, ClickCallbackCanGrowClickableStorageWithoutInvalidatingItself)
+{
+    static constexpr int CLICKABLES_TO_CREATE = 256;
+
+    auto& reg = ActiveRegistry();
+    const entt::entity target = reg.create();
+    int clickCount = 0;
+
+    auto& clickable = reg.emplace<components::Clickable>(target);
+    clickable.onClick = [&reg, &clickCount]()
+    {
+        ++clickCount;
+        for (int index = 0; index < CLICKABLES_TO_CREATE; ++index)
+        {
+            reg.emplace<components::Clickable>(reg.create());
+        }
+    };
+
+    UiRuntime::current().dispatcher().trigger<events::ClickEvent>({target});
+    EXPECT_EQ(clickCount, 1);
+    ASSERT_TRUE(reg.get<components::Clickable>(target).onClick);
+
+    UiRuntime::current().dispatcher().trigger<events::ClickEvent>({target});
+    EXPECT_EQ(clickCount, 2);
+}
+
 TEST_F(DragDropTest, SetOnDragStartStoresCallback)
 {
     const auto entity = factory::CreateLabel("D", "drag_cb_1");

@@ -128,8 +128,9 @@ GPU 路径用 HLSL SDF 着色器在片元级计算圆角/阴影/描边/纹理，
 
 原则：**先正确性，再根能力，后控件，最后生态**。每阶段可独立验收、独立合入。
 
-> **进度快照（2026-08-16）**：**P0 全部收口**；P1-1/1-2/1-3/1-4/1-5 全部完成。P2：Switch/RadioGroup/TabView/Tooltip/
-> **ContextMenu/ModalDialog** 已落地（P2-1 余 ListView，P2-2 完成）；数据能力（P2-3）与动画完整化（P2-4）待做。
+> **进度快照（2026-08-16）**：**P0 全部收口**；P1-1~1-5 全部完成。P2：**P2-1 基础输入控件（ListView/Switch/RadioGroup/TabView）**
+> 与 **P2-2 弹出类控件（Tooltip/ContextMenu/ModalDialog）全部完成**；**P2-4 动画完整化完成**（暂停/恢复/回调/取消/延迟）；
+> 数据能力（P2-3）与半成品收口（P2-5）待做。
 
 ```mermaid
 flowchart LR
@@ -167,10 +168,10 @@ flowchart LR
 
 | 工作包 | 内容 | 依赖 | 状态 |
 |---|---|---|---|
-| **P2-1** 基础输入控件（🔄 部分） | RadioGroup/Switch/TabView/ListView | P1-1/P1-3 | Switch/RadioGroup/TabView 已落地；ListView 待做 |
+| **P2-1** 基础输入控件（✅ 2026-08-16 完成） | RadioGroup/Switch/TabView/ListView | P1-1/P1-3 | Switch/RadioGroup/TabView ✅；**ListView**（CreateListView/AddListItem，单选/多选 + 滚动，复用 ListArea 组件）✅；`test_ListView` 5/5 |
 | **P2-2** 弹出类控件（✅ 2026-08-16 完成） | Tooltip/ContextMenu/ModalDialog | P1-2 | Tooltip ✅；**ContextMenu**（CreateContextMenu/AddContextMenuItem/Show/Close，复用 OverlaySystem）✅；**ModalDialog**（遮罩+居中内容，点击遮罩关闭，复用 OverlaySystem）✅；`test_ContextMenuModal` 7/7 |
 | **P2-3** 数据能力（⬜ 未开始） | VirtualList、TreeView、Table 排序/筛选/列调整、数据源绑定 | P2-1 | 无 |
-| **P2-4** 动画完整化（🔄 部分） | timeline/sequence/parallel、暂停恢复、完成回调、取消策略 | 无 | `TweenSystem` 已有基础动画；timeline/sequence/parallel 待确认 |
+| **P2-4** 动画完整化（✅ 2026-08-16 完成） | timeline/sequence/parallel、暂停恢复、完成回调、取消策略 | 无 | Pause/Resume/Finish(settle)/Cancel/SetAnimationCallbacks + startDelayMs；TweenSystem 支持 PAUSED 状态与 onComplete/onCancel 回调；Sequence 经回调链组合；`test_AnimationLifecycle` 5/5 |
 | **P2-5** 半成品收口（⬜ 未开始） | ListArea/Menu/Calendar/Dialog/拖放 补齐契约与测试 | P1-2/P1-3 | 无 |
 | **P2-6** 纯 CPU 并发（⬜ 未开始） | 图片/字体/SVG 解码经专用 worker + `EventLoop::Post` 回主线程 | **需先有 benchmark 证明帧预算被 CPU 占用** | 无 |
 

@@ -44,6 +44,7 @@ namespace ui::utils
 void MarkVisualChanged(ui::entity entity);
 void MarkLayoutAndVisualChanged(ui::entity entity);
 void MarkLayoutDirty(ui::entity entity);
+void MarkRenderDirty(ui::entity entity);
 }  // namespace ui::utils
 
 namespace ui::detail
@@ -91,114 +92,34 @@ void MarkLayoutDirty(entt::entity entity);
 
 namespace ui::detail::animation
 {
-inline void ConfigureTiming(entt::entity entity, const ui::animation::TweenOptions& options)
-{
-    auto& reg = UiRuntime::current().registry();
-    auto& time = reg.get_or_emplace<components::AnimationTime>(entity);
-    time.duration = options.duration;
-    time.elapsed = 0.0F;
-    time.easing = options.easing;
-    time.mode = options.mode;
-    time.state = policies::AnimationState::PLAYING;
-    time.autoCleanup = options.autoCleanup;
-    reg.emplace_or_replace<components::AnimatingTag>(entity);
-}
-inline void StartPositionAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
-                                   const ui::animation::TweenOptions& options = {})
-{
-    auto& reg = UiRuntime::current().registry();
-    if (!reg.valid(entity))
-        return;
-    auto& value = reg.get_or_emplace<components::AnimationPosition>(entity);
-    value.from = from;
-    value.to = to;
-    ConfigureTiming(entity, options);
-}
-inline void StartAlphaAnimation(entt::entity entity, float from, float to,
-                                const ui::animation::TweenOptions& options = {})
-{
-    auto& reg = UiRuntime::current().registry();
-    if (!reg.valid(entity))
-        return;
-    auto& value = reg.get_or_emplace<components::AnimationAlpha>(entity);
-    value.from = from;
-    value.to = to;
-    ConfigureTiming(entity, options);
-}
-inline void StartScaleAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
-                                const ui::animation::TweenOptions& options = {})
-{
-    auto& reg = UiRuntime::current().registry();
-    if (!reg.valid(entity))
-        return;
-    auto& value = reg.get_or_emplace<components::AnimationScale>(entity);
-    value.from = from;
-    value.to = to;
-    ConfigureTiming(entity, options);
-}
-inline void StartRenderOffsetAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
-                                       const ui::animation::TweenOptions& options = {})
-{
-    auto& reg = UiRuntime::current().registry();
-    if (!reg.valid(entity))
-        return;
-    auto& value = reg.get_or_emplace<components::AnimationRenderOffset>(entity);
-    value.from = from;
-    value.to = to;
-    ConfigureTiming(entity, options);
-}
-inline void StartColorAnimation(entt::entity entity, const Color& from, const Color& to,
-                                const ui::animation::TweenOptions& options = {})
-{
-    auto& reg = UiRuntime::current().registry();
-    if (!reg.valid(entity))
-        return;
-    auto& value = reg.get_or_emplace<components::AnimationColor>(entity);
-    value.from = from;
-    value.to = to;
-    ConfigureTiming(entity, options);
-}
-inline void StartTransformAnimation(entt::entity entity, const std::optional<Vec2>& targetScale,
-                                    const std::optional<Vec2>& targetOffset,
-                                    const ui::animation::TweenOptions& options = {},
-                                    const Vec2& defaultScale = {1.0F, 1.0F}, const Vec2& defaultOffset = {0.0F, 0.0F})
-{
-    auto& reg = UiRuntime::current().registry();
-    if (!reg.valid(entity))
-        return;
-    bool changed = false;
-    if (targetScale)
-    {
-        auto& value = reg.get_or_emplace<components::AnimationScale>(entity);
-        const auto* current = reg.try_get<components::Scale>(entity);
-        value.from = current ? current->value : defaultScale;
-        value.to = *targetScale;
-        changed = true;
-    }
-    if (targetOffset)
-    {
-        auto& value = reg.get_or_emplace<components::AnimationRenderOffset>(entity);
-        const auto* current = reg.try_get<components::RenderOffset>(entity);
-        value.from = current ? current->value : defaultOffset;
-        value.to = *targetOffset;
-        changed = true;
-    }
-    if (changed)
-        ConfigureTiming(entity, options);
-}
-inline void StopAnimation(entt::entity entity)
-{
-    auto& reg = UiRuntime::current().registry();
-    if (!reg.valid(entity))
-        return;
-    reg.remove<components::AnimatingTag>(entity);
-    reg.remove<components::AnimationTime>(entity);
-    reg.remove<components::AnimationPosition>(entity);
-    reg.remove<components::AnimationAlpha>(entity);
-    reg.remove<components::AnimationScale>(entity);
-    reg.remove<components::AnimationRenderOffset>(entity);
-    reg.remove<components::AnimationColor>(entity);
-}
+// 实现位于 src/helper/HelperAnimation.cpp（非 inline，摊薄 entt 模板实例化，
+// 降低每个包含 Helper.hpp 的 TU 的编译内存峰值）。
+void MarkRenderDirtyInternal(entt::entity entity);
+void ConfigureTiming(entt::entity entity, const ui::animation::TweenOptions& options);
+void StartPositionAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+                            const ui::animation::TweenOptions& options = {});
+void StartAlphaAnimation(entt::entity entity, float from, float to,
+                         const ui::animation::TweenOptions& options = {});
+void StartScaleAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+                         const ui::animation::TweenOptions& options = {});
+void StartRenderOffsetAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+                                const ui::animation::TweenOptions& options = {});
+void StartColorAnimation(entt::entity entity, const Color& from, const Color& to,
+                         const ui::animation::TweenOptions& options = {});
+void StartTransformAnimation(entt::entity entity, const std::optional<Vec2>& targetScale,
+                             const std::optional<Vec2>& targetOffset,
+                             const ui::animation::TweenOptions& options = {},
+                             const Vec2& defaultScale = {1.0F, 1.0F}, const Vec2& defaultOffset = {0.0F, 0.0F});
+void StopAnimation(entt::entity entity);
+
+// ==================== P2-4：暂停/恢复/完成/取消 + 回调 ====================
+
+void PauseAnimation(entt::entity entity);
+void ResumeAnimation(entt::entity entity);
+void FinishAnimation(entt::entity entity, bool settleToEnd = false);
+void CancelAnimation(entt::entity entity, bool settleToEnd = false);
+void SetAnimationCallbacks(entt::entity entity, ui::Callback<> onComplete, ui::Callback<> onCancel = {},
+                           ui::Callback<> onStart = {});
 }  // namespace ui::detail::animation
 
 namespace ui::controls::bridge
@@ -859,7 +780,6 @@ void MarkLayoutChanged(ui::entity entity);
 void MarkVisualChanged(ui::entity entity);
 void MarkLayoutAndVisualChanged(ui::entity entity);
 void MarkLayoutDirty(ui::entity entity);
-void MarkRenderDirty(ui::entity entity);
 void CloseWindow(ui::entity entity);
 void QuitUiEventLoop();
 [[nodiscard]] Vec2 GetAbsolutePosition(ui::entity entity);

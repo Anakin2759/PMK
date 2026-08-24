@@ -49,6 +49,28 @@ struct SummingTask
     }
 };
 
+struct QueuedParentEvent
+{
+    using is_event_tag = void;
+};
+
+struct NewlyCreatedEvent
+{
+    using is_event_tag = void;
+};
+
+struct PoolCreationListener
+{
+    Dispatcher* dispatcher;
+    bool* called;
+
+    void OnParent(QueuedParentEvent&)
+    {
+        dispatcher->trigger<NewlyCreatedEvent>();
+        *called = true;
+    }
+};
+
 class TaskChainTest : public ::testing::Test
 {
    protected:
@@ -106,6 +128,20 @@ TEST_F(TaskChainTest, WrapArgsBindsArgumentsBeforeExecutingTask)
 
     EXPECT_EQ(bound(), 42);
     EXPECT_EQ(observedValue, 42);
+}
+
+TEST_F(TaskChainTest, TypedUpdateAllowsHandlerToCreateAnotherEventPool)
+{
+    auto& dispatcher = UiRuntime::current().dispatcher();
+    bool called = false;
+    PoolCreationListener listener{.dispatcher = &dispatcher, .called = &called};
+    dispatcher.sink<QueuedParentEvent>().connect<&PoolCreationListener::OnParent>(listener);
+    dispatcher.enqueue<QueuedParentEvent>();
+
+    dispatcher.update<QueuedParentEvent>();
+
+    EXPECT_TRUE(called);
+    dispatcher.sink<QueuedParentEvent>().disconnect<&PoolCreationListener::OnParent>(listener);
 }
 
 }  // namespace

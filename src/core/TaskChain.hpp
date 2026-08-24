@@ -29,6 +29,37 @@
 namespace ui::tasks
 {
 
+namespace detail
+{
+/**
+ * @brief 按固定生产链派发内部缓冲事件。
+ *
+ * 禁止改回 Dispatcher::update() 全量遍历：事件处理器可能首次创建另一类型的
+ * EnTT dispatcher pool，从而使全量遍历所持有的 dense_map 迭代器失效。
+ */
+inline void DispatchInternalQueued(Dispatcher& dispatcher)
+{
+    // 平台事件不派生新的缓冲输入事件。
+    dispatcher.update<events::QuitRequested>();
+    dispatcher.update<events::CloseWindow>();
+    dispatcher.update<events::WindowPixelSizeChanged>();
+    dispatcher.update<events::WindowMoved>();
+    dispatcher.update<events::WindowExposed>();
+
+    // 原始指针事件由 HitTestSystem 转换为 HitPointer* 事件。
+    dispatcher.update<events::RawPointerMove>();
+    dispatcher.update<events::RawPointerButton>();
+    dispatcher.update<events::RawPointerWheel>();
+
+    // 命中事件可继续产生悬停状态事件，因此必须先于 Hover/Unhover 派发。
+    dispatcher.update<events::HitPointerMove>();
+    dispatcher.update<events::HitPointerButton>();
+    dispatcher.update<events::HitPointerWheel>();
+    dispatcher.update<events::UnhoverEvent>();
+    dispatcher.update<events::HoverEvent>();
+}
+}  // namespace detail
+
 // --- 1. 基础 Concept 与 辅助工具 ---
 
 template <typename T>
@@ -137,7 +168,7 @@ class FrameTick
 
         auto& disp = m_runtime->dispatcher();
         frameContext.stage = globalcontext::FrameStage::DISPATCH_INTERNAL_QUEUED;
-        disp.update();
+        detail::DispatchInternalQueued(disp);
 
         frameContext.stage = globalcontext::FrameStage::LOGIC;
         disp.trigger<ui::events::UpdateTimer>();
@@ -145,7 +176,7 @@ class FrameTick
         disp.trigger<ui::events::UpdateEvent>();
 
         frameContext.stage = globalcontext::FrameStage::DISPATCH_PUBLIC_QUEUED;
-        detail::event_bridge::DispatchQueued();
+        ui::detail::event_bridge::DispatchQueued();
 
         frameContext.stage = globalcontext::FrameStage::LAYOUT;
         disp.trigger<ui::events::UpdateLayout>();

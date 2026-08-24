@@ -86,6 +86,12 @@ ui::entity GetTabContent(ui::entity tabView, int index);
 ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedIndex = 0, std::string_view alias = "");
 void CloseDropDownPopup(ui::entity ddEntity);
 
+/// 创建列表视图（单选/多选 + 滚动）。items 为数据源；selectedIndex 为初始单选索引（-1 无选中）。
+ui::entity CreateListView(const std::vector<std::string>& items, int selectedIndex = -1, std::string_view alias = "");
+
+/// 向列表追加一项（返回新 item 实体）。
+ui::entity AddListItem(ui::entity listView, const std::string& text, std::string_view alias = "");
+
 /// 给目标实体附加 Tooltip 悬浮提示；悬停 delayMs 毫秒后显示，移开即隐藏。
 inline constexpr int kDefaultTooltipDelayMs = 500;
 ui::entity SetTooltip(ui::entity target, const std::string& text, int delayMs = kDefaultTooltipDelayMs);

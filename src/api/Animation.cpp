@@ -44,4 +44,31 @@ void StopAnimation(ui::entity entity)
     ui::detail::animation::StopAnimation(ui::detail::ToInternal(entity));
 }
 
+void PauseAnimation(ui::entity entity)
+{
+    ui::detail::animation::PauseAnimation(ui::detail::ToInternal(entity));
+}
+
+void ResumeAnimation(ui::entity entity)
+{
+    ui::detail::animation::ResumeAnimation(ui::detail::ToInternal(entity));
+}
+
+void FinishAnimation(ui::entity entity, bool settleToEnd)
+{
+    ui::detail::animation::FinishAnimation(ui::detail::ToInternal(entity), settleToEnd);
+}
+
+void CancelAnimation(ui::entity entity, bool settleToEnd)
+{
+    ui::detail::animation::CancelAnimation(ui::detail::ToInternal(entity), settleToEnd);
+}
+
+void SetAnimationCallbacks(ui::entity entity, ui::Callback<> onComplete, ui::Callback<> onCancel,
+                           ui::Callback<> onStart)
+{
+    ui::detail::animation::SetAnimationCallbacks(ui::detail::ToInternal(entity), std::move(onComplete),
+                                                 std::move(onCancel), std::move(onStart));
+}
+
 }  // namespace ui::animation

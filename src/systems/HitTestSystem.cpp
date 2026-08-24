@@ -130,6 +130,10 @@ entt::entity HitTestSystem::findHitEntity(const Vec2& mousePos, entt::entity top
     // 从前到后进行碰撞测试
     for (auto entity : interactables)
     {
+        if (!m_reg->valid(entity) || !m_reg->all_of<components::Position, components::Size>(entity))
+        {
+            continue;
+        }
         const auto& size = m_reg->get<components::Size>(entity);
         Vec2 absPos = getAbsolutePosition(entity);
 

@@ -86,9 +86,14 @@ class TweenSystem : public ui::interface::EnableRegister<TweenSystem>
         view.each(
             [this, deltaTime, &completedEntities](entt::entity entity, components::AnimationTime& anim)
             {
-                if (anim.state != policies::AnimationState::PLAYING)
+                // P2-4：STOPPED 视为完成；PAUSED 跳过（不推进、不清理）。
+                if (anim.state == policies::AnimationState::STOPPED)
                 {
                     completedEntities.push_back(entity);
+                    return;
+                }
+                if (anim.state == policies::AnimationState::PAUSED)
+                {
                     return;
                 }
 
@@ -127,10 +132,22 @@ class TweenSystem : public ui::interface::EnableRegister<TweenSystem>
 
     float updateTime(components::AnimationTime& anim, float deltaTime)
     {
-        // 1. 更新时间
+        // 1. 先扣启动延迟（延迟期内不推进动画进度）
+        if (anim.startDelayMs > 0.0F)
+        {
+            if (anim.startDelayMs > deltaTime)
+            {
+                anim.startDelayMs -= deltaTime;
+                return 0.0F;
+            }
+            deltaTime -= anim.startDelayMs;
+            anim.startDelayMs = 0.0F;
+        }
+
+        // 2. 更新时间
         anim.elapsed += deltaTime;
 
-        // 2. 计算归一化进度 t [0.0, 1.0]
+        // 3. 计算归一化进度 t [0.0, 1.0]
         float time = (anim.duration > 0.0F) ? (anim.elapsed / anim.duration) : 1.0F;
 
         // 3. 根据播放模式处理 t
@@ -327,6 +344,14 @@ class TweenSystem : public ui::interface::EnableRegister<TweenSystem>
         auto* animTime = m_reg->try_get<components::AnimationTime>(entity);
         if (animTime == nullptr)
             return;
+
+        // P2-4：完成回调（终值已写入后、清理前触发）；仅 ONCE 模式触发。
+        if (animTime->onComplete)
+        {
+            auto callback = std::move(animTime->onComplete);
+            animTime->onComplete = {};
+            callback();
+        }
 
         m_reg->remove<components::AnimatingTag>(entity);
 

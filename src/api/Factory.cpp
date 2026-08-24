@@ -1090,6 +1090,279 @@ ui::entity GetTabContent(ui::entity tabViewEntity, int index)
     return detail::ToPublic(tabView->contentPanels[static_cast<std::size_t>(index)]);
 }
 
+// ============================================================================
+// ListView（列表视图：单选/多选 + 滚动，复用半成品 ListArea 组件）
+// ============================================================================
+namespace
+{
+
+constexpr float kListItemPaddingLeft = 10.0F;
+constexpr float kListItemPaddingRight = 8.0F;
+constexpr float kListViewMinWidth = 140.0F;
+constexpr float kListViewMinHeight = 60.0F;
+constexpr Color kListItemTextColor{0.90F, 0.91F, 0.94F, 1.0F};
+
+/// 单选更新：统一改写所有 item 选中态（回调期间不持有 view 迭代器）。
+void SelectSingleItem(Registry& reg, entt::entity listViewEntity, entt::entity newSelected)
+{
+    auto* listArea = reg.try_get<components::ListArea>(listViewEntity);
+    if (listArea == nullptr)
+        return;
+
+    const int newIndex = [&]
+    {
+        if (newSelected == entt::null)
+            return -1;
+        auto* itemComp = reg.try_get<components::ListAreaItem>(newSelected);
+        return itemComp != nullptr ? itemComp->itemIndex : -1;
+    }();
+
+    // 点已选中项：no-op（防重复回调）
+    if (newIndex != -1 && newIndex == listArea->selectedIndex)
+        return;
+
+    listArea->selectedIndex = newIndex;
+    for (const entt::entity item : listArea->items)
+    {
+        if (!reg.valid(item))
+            continue;
+        auto* itemComp = reg.try_get<components::ListAreaItem>(item);
+        const bool isSelected = (itemComp != nullptr && itemComp->itemIndex == newIndex);
+        if (auto* background = reg.try_get<components::Background>(item); background != nullptr)
+        {
+            if (isSelected)
+            {
+                background->color = listArea->selectedBackground;
+                background->enabled = policies::Feature::ENABLED;
+            }
+            else
+            {
+                background->enabled = policies::Feature::DISABLED;
+            }
+            ui::utils::MarkVisualChanged(detail::ToPublic(item));
+        }
+    }
+
+    if (listArea->onChanged)
+    {
+        listArea->onChanged(listArea->selectedIndex);
+    }
+}
+
+/// 多选切换：维护 selectedIndices 集合并触发回调。
+void ToggleMultiSelectItem(Registry& reg, entt::entity listViewEntity, entt::entity item)
+{
+    auto* listArea = reg.try_get<components::ListArea>(listViewEntity);
+    if (listArea == nullptr)
+        return;
+    auto* itemComp = reg.try_get<components::ListAreaItem>(item);
+    if (itemComp == nullptr)
+        return;
+
+    const int index = itemComp->itemIndex;
+    const auto iter = std::ranges::find(listArea->selectedIndices, index);
+    if (iter != listArea->selectedIndices.end())
+    {
+        listArea->selectedIndices.erase(iter);
+        if (auto* background = reg.try_get<components::Background>(item); background != nullptr)
+        {
+            background->enabled = policies::Feature::DISABLED;
+            ui::utils::MarkVisualChanged(detail::ToPublic(item));
+        }
+    }
+    else
+    {
+        listArea->selectedIndices.push_back(index);
+        if (auto* background = reg.try_get<components::Background>(item); background != nullptr)
+        {
+            background->color = listArea->selectedBackground;
+            background->enabled = policies::Feature::ENABLED;
+            ui::utils::MarkVisualChanged(detail::ToPublic(item));
+        }
+    }
+
+    if (listArea->onMultiChanged)
+    {
+        listArea->onMultiChanged(listArea->selectedIndices);
+    }
+}
+
+}  // namespace
+
+ui::entity CreateListView(const std::vector<std::string>& items, int selectedIndex, std::string_view alias)
+{
+    auto& reg = CurrentRegistry();
+    auto entity = CreateBaseWidget(alias);
+    reg.emplace<components::ListAreaTag>(entity);
+    auto& listArea = reg.emplace<components::ListArea>(entity);
+    // 注意：texts 与 items 由 AddListItem 单点维护（push_back 同步），此处不再预填，避免双写。
+
+    auto& layout = reg.emplace<components::LayoutInfo>(entity);
+    layout.direction = policies::LayoutDirection::VERTICAL;
+    layout.alignment = policies::Alignment::TOP_LEFT;
+
+    auto& size = reg.get<components::Size>(entity);
+    size.size = {scale::Metric(kListViewMinWidth), scale::Metric(kListViewMinHeight)};
+    size.sizePolicy = policies::Size::FIXED;
+
+    // 滚动容器：item 全部挂到其下，LayoutSystem 自动回写 contentSize（滚动免费）
+    const auto scrollArea = CreateScrollArea(std::string(alias) + "_scroll");
+    hierarchy::AddChild(entity, scrollArea);
+
+    // 初始选中
+    const int initialIndex = std::clamp(selectedIndex, -1, static_cast<int>(items.size()) - 1);
+
+    const int itemCount = static_cast<int>(items.size());
+    for (int index = 0; index < itemCount; ++index)
+    {
+        const ui::entity itemEntity = AddListItem(entity, items[static_cast<std::size_t>(index)],
+                                                 std::string(alias) + "_item_" + std::to_string(index));
+        if (index == initialIndex)
+        {
+            auto* itemComp = reg.try_get<components::ListAreaItem>(itemEntity);
+            if (itemComp != nullptr)
+            {
+                listArea.selectedIndex = index;
+            }
+        }
+    }
+
+    // 初态视觉：选中项高亮
+    for (const entt::entity item : listArea.items)
+    {
+        if (!reg.valid(item))
+            continue;
+        auto* itemComp = reg.try_get<components::ListAreaItem>(item);
+        if (itemComp != nullptr && itemComp->itemIndex == listArea.selectedIndex)
+        {
+            if (auto* background = reg.try_get<components::Background>(item); background != nullptr)
+            {
+                background->color = listArea.selectedBackground;
+                background->enabled = policies::Feature::ENABLED;
+            }
+        }
+    }
+
+    ui::utils::MarkLayoutAndVisualChanged(entity);
+    return entity;
+}
+
+ui::entity AddListItem(ui::entity listViewEntity, const std::string& text, std::string_view alias)
+{
+    auto& reg = CurrentRegistry();
+    auto* listArea = reg.try_get<components::ListArea>(listViewEntity);
+    if (listArea == nullptr)
+    {
+        return ui::null_entity;
+    }
+
+    const auto item = CreateBaseWidget(alias);
+    reg.emplace<components::ListAreaItemTag>(item);
+    reg.emplace<components::ListAreaItem>(item, detail::ToInternal(listViewEntity),
+                                          static_cast<int>(listArea->items.size()));
+
+    auto& itemText = reg.emplace<components::Text>(item);
+    itemText.content = text;
+    itemText.fontSize = scale::Metric(13.0F);
+    itemText.alignment = policies::Alignment::LEFT | policies::Alignment::VCENTER;
+    itemText.color = kListItemTextColor;
+
+    auto& itemSize = reg.get<components::Size>(item);
+    itemSize.sizePolicy = policies::Size::FILL_PARENT;
+    itemSize.minSize = {scale::Metric(0.0F), scale::Metric(listArea->itemHeight)};
+
+    auto& itemPadding = reg.get_or_emplace<components::Padding>(item);
+    itemPadding.values = {0.0F, kListItemPaddingRight, 0.0F, kListItemPaddingLeft};
+
+    auto& background = reg.emplace<components::Background>(item);
+    background.enabled = policies::Feature::DISABLED;  // 未选中无背景
+
+    reg.emplace<components::Hoverable>(item);
+
+    Registry* const regPtr = &reg;
+    const entt::entity itemInternal = detail::ToInternal(item);
+
+    // 悬停高亮
+    reg.get<components::Hoverable>(item).onHover = [regPtr, itemInternal]()
+    {
+        auto& reg = *regPtr;
+        auto* background = reg.try_get<components::Background>(itemInternal);
+        auto* itemComp = reg.try_get<components::ListAreaItem>(itemInternal);
+        if (background == nullptr || itemComp == nullptr)
+            return;
+        auto* listArea = reg.try_get<components::ListArea>(itemComp->owner);
+        if (listArea == nullptr)
+            return;
+        const bool isSelected = (listArea->selectedIndex == itemComp->itemIndex) ||
+                                std::ranges::find(listArea->selectedIndices, itemComp->itemIndex) !=
+                                    listArea->selectedIndices.end();
+        if (!isSelected)
+        {
+            background->color = listArea->hoverBackground;
+            background->enabled = policies::Feature::ENABLED;
+            ui::utils::MarkVisualChanged(detail::ToPublic(itemInternal));
+        }
+    };
+    reg.get<components::Hoverable>(item).onUnhover = [regPtr, itemInternal]()
+    {
+        auto& reg = *regPtr;
+        auto* background = reg.try_get<components::Background>(itemInternal);
+        auto* itemComp = reg.try_get<components::ListAreaItem>(itemInternal);
+        if (background == nullptr || itemComp == nullptr)
+            return;
+        auto* listArea = reg.try_get<components::ListArea>(itemComp->owner);
+        if (listArea == nullptr)
+            return;
+        const bool isSelected = (listArea->selectedIndex == itemComp->itemIndex) ||
+                                std::ranges::find(listArea->selectedIndices, itemComp->itemIndex) !=
+                                    listArea->selectedIndices.end();
+        if (isSelected)
+        {
+            background->color = listArea->selectedBackground;
+            background->enabled = policies::Feature::ENABLED;
+        }
+        else
+        {
+            background->enabled = policies::Feature::DISABLED;
+        }
+        ui::utils::MarkVisualChanged(detail::ToPublic(itemInternal));
+    };
+
+    // 点击选择
+    reg.get_or_emplace<components::Clickable>(item).onClick = [regPtr, listViewEntity, itemInternal]()
+    {
+        auto& reg = *regPtr;
+        auto* listArea = reg.try_get<components::ListArea>(listViewEntity);
+        if (listArea == nullptr)
+            return;
+        if (listArea->multiSelect == policies::Selection::MULTI)
+        {
+            ToggleMultiSelectItem(reg, detail::ToInternal(listViewEntity), itemInternal);
+        }
+        else
+        {
+            SelectSingleItem(reg, detail::ToInternal(listViewEntity), itemInternal);
+        }
+    };
+
+    listArea->items.push_back(itemInternal);
+    listArea->texts.push_back(text);
+
+    // 挂到滚动容器（ScrollArea 是 ListView 的第一个子节点）
+    const auto* scrollHier = reg.try_get<components::Hierarchy>(detail::ToInternal(listViewEntity));
+    if (scrollHier != nullptr && !scrollHier->children.empty())
+    {
+        hierarchy::AddChild(detail::ToPublic(scrollHier->children.front()), item);
+    }
+    else
+    {
+        hierarchy::AddChild(listViewEntity, item);
+    }
+
+    ui::utils::MarkLayoutAndVisualChanged(listViewEntity);
+    return item;
+}
+
 namespace
 {
 

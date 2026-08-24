@@ -704,6 +704,8 @@ void StateSystem::PointerStateHelpers::handleEntityPress(StateSystem& system, co
         return;
     }
 
+    auto& state = EnsureStateContext(*system.m_reg);
+
     if (isWritableTextEdit(system, event.hitEntity))
     {
         if (SDL_Window* sdlWindow = SDL_GetWindowFromID(event.raw.windowID))
@@ -715,6 +717,11 @@ void StateSystem::PointerStateHelpers::handleEntityPress(StateSystem& system, co
     if (shouldEmitPressForEntity(system, event.hitEntity))
     {
         system.m_disp->trigger<events::MousePressEvent>(events::MousePressEvent{event.hitEntity});
+    }
+    else if (state.activeEntity != entt::null)
+    {
+        // 空白 cell 命中 Table/ScrollArea 时，取消上一手势残留的 active 实体。
+        queueActiveClear(system, state, state.activeEntity);
     }
 }
 
@@ -805,7 +812,7 @@ void StateSystem::PointerStateHelpers::handleEntityRelease(StateSystem& system, 
         }
     }
 
-    if (releasedEntity != entt::null)
+    if (releasedEntity != entt::null && reg.valid(releasedEntity))
     {
         disp.trigger<events::MouseReleaseEvent>(events::MouseReleaseEvent{releasedEntity});
     }

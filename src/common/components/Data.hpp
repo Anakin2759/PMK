@@ -132,17 +132,36 @@ struct Icon
 // ===================== 列表 / 表格 =====================
 
 /**
- * @brief 列表区域组件
+ * @brief 列表区域组件（ListView）
+ *
+ * 由 CreateListView 创建：容器持有 item 实体列表，支持单选/多选，
+ * 选中态通过 item 的 Background 高亮；点击 item 更新选中并触发回调。
+ * 复用 OverlaySystem 之外，滚动由挂到 ScrollArea 子容器实现（免费）。
  */
 struct ListArea
 {
     using is_component_tag = void;
     static constexpr float DEFAULT_ITEM_HEIGHT = 30.0F;
-    std::vector<entt::entity> items;
-    std::vector<int> selectedIndices;
+    std::vector<entt::entity> items;          // item 实体列表（内部 entity）
+    std::vector<std::string> texts;           // 数据源文本（与 items 一一对应）
     float itemHeight = DEFAULT_ITEM_HEIGHT;
-    int selectedIndex = -1;
+    int selectedIndex = -1;                   // 单选：当前选中索引（-1 无选中）
+    std::vector<int> selectedIndices;         // 多选：选中索引集合
     policies::Selection multiSelect = policies::Selection::SINGLE;
+    Color selectedBackground{0.31F, 0.67F, 0.98F, 0.35F};  // 选中行背景
+    Color hoverBackground{0.25F, 0.27F, 0.33F, 1.0F};      // 悬停行背景
+    on_event<int> onChanged;                  // 单选回调（索引）
+    on_event<std::vector<int>> onMultiChanged;  // 多选回调（索引集合）
+};
+
+/**
+ * @brief 列表项组件（属于某个 ListArea/ListView）
+ */
+struct ListAreaItem
+{
+    using is_component_tag = void;
+    entt::entity owner = entt::null;  // 所属 ListArea 实体
+    int itemIndex = -1;               // 在列表中的索引
 };
 
 /**

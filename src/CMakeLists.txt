@@ -204,6 +204,7 @@ set(UI_OBJECT_API_SOURCES
     api/Shortcut.cpp
     api/Log.cpp
     api/Timer.cpp
+    helper/HelperAnimation.cpp
 )
 
 set(UI_OBJECT_RESOURCES_SOURCES
@@ -743,18 +744,21 @@ if(NOT BUILD_SHARED_LIBS)
     else()
         # GNU ar：MRI 脚本展开合并
         set(_ui_merge_mri "${CMAKE_CURRENT_BINARY_DIR}/VMPUI-merge.mri")
-        file(GENERATE OUTPUT "${_ui_merge_mri}" CONTENT
-            "create \"${_ui_merge_tmp}\"\n"
-            "addlib \"$<TARGET_FILE:ui>\"\n"
-            "addlib \"$<TARGET_FILE:SDL3::SDL3>\"\n"
-            "addlib \"$<TARGET_FILE:yogacore>\"\n"
-            "addlib \"$<TARGET_FILE:freetype>\"\n"
-            "addlib \"$<TARGET_FILE:harfbuzz>\"\n"
-            "addlib \"${_ui_merge_extra_inputs}\"\n"
-            "save\n"
-            "end\n")
+        set(_ui_merge_mri_content
+            "create \"${_ui_merge_tmp}\"\naddlib \"$<TARGET_FILE:ui>\"\naddlib \"$<TARGET_FILE:SDL3::SDL3>\"\naddlib \"$<TARGET_FILE:yogacore>\"\naddlib \"$<TARGET_FILE:freetype>\"\naddlib \"$<TARGET_FILE:harfbuzz>\"\n")
+        if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
+            string(APPEND _ui_merge_mri_content "addlib \"$<TARGET_FILE:ui_fonts>\"\n")
+        endif()
+        string(APPEND _ui_merge_mri_content "save\nend\n")
+        file(GENERATE OUTPUT "${_ui_merge_mri}" CONTENT "${_ui_merge_mri_content}")
+
+        # add_custom_command 不通过 shell 执行，不能直接使用 “<” 重定向；
+        # 由 CMake execute_process 的 INPUT_FILE 将 MRI 脚本送入 ar 的标准输入。
+        set(_ui_merge_runner "${CMAKE_CURRENT_BINARY_DIR}/RunVMPUIMerge.cmake")
+        file(GENERATE OUTPUT "${_ui_merge_runner}" CONTENT
+            "execute_process(COMMAND \"${CMAKE_AR}\" -M INPUT_FILE \"${_ui_merge_mri}\" RESULT_VARIABLE _result)\nif(NOT _result EQUAL 0)\n  message(FATAL_ERROR \"Archive merge failed with exit code: \${_result}\")\nendif()\n")
         add_custom_command(TARGET ui POST_BUILD
-            COMMAND "${CMAKE_AR}" -M < "${_ui_merge_mri}"
+            COMMAND ${CMAKE_COMMAND} -P "${_ui_merge_runner}"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_ui_merge_tmp}" "$<TARGET_FILE:ui>"
             COMMENT "[UI Distribution] Merging third-party static libraries into VMPUI.lib"
             VERBATIM)

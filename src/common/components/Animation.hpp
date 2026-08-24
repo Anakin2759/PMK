@@ -10,6 +10,7 @@
 
 #include "common/Types.hpp"
 #include "ui/Policies.hpp"
+#include <functional>
 #include <optional>
 
 namespace ui::components
@@ -22,11 +23,17 @@ struct AnimationTime
 {
     using is_component_tag = void;
     float duration = 200.0F;  // 默认200毫秒
-    float elapsed = 0.0F;
+    float elapsed = 0.0F;     // 已播放时间
+    float startDelayMs = 0.0F;  // 启动延迟（毫秒），更新时先扣减
     policies::Easing easing = policies::Easing::LINEAR;
     policies::Play mode = policies::Play::ONCE;
     policies::AnimationState state = policies::AnimationState::PLAYING;
     bool autoCleanup = true;
+    // P2-4 回调：动画生命周期事件（仅 ONCE 模式完成时触发 onComplete；
+    // StopAnimation/Cancel 触发 onCancel；启动首帧触发 onStart）。
+    std::move_only_function<void()> onStart;
+    std::move_only_function<void()> onComplete;
+    std::move_only_function<void()> onCancel;
 };
 
 /**

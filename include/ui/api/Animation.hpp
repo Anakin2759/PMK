@@ -18,6 +18,7 @@
 #include <optional>
 #include <type_traits>
 
+#include "ui/Callback.hpp"
 #include "ui/Color.hpp"
 #include "ui/MathTypes.hpp"
 #include "ui/TweenOptions.hpp"
@@ -39,6 +40,24 @@ void StartTransformAnimation(ui::entity entity, const std::optional<Vec2>& targe
                              const std::optional<Vec2>& targetOffset, const TweenOptions& options = {},
                              const Vec2& defaultScale = {1.0F, 1.0F}, const Vec2& defaultOffset = {0.0F, 0.0F});
 void StopAnimation(ui::entity entity);
+
+// ==================== P2-4 动画完整化 API ====================
+
+/// 暂停当前动画（elapsed 保留，恢复时续播）。
+void PauseAnimation(ui::entity entity);
+
+/// 恢复暂停的动画。
+void ResumeAnimation(ui::entity entity);
+
+/// 立即结束动画：settleToEnd=true 跳到终值并触发 onComplete；false 等价取消（触发 onCancel）。
+void FinishAnimation(ui::entity entity, bool settleToEnd = false);
+
+/// 取消动画（等价 FinishAnimation）。
+void CancelAnimation(ui::entity entity, bool settleToEnd = false);
+
+/// 为动画设置生命周期回调（完成/取消/启动）。
+void SetAnimationCallbacks(ui::entity entity, ui::Callback<> onComplete, ui::Callback<> onCancel = {},
+                           ui::Callback<> onStart = {});
 
 template <typename EntityLike>
     requires(!std::same_as<std::remove_cvref_t<EntityLike>, ui::entity> &&

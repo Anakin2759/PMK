@@ -354,7 +354,18 @@ class ActionSystem : public ui::interface::EnableRegister<ActionSystem>
         if (clickable != nullptr && clickable->enabled == policies::Feature::ENABLED && clickable->onClick)
         {
             m_logger->info("Entity {} clicked", static_cast<uint32_t>(event.entity));
-            clickable->onClick();
+
+            // 回调可能创建带 Clickable 的实体，导致 EnTT 对该组件池扩容并搬移当前组件。
+            // 先把回调移到栈上，避免执行中的 move_only_function 随组件一起失效。
+            auto callback = std::move(clickable->onClick);
+            callback();
+
+            // 回调可能销毁实体、移除组件，或显式安装一个新回调；仅在原槽位仍为空时恢复。
+            if (auto* current = reg.try_get<ui::components::Clickable>(event.entity);
+                current != nullptr && !current->onClick)
+            {
+                current->onClick = std::move(callback);
+            }
         }
     }
 

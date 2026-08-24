@@ -78,6 +78,7 @@ configure_ui_test_target(ui_unit_tests)
 add_ui_test_executable(ui_ecs_tests
     test_MainWindow.cpp
     test_TweenSystem.cpp
+    test_AnimationLifecycle.cpp
     test_TaskChain.cpp
     test_Utils.cpp
     test_Visibility.cpp
@@ -93,6 +94,7 @@ add_ui_test_executable(ui_ecs_tests
     test_SwitchRadio.cpp
     test_TabView.cpp
     test_ContextMenuModal.cpp
+    test_ListView.cpp
 )
 configure_ui_test_target(ui_ecs_tests)
 
@@ -120,12 +122,15 @@ configure_ui_test_target(ui_eventloop_stress_tests)
 # Backward-compatible aggregate target name for existing workflows.
 add_custom_target(ui_tests DEPENDS ui_unit_tests ui_ecs_tests ui_api_tests ui_fallback_lifecycle_tests)
 
-set_source_files_properties(${CMAKE_SOURCE_DIR}/include/ui.hpp PROPERTIES LANGUAGE CXX)
-add_library(ui_public_header_check OBJECT ${CMAKE_SOURCE_DIR}/include/ui.hpp)
+add_library(ui_public_header_check OBJECT
+    ${CMAKE_SOURCE_DIR}/tests/support/PublicUmbrellaHeaderCheck.cpp
+)
 target_compile_features(ui_public_header_check PRIVATE cxx_std_23)
-target_link_libraries(ui_public_header_check PRIVATE ui)
+target_include_directories(ui_public_header_check PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_compile_options(ui_public_header_check PRIVATE
-    $<$<CXX_COMPILER_ID:Clang>:/clang:-Wno-pragma-once-outside-header>
+    # clang++ 直接接收 Clang 警告选项；/clang: 是 clang-cl 专用的转发语法。
+    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<NOT:$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>>>:-Wno-pragma-once-outside-header>
+    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>>:/clang:-Wno-pragma-once-outside-header>
 )
 add_dependencies(ui_api_tests ui_public_header_check)
 

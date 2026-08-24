@@ -158,7 +158,8 @@ enum class TableColumnSizing : std::uint8_t
 enum class AnimationState : std::uint8_t
 {
     STOPPED,
-    PLAYING
+    PLAYING,
+    PAUSED
 };
 enum class LabelVisibility : std::uint8_t
 {

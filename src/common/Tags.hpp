@@ -134,6 +134,14 @@ struct ListAreaTag
 };
 
 /**
+ * @brief 列表项标记
+ */
+struct ListAreaItemTag
+{
+    using is_tags_tag = void;
+};
+
+/**
  * @brief 表格容器标记
  */
 struct TableTag

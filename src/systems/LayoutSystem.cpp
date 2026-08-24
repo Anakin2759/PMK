@@ -19,6 +19,7 @@
 #include "common/Tags.hpp"
 #include "entt/entity/fwd.hpp"
 #include "common/components/Layout.hpp"
+#include "common/Table.hpp"
 #include "common/components/Interaction.hpp"
 #include "common/Types.hpp"
 #include "entt/entity/entity.hpp"
@@ -619,28 +620,6 @@ void ConfigureLeafAutoSize(Registry& reg, entt::entity entity, YGNodeRef node)
     return std::isnan(value) ? 0.0F : value;
 }
 
-[[nodiscard]] std::vector<float> ComputeTableColWidths(const components::TableInfo& info, float totalWidth)
-{
-    const int columnCount = info.columnCount;
-    std::vector<float> widths(static_cast<size_t>(columnCount));
-
-    if (!info.columnWidths.empty() && std::cmp_equal(info.columnWidths.size(), columnCount))
-    {
-        for (int col = 0; col < columnCount; ++col)
-        {
-            widths.at(static_cast<size_t>(col)) = info.columnWidths.at(static_cast<size_t>(col));
-        }
-        return widths;
-    }
-
-    const float fallbackWidth = (columnCount > 0) ? (totalWidth / static_cast<float>(columnCount)) : totalWidth;
-    for (int col = 0; col < columnCount; ++col)
-    {
-        widths.at(static_cast<size_t>(col)) = fallbackWidth;
-    }
-    return widths;
-}
-
 void UpdateTableCellEntityLayouts(Registry& reg, entt::entity tableEntity, YGNodeRef tableNode)
 {
     const auto* info = reg.try_get<components::TableInfo>(tableEntity);
@@ -655,27 +634,41 @@ void UpdateTableCellEntityLayouts(Registry& reg, entt::entity tableEntity, YGNod
         totalWidth = sizeComp->size.x();
     }
 
-    const std::vector<float> colWidths = ComputeTableColWidths(*info, totalWidth);
+    const std::vector<float> colWidths = ui::table::ComputeColumnWidths(*info, totalWidth);
+    const float effectiveRowHeight = std::max(0.0F, std::max(info->rowHeight, info->minRowHeight));
     const int rowCount = static_cast<int>(info->cells.size());
     for (int row = 0; row < rowCount; ++row)
     {
-        const float cellY = info->headerHeight + (static_cast<float>(row) * info->rowHeight);
+        const float cellY = info->headerHeight + (static_cast<float>(row) * effectiveRowHeight);
         float cellX = 0.0F;
         for (int col = 0; col < info->columnCount; ++col)
         {
             const float colWidth = colWidths.at(static_cast<size_t>(col));
-            const auto& cell = info->cells.at(static_cast<size_t>(row)).at(static_cast<size_t>(col));
+            const auto& cells = info->cells.at(static_cast<size_t>(row));
+            if (static_cast<size_t>(col) >= cells.size())
+            {
+                continue;
+            }
+            const auto& cell = cells.at(static_cast<size_t>(col));
             if (cell.cellEntity != entt::null && reg.valid(cell.cellEntity))
             {
+                bool geometryChanged = false;
                 if (auto* pos = reg.try_get<components::Position>(cell.cellEntity))
                 {
+                    geometryChanged = geometryChanged || pos->value.x() != cellX || pos->value.y() != cellY;
                     pos->value.x() = cellX;
                     pos->value.y() = cellY;
                 }
                 if (auto* sizeComp = reg.try_get<components::Size>(cell.cellEntity))
                 {
+                    geometryChanged = geometryChanged || sizeComp->size.x() != colWidth ||
+                                      sizeComp->size.y() != effectiveRowHeight;
                     sizeComp->size.x() = colWidth;
-                    sizeComp->size.y() = info->rowHeight;
+                    sizeComp->size.y() = effectiveRowHeight;
+                }
+                if (geometryChanged)
+                {
+                    ui::utils::MarkVisualChanged(cell.cellEntity);
                 }
             }
             cellX += colWidth;

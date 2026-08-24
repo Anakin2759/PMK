@@ -12,7 +12,8 @@ inline constexpr float DEFAULT_TWEEN_DURATION = 200.0F;
  */
 struct TweenOptions
 {
-    float duration = DEFAULT_TWEEN_DURATION;
+    float duration = DEFAULT_TWEEN_DURATION;  // 动画时长（毫秒）
+    float startDelayMs = 0.0F;                // 启动前延迟（毫秒）；0 无延迟
     policies::Easing easing = policies::Easing::EASE_OUT_QUAD;
     policies::Play mode = policies::Play::ONCE;
     bool autoCleanup = true;
