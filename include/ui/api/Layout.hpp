@@ -18,22 +18,31 @@
 #include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::layout
 {
-void SetLayoutDirection(ui::entity entity, policies::LayoutDirection direction);
-void SetLayoutSpacing(ui::entity entity, float spacing);
-void SetPadding(ui::entity entity, float left, float top, float right, float bottom);
-void SetPadding(ui::entity entity, float padding);
-void CenterInParent(ui::entity entity);
+void SetLayoutDirection(UiRuntime& runtime, ui::entity entity, policies::LayoutDirection direction);
+void SetLayoutSpacing(UiRuntime& runtime, ui::entity entity, float spacing);
+void SetPadding(UiRuntime& runtime, ui::entity entity, float left, float top, float right, float bottom);
+void SetPadding(UiRuntime& runtime, ui::entity entity, float padding);
+void CenterInParent(UiRuntime& runtime, ui::entity entity);
 }  // namespace ui::layout
 
 namespace ui::actions::layout
 {
-inline constexpr EntityAction<&ui::layout::SetLayoutDirection> SET_LAYOUT_DIRECTION_ACTION{};
-inline constexpr EntityAction<&ui::layout::SetLayoutSpacing> SET_LAYOUT_SPACING_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(ui::entity, float, float, float, float)>(ui::layout::SetPadding)>
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, policies::LayoutDirection)>(
+    &ui::layout::SetLayoutDirection)>
+    SET_LAYOUT_DIRECTION_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, float)>(&ui::layout::SetLayoutSpacing)>
+    SET_LAYOUT_SPACING_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, float, float, float, float)>(
+    ui::layout::SetPadding)>
     SET_PADDING_EDGES_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(ui::entity, float)>(ui::layout::SetPadding)>
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, float)>(ui::layout::SetPadding)>
     SET_PADDING_ALL_ACTION{};
 inline constexpr EntityAction<&ui::layout::CenterInParent> CENTER_IN_PARENT_ACTION{};
 }  // namespace ui::actions::layout

@@ -16,14 +16,13 @@
 namespace ui::detail::animation
 {
 
-void MarkRenderDirtyInternal(entt::entity entity)
+void MarkRenderDirtyInternal(Registry& reg, entt::entity entity)
 {
-    ui::utils::MarkRenderDirty(ui::detail::ToPublic(entity));
+    ui::utils::MarkRenderDirty(reg.runtime(), ui::detail::ToPublic(entity));
 }
 
-void ConfigureTiming(entt::entity entity, const ui::animation::TweenOptions& options)
+void ConfigureTiming(Registry& reg, entt::entity entity, const ui::animation::TweenOptions& options)
 {
-    auto& reg = UiRuntime::current().registry();
     auto& time = reg.get_or_emplace<components::AnimationTime>(entity);
     time.duration = options.duration;
     time.elapsed = 0.0F;
@@ -35,70 +34,64 @@ void ConfigureTiming(entt::entity entity, const ui::animation::TweenOptions& opt
     reg.emplace_or_replace<components::AnimatingTag>(entity);
 }
 
-void StartPositionAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+void StartPositionAnimation(Registry& reg, entt::entity entity, const Vec2& from, const Vec2& to,
                             const ui::animation::TweenOptions& options)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& value = reg.get_or_emplace<components::AnimationPosition>(entity);
     value.from = from;
     value.to = to;
-    ConfigureTiming(entity, options);
+    ConfigureTiming(reg, entity, options);
 }
 
-void StartAlphaAnimation(entt::entity entity, float from, float to, const ui::animation::TweenOptions& options)
+void StartAlphaAnimation(Registry& reg, entt::entity entity, float from, float to, const ui::animation::TweenOptions& options)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& value = reg.get_or_emplace<components::AnimationAlpha>(entity);
     value.from = from;
     value.to = to;
-    ConfigureTiming(entity, options);
+    ConfigureTiming(reg, entity, options);
 }
 
-void StartScaleAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+void StartScaleAnimation(Registry& reg, entt::entity entity, const Vec2& from, const Vec2& to,
                          const ui::animation::TweenOptions& options)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& value = reg.get_or_emplace<components::AnimationScale>(entity);
     value.from = from;
     value.to = to;
-    ConfigureTiming(entity, options);
+    ConfigureTiming(reg, entity, options);
 }
 
-void StartRenderOffsetAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+void StartRenderOffsetAnimation(Registry& reg, entt::entity entity, const Vec2& from, const Vec2& to,
                                 const ui::animation::TweenOptions& options)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& value = reg.get_or_emplace<components::AnimationRenderOffset>(entity);
     value.from = from;
     value.to = to;
-    ConfigureTiming(entity, options);
+    ConfigureTiming(reg, entity, options);
 }
 
-void StartColorAnimation(entt::entity entity, const Color& from, const Color& to,
+void StartColorAnimation(Registry& reg, entt::entity entity, const Color& from, const Color& to,
                          const ui::animation::TweenOptions& options)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& value = reg.get_or_emplace<components::AnimationColor>(entity);
     value.from = from;
     value.to = to;
-    ConfigureTiming(entity, options);
+    ConfigureTiming(reg, entity, options);
 }
 
-void StartTransformAnimation(entt::entity entity, const std::optional<Vec2>& targetScale,
+void StartTransformAnimation(Registry& reg, entt::entity entity, const std::optional<Vec2>& targetScale,
                              const std::optional<Vec2>& targetOffset, const ui::animation::TweenOptions& options,
                              const Vec2& defaultScale, const Vec2& defaultOffset)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     bool changed = false;
@@ -119,12 +112,11 @@ void StartTransformAnimation(entt::entity entity, const std::optional<Vec2>& tar
         changed = true;
     }
     if (changed)
-        ConfigureTiming(entity, options);
+        ConfigureTiming(reg, entity, options);
 }
 
-void StopAnimation(entt::entity entity)
+void StopAnimation(Registry& reg, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     // P2-4：停止视为取消，触发 onCancel（若有）
@@ -145,9 +137,8 @@ void StopAnimation(entt::entity entity)
 
 // ==================== P2-4：暂停/恢复/完成/取消 + 回调 ====================
 
-void PauseAnimation(entt::entity entity)
+void PauseAnimation(Registry& reg, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (auto* time = reg.try_get<components::AnimationTime>(entity);
         time != nullptr && time->state == policies::AnimationState::PLAYING)
     {
@@ -155,9 +146,8 @@ void PauseAnimation(entt::entity entity)
     }
 }
 
-void ResumeAnimation(entt::entity entity)
+void ResumeAnimation(Registry& reg, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (auto* time = reg.try_get<components::AnimationTime>(entity);
         time != nullptr && time->state == policies::AnimationState::PAUSED)
     {
@@ -166,9 +156,8 @@ void ResumeAnimation(entt::entity entity)
 }
 
 /// 立即跳到终值（settle=true）并完成；否则等同 StopAnimation（取消）。
-void FinishAnimation(entt::entity entity, bool settleToEnd)
+void FinishAnimation(Registry& reg, entt::entity entity, bool settleToEnd)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto* time = reg.try_get<components::AnimationTime>(entity);
@@ -185,7 +174,7 @@ void FinishAnimation(entt::entity entity, bool settleToEnd)
             if (auto* comp = reg.try_get<components::Position>(entity); comp != nullptr)
             {
                 comp->value = pos->to;
-                ui::utils::MarkLayoutDirty(entity);
+                ui::utils::MarkLayoutDirty(reg.runtime(), ui::detail::ToPublic(entity));
             }
         }
         if (auto* alpha = reg.try_get<components::AnimationAlpha>(entity); alpha != nullptr)
@@ -218,7 +207,7 @@ void FinishAnimation(entt::entity entity, bool settleToEnd)
                 bg->color = color->to;
             }
         }
-        MarkRenderDirtyInternal(entity);
+        MarkRenderDirtyInternal(reg, entity);
     }
     else if (time->onCancel)
     {
@@ -253,16 +242,15 @@ void FinishAnimation(entt::entity entity, bool settleToEnd)
 }
 
 /// 取消动画：settleToEnd=true 时先跳终值并触发 onComplete；false 触发 onCancel 并清理。
-void CancelAnimation(entt::entity entity, bool settleToEnd)
+void CancelAnimation(Registry& reg, entt::entity entity, bool settleToEnd)
 {
-    FinishAnimation(entity, settleToEnd);
+    FinishAnimation(reg, entity, settleToEnd);
 }
 
 /// 设置动画生命周期回调（onComplete/onCancel/onStart）。
-void SetAnimationCallbacks(entt::entity entity, ui::Callback<> onComplete, ui::Callback<> onCancel,
+void SetAnimationCallbacks(Registry& reg, entt::entity entity, ui::Callback<> onComplete, ui::Callback<> onCancel,
                            ui::Callback<> onStart)
 {
-    auto& reg = UiRuntime::current().registry();
     auto* time = reg.try_get<components::AnimationTime>(entity);
     if (time == nullptr)
         return;

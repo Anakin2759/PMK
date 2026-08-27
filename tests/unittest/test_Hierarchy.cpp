@@ -34,6 +34,11 @@ class HierarchyTest : public ::testing::Test
         m_scope.reset();
     }
 
+    [[nodiscard]] UiRuntime& runtime() noexcept
+    {
+        return m_runtime;
+    }
+
    private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
@@ -45,10 +50,10 @@ class HierarchyTest : public ::testing::Test
 
 TEST_F(HierarchyTest, AddChildSetsParentOnChild)
 {
-    const auto parent = factory::CreateVBoxLayout("h_parent_1");
-    const auto child = factory::CreateLabel("C", "h_child_1");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_parent_1");
+    const auto child = factory::CreateLabel(runtime(), "C", "h_child_1");
 
-    hierarchy::AddChild(parent, child);
+    hierarchy::AddChild(runtime(), parent, child);
 
     const auto* hier = ActiveRegistry().try_get<components::Hierarchy>(child);
     ASSERT_NE(hier, nullptr);
@@ -57,10 +62,10 @@ TEST_F(HierarchyTest, AddChildSetsParentOnChild)
 
 TEST_F(HierarchyTest, AddChildAppendsToParentChildrenList)
 {
-    const auto parent = factory::CreateVBoxLayout("h_parent_2");
-    const auto child = factory::CreateLabel("C", "h_child_2");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_parent_2");
+    const auto child = factory::CreateLabel(runtime(), "C", "h_child_2");
 
-    hierarchy::AddChild(parent, child);
+    hierarchy::AddChild(runtime(), parent, child);
 
     const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     ASSERT_NE(pHier, nullptr);
@@ -70,23 +75,23 @@ TEST_F(HierarchyTest, AddChildAppendsToParentChildrenList)
 
 TEST_F(HierarchyTest, AddChildRemovesRootTagFromChild)
 {
-    const auto parent = factory::CreateVBoxLayout("h_parent_root");
-    const auto child = factory::CreateLabel("C", "h_child_root");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_parent_root");
+    const auto child = factory::CreateLabel(runtime(), "C", "h_child_root");
     // factory 已给 child 设置 RootTag（初始状态），验证 AddChild 后被移除
     ActiveRegistry().emplace_or_replace<components::RootTag>(child);
 
-    hierarchy::AddChild(parent, child);
+    hierarchy::AddChild(runtime(), parent, child);
 
     EXPECT_FALSE(ActiveRegistry().all_of<components::RootTag>(child));
 }
 
 TEST_F(HierarchyTest, AddChildIsIdempotentOnDoubleCall)
 {
-    const auto parent = factory::CreateVBoxLayout("h_parent_idem");
-    const auto child = factory::CreateLabel("C", "h_child_idem");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_parent_idem");
+    const auto child = factory::CreateLabel(runtime(), "C", "h_child_idem");
 
-    hierarchy::AddChild(parent, child);
-    hierarchy::AddChild(parent, child);  // 重复添加
+    hierarchy::AddChild(runtime(), parent, child);
+    hierarchy::AddChild(runtime(), parent, child);  // 重复添加
 
     const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     ASSERT_NE(pHier, nullptr);
@@ -96,12 +101,12 @@ TEST_F(HierarchyTest, AddChildIsIdempotentOnDoubleCall)
 
 TEST_F(HierarchyTest, AddChildReparentsFromOldParent)
 {
-    const auto parentA = factory::CreateVBoxLayout("h_parent_a");
-    const auto parentB = factory::CreateVBoxLayout("h_parent_b");
-    const auto child = factory::CreateLabel("C", "h_child_reparent");
+    const auto parentA = factory::CreateVBoxLayout(runtime(), "h_parent_a");
+    const auto parentB = factory::CreateVBoxLayout(runtime(), "h_parent_b");
+    const auto child = factory::CreateLabel(runtime(), "C", "h_child_reparent");
 
-    hierarchy::AddChild(parentA, child);
-    hierarchy::AddChild(parentB, child);  // 重新挂到 B 下
+    hierarchy::AddChild(runtime(), parentA, child);
+    hierarchy::AddChild(runtime(), parentB, child);  // 重新挂到 B 下
 
     auto& registry = ActiveRegistry();
     const auto* cHier = registry.try_get<components::Hierarchy>(child);
@@ -120,25 +125,25 @@ TEST_F(HierarchyTest, AddChildReparentsFromOldParent)
 
 TEST_F(HierarchyTest, AddChildWithInvalidParentIsNoOp)
 {
-    const auto child = factory::CreateLabel("C", "h_null_parent");
-    EXPECT_NO_FATAL_FAILURE(hierarchy::AddChild(entt::null, child));
+    const auto child = factory::CreateLabel(runtime(), "C", "h_null_parent");
+    EXPECT_NO_FATAL_FAILURE(hierarchy::AddChild(runtime(), entt::null, child));
 }
 
 TEST_F(HierarchyTest, AddChildWithInvalidChildIsNoOp)
 {
-    const auto parent = factory::CreateVBoxLayout("h_null_child_parent");
-    EXPECT_NO_FATAL_FAILURE(hierarchy::AddChild(parent, entt::null));
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_null_child_parent");
+    EXPECT_NO_FATAL_FAILURE(hierarchy::AddChild(runtime(), parent, entt::null));
 }
 
 // ===================== RemoveChild =====================
 
 TEST_F(HierarchyTest, RemoveChildClearsParentOnChild)
 {
-    const auto parent = factory::CreateVBoxLayout("h_remove_parent");
-    const auto child = factory::CreateLabel("C", "h_remove_child");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_remove_parent");
+    const auto child = factory::CreateLabel(runtime(), "C", "h_remove_child");
 
-    hierarchy::AddChild(parent, child);
-    hierarchy::RemoveChild(parent, child);
+    hierarchy::AddChild(runtime(), parent, child);
+    hierarchy::RemoveChild(runtime(), parent, child);
 
     const auto* cHier = ActiveRegistry().try_get<components::Hierarchy>(child);
     ASSERT_NE(cHier, nullptr);
@@ -147,11 +152,11 @@ TEST_F(HierarchyTest, RemoveChildClearsParentOnChild)
 
 TEST_F(HierarchyTest, RemoveChildErasesFromParentChildrenList)
 {
-    const auto parent = factory::CreateVBoxLayout("h_remove_list_parent");
-    const auto child = factory::CreateLabel("C", "h_remove_list_child");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_remove_list_parent");
+    const auto child = factory::CreateLabel(runtime(), "C", "h_remove_list_child");
 
-    hierarchy::AddChild(parent, child);
-    hierarchy::RemoveChild(parent, child);
+    hierarchy::AddChild(runtime(), parent, child);
+    hierarchy::RemoveChild(runtime(), parent, child);
 
     const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     ASSERT_NE(pHier, nullptr);
@@ -160,24 +165,24 @@ TEST_F(HierarchyTest, RemoveChildErasesFromParentChildrenList)
 
 TEST_F(HierarchyTest, RemoveChildRestoresRootTagOnChild)
 {
-    const auto parent = factory::CreateVBoxLayout("h_roottag_parent");
-    const auto child = factory::CreateLabel("C", "h_roottag_child");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_roottag_parent");
+    const auto child = factory::CreateLabel(runtime(), "C", "h_roottag_child");
 
-    hierarchy::AddChild(parent, child);
+    hierarchy::AddChild(runtime(), parent, child);
     ASSERT_FALSE(ActiveRegistry().all_of<components::RootTag>(child));  // AddChild 已移除
 
-    hierarchy::RemoveChild(parent, child);
+    hierarchy::RemoveChild(runtime(), parent, child);
 
     EXPECT_TRUE(ActiveRegistry().all_of<components::RootTag>(child));
 }
 
 TEST_F(HierarchyTest, RemoveChildOnNonChildEntityIsNoOp)
 {
-    const auto parent = factory::CreateVBoxLayout("h_nonchild_parent");
-    const auto stranger = factory::CreateLabel("S", "h_stranger");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_nonchild_parent");
+    const auto stranger = factory::CreateLabel(runtime(), "S", "h_stranger");
 
     // stranger 从未被添加为 parent 的子节点
-    EXPECT_NO_FATAL_FAILURE(hierarchy::RemoveChild(parent, stranger));
+    EXPECT_NO_FATAL_FAILURE(hierarchy::RemoveChild(runtime(), parent, stranger));
 
     const auto* pHier = ActiveRegistry().try_get<components::Hierarchy>(parent);
     // children 应保持为空
@@ -189,7 +194,7 @@ TEST_F(HierarchyTest, RemoveChildOnNonChildEntityIsNoOp)
 
 TEST_F(HierarchyTest, RemoveChildWithInvalidEntitiesIsNoOp)
 {
-    EXPECT_NO_FATAL_FAILURE(hierarchy::RemoveChild(entt::null, entt::null));
+    EXPECT_NO_FATAL_FAILURE(hierarchy::RemoveChild(runtime(), entt::null, entt::null));
 }
 
 // ===================== TraverseChildren =====================
@@ -200,17 +205,17 @@ TEST_F(HierarchyTest, TraverseChildrenVisitsAllDescendantsPreOrder)
     //   ├── child1
     //   │   └── grandchild
     //   └── child2
-    const auto parent = factory::CreateVBoxLayout("h_traverse_parent");
-    const auto firstChild = factory::CreateLabel("C1", "h_traverse_c1");
-    const auto secondChild = factory::CreateLabel("C2", "h_traverse_c2");
-    const auto nestedChild = factory::CreateLabel("GC", "h_traverse_gc");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "h_traverse_parent");
+    const auto firstChild = factory::CreateLabel(runtime(), "C1", "h_traverse_c1");
+    const auto secondChild = factory::CreateLabel(runtime(), "C2", "h_traverse_c2");
+    const auto nestedChild = factory::CreateLabel(runtime(), "GC", "h_traverse_gc");
 
-    hierarchy::AddChild(parent, firstChild);
-    hierarchy::AddChild(firstChild, nestedChild);
-    hierarchy::AddChild(parent, secondChild);
+    hierarchy::AddChild(runtime(), parent, firstChild);
+    hierarchy::AddChild(runtime(), firstChild, nestedChild);
+    hierarchy::AddChild(runtime(), parent, secondChild);
 
     std::vector<ui::entity> visited;
-    hierarchy::TraverseChildren(parent, [&visited](ui::entity entity) { visited.push_back(entity); });
+    hierarchy::TraverseChildren(runtime(), parent, [&visited](ui::entity entity) { visited.push_back(entity); });
 
     // TraverseChildren 是后序（先递归子节点再访问当前节点）——按实现实际顺序断言：
     // grandchild → child1 → child2
@@ -222,10 +227,10 @@ TEST_F(HierarchyTest, TraverseChildrenVisitsAllDescendantsPreOrder)
 
 TEST_F(HierarchyTest, TraverseChildrenOnLeafEntityCallsVisitorZeroTimes)
 {
-    const auto leaf = factory::CreateLabel("Leaf", "h_traverse_leaf");
+    const auto leaf = factory::CreateLabel(runtime(), "Leaf", "h_traverse_leaf");
 
     int callCount = 0;
-    hierarchy::TraverseChildren(leaf, [&callCount](ui::entity) { ++callCount; });
+    hierarchy::TraverseChildren(runtime(), leaf, [&callCount](ui::entity) { ++callCount; });
 
     EXPECT_EQ(callCount, 0);
 }

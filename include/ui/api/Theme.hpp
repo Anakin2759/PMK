@@ -1,9 +1,28 @@
+/**
+ * ************************************************************************
+ * 
+ * @file Theme.hpp
+ * @author AnakinLiu (azrael2759@qq.com)
+ * @date 2026-08-25
+ * @version 0.1
+ * @brief UI 主题 API，定义了主题调色板和相关操作。
+ * 
+ * ************************************************************************
+ * @copyright Copyright (c) 2026 AnakinLiu
+ * For study and research only, no reprinting.
+ * ************************************************************************
+ */
 #pragma once
 
 #include <cstdint>
 
 #include "ui/Color.hpp"
 #include "ui/MathTypes.hpp"
+
+namespace ui
+{
+class UiRuntime;
+}
 
 namespace ui::theme
 {
@@ -68,8 +87,8 @@ struct ThemeContext
 };
 
 [[nodiscard]] ThemePalette DefaultDarkTheme();
-void SetTheme(const ThemePalette& palette);
-void UseDefaultDarkTheme();
-void RequestThemeReapply();
-[[nodiscard]] const ThemePalette& CurrentTheme();
+void SetTheme(UiRuntime& runtime, const ThemePalette& palette);
+void UseDefaultDarkTheme(UiRuntime& runtime);
+void RequestThemeReapply(UiRuntime& runtime);
+[[nodiscard]] const ThemePalette& CurrentTheme(UiRuntime& runtime);
 }  // namespace ui::theme

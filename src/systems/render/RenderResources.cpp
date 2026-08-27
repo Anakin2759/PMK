@@ -52,7 +52,7 @@ void RenderSystem::initializeRenderers()
                                               const std::unique_ptr<core::IRenderer>& rightRenderer)
                       { return leftRenderer->getPriority() < rightRenderer->getPriority(); });
 
-    ui::UiRuntime::current().logger().info("[RenderSystem] 初始化了 {} 个渲染器", m_impl->m_renderers.size());
+    m_logger->info("[RenderSystem] 初始化了 {} 个渲染器", m_impl->m_renderers.size());
 }
 
 }  // namespace ui::systems

@@ -15,7 +15,8 @@
  *
  * 2. 队列事件 [BUFFERED]
  *    - 通过 Dispatcher::Enqueue() 进入队列
- *    - 由 FrameTick 在 PollInput 后的内部队列阶段调用 Dispatcher::Update() 统一派发
+ *    - 类型和派发顺序登记在 BufferedEvents.hpp
+ *    - 由 FrameTick 在 PollInput 后的内部队列阶段逐类型统一派发
  *    - 主要用于原始输入事件和可延迟到下一帧处理的状态事件
  *
  * 额外说明：
@@ -41,8 +42,7 @@ namespace ui::events
 // =====================================================================
 
 /**
- * @brief 在 Application 完成底层初始化 (SDL/ECS根实体) 后触发
- * [BUFFERED] 使用 enqueue
+ * @brief 在 Application 完成底层初始化 (SDL/ECS根实体) 后触发（当前未接入生产管线）
  */
 struct ApplicationReadyEvent
 {
@@ -74,7 +74,7 @@ struct WindowGraphicsContextUnsetEvent
 
 /**
  * @brief 请求退出事件
- * [IMMEDIATE] 使用 trigger - 需立即停止事件循环
+ * [BUFFERED] SDL 退出请求进入内部队列；显式退出 API 可立即 trigger
  */
 struct QuitRequested
 {
@@ -123,7 +123,7 @@ struct OverlayCloseAllRequest
 
 /**
  * @brief 窗口尺寸变化事件
- * [IMMEDIATE] 使用 trigger
+ * [BUFFERED] 由 PlatformWindowSystem enqueue
  */
 struct WindowResized
 {
@@ -143,7 +143,7 @@ enum class WindowMetricChangeSource : uint8_t
 
 /**
  * @brief 窗口像素尺寸变化事件
- * [IMMEDIATE] 使用 trigger
+ * [BUFFERED] 由 PlatformWindowSystem enqueue
  */
 struct WindowPixelSizeChanged
 {
@@ -166,7 +166,7 @@ struct WindowExposed
 
 /**
  * @brief 窗口位置变化事件
- * [IMMEDIATE] 使用 trigger
+ * [BUFFERED] 由 StateSystem enqueue
  */
 struct WindowMoved
 {
@@ -178,7 +178,7 @@ struct WindowMoved
 
 /**
  * @brief 窗口显示缩放变化事件
- * [IMMEDIATE] 使用 trigger
+ * [BUFFERED] 由 StateSystem enqueue
  */
 struct WindowDisplayScaleChanged
 {
@@ -290,8 +290,7 @@ struct DragDroppedEvent
     entt::entity target = entt::null;
 };
 /**
- * @brief 文本内容改变事件 (TextEdit/Input)
- * [BUFFERED] 使用 enqueue
+ * @brief 文本内容改变事件 (TextEdit/Input，当前未接入生产管线)
  */
 struct ValueChangedText
 {
@@ -301,8 +300,7 @@ struct ValueChangedText
 };
 
 /**
- * @brief 选择索引改变事件 (Dropdown/List)
- * [BUFFERED] 使用 enqueue
+ * @brief 选择索引改变事件 (Dropdown/List，当前未接入生产管线)
  */
 struct ValueChangedSelection
 {
@@ -312,8 +310,7 @@ struct ValueChangedSelection
 };
 
 /**
- * @brief 发送处理函数到事件循环
- * [BUFFERED] 使用 enqueue - 在事件循环中执行回调
+ * @brief 发送处理函数到事件循环（遗留声明，当前未接入生产管线）
  */
 struct SendHandlerToEventLoop
 {
@@ -323,7 +320,7 @@ struct SendHandlerToEventLoop
 
 /**
  * @brief 通用更新事件
- * [BUFFERED] 使用 enqueue
+ * [IMMEDIATE] 由 FrameTick 在 Logic 阶段 trigger
  */
 struct UpdateEvent
 {
@@ -338,7 +335,7 @@ struct CreateWindow
 };
 /**
  * @brief 关闭窗口事件
- * [IMMEDIATE] 使用 trigger
+ * [BUFFERED] 使用 enqueue
  */
 struct CloseWindow
 {

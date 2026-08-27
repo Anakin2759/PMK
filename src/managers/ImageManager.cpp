@@ -89,7 +89,7 @@ ui::Result<SDL_GPUTexture*> ImageManager::loadTexture(const std::string& path)
 {
     if (path.empty())
     {
-        UiRuntime::current().logger().error("[ImageManager] loadTexture: empty path");
+        m_logger->error("[ImageManager] loadTexture: empty path");
         return ui::Err(ui::UiErrc::INVALID_ARGUMENT, "empty path");
     }
 
@@ -97,7 +97,7 @@ ui::Result<SDL_GPUTexture*> ImageManager::loadTexture(const std::string& path)
         m_deviceManager != nullptr ? m_deviceManager->getGeneration() : detail::GpuDeviceGenerationHandle{};
     if (!generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
     {
-        UiRuntime::current().logger().error("[ImageManager] loadTexture: device is null, path={}", path);
+        m_logger->error("[ImageManager] loadTexture: device is null, path={}", path);
         return ui::Err(ui::UiErrc::DEVICE_UNAVAILABLE, path);
     }
 
@@ -119,7 +119,7 @@ ui::Result<SDL_GPUTexture*> ImageManager::loadTexture(const std::string& path)
         return ui::Err(pixelsResult.error());
     }
     const PixelBuffer& pixels = **pixelsResult;
-    auto texture = uploadToGpu(generation, pixels.rgba.data(), static_cast<std::uint32_t>(pixels.width),
+    auto texture = uploadToGpu(*m_logger, generation, pixels.rgba.data(), static_cast<std::uint32_t>(pixels.width),
                                static_cast<std::uint32_t>(pixels.height));
 
     if (texture != nullptr && generation.Status() == detail::GpuDeviceGenerationStatus::ACTIVE &&
@@ -127,11 +127,11 @@ ui::Result<SDL_GPUTexture*> ImageManager::loadTexture(const std::string& path)
     {
         auto* rawTexture = texture.get();
         auto [textureIt, inserted] = m_cache.try_emplace(path, std::move(texture));
-        UiRuntime::current().logger().info("[ImageManager] Loaded texture: {}", path);
+        m_logger->info("[ImageManager] Loaded texture: {}", path);
         return inserted ? rawTexture : textureIt->second.get();
     }
 
-    UiRuntime::current().logger().error("[ImageManager] Failed to load texture: {}", path);
+    m_logger->error("[ImageManager] Failed to load texture: {}", path);
     return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
 }
 
@@ -139,7 +139,7 @@ ui::Result<const ImageManager::PixelBuffer*> ImageManager::loadPixels(const std:
 {
     if (path.empty())
     {
-        UiRuntime::current().logger().error("[ImageManager] loadPixels: empty path");
+        m_logger->error("[ImageManager] loadPixels: empty path");
         return ui::Err(ui::UiErrc::INVALID_ARGUMENT, "empty path");
     }
 
@@ -148,7 +148,7 @@ ui::Result<const ImageManager::PixelBuffer*> ImageManager::loadPixels(const std:
         return pixelsIt->second.get();
     }
 
-    auto decoded = decodePixels(path);
+    auto decoded = decodePixels(*m_logger, path);
     if (!decoded)
     {
         return ui::Err(decoded.error());
@@ -159,13 +159,19 @@ ui::Result<const ImageManager::PixelBuffer*> ImageManager::loadPixels(const std:
     return pixelsIt->second.get();
 }
 
+void ImageManager::clearPixels() noexcept
+{
+    m_pixelCache.clear();
+}
+
 void ImageManager::releaseAll()
 {
     m_cache.clear();
+    clearPixels();
     m_cacheGenerationId = 0;
 }
 
-ui::Result<ImageManager::PixelBuffer> ImageManager::decodePixels(const std::string& path)
+ui::Result<ImageManager::PixelBuffer> ImageManager::decodePixels(utils::Logger& logger, const std::string& path)
 {
     if (GetLowercaseExtension(path) == "bmp")
     {
@@ -173,7 +179,7 @@ ui::Result<ImageManager::PixelBuffer> ImageManager::decodePixels(const std::stri
         SurfacePtr surface{SDL_LoadBMP(path.c_str()), &SDL_DestroySurface};
         if (surface == nullptr)
         {
-            UiRuntime::current().logger().error("[ImageManager] SDL_LoadBMP failed: {} — {}", path, SDL_GetError());
+            logger.error("[ImageManager] SDL_LoadBMP failed: {} — {}", path, SDL_GetError());
             return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
         }
 
@@ -181,7 +187,7 @@ ui::Result<ImageManager::PixelBuffer> ImageManager::decodePixels(const std::stri
         SurfacePtr converted{SDL_ConvertSurface(surface.get(), SDL_PIXELFORMAT_RGBA32), &SDL_DestroySurface};
         if (converted == nullptr)
         {
-            UiRuntime::current().logger().error("[ImageManager] SDL_ConvertSurface failed: {}", SDL_GetError());
+            logger.error("[ImageManager] SDL_ConvertSurface failed: {}", SDL_GetError());
             return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
         }
 
@@ -223,7 +229,7 @@ ui::Result<ImageManager::PixelBuffer> ImageManager::decodePixels(const std::stri
         stbi_load(path.c_str(), &width, &height, &channels, 4)};
     if (pixels == nullptr)
     {
-        UiRuntime::current().logger().error("[ImageManager] stbi_load failed: {} — {}", path, stbi_failure_reason());
+        logger.error("[ImageManager] stbi_load failed: {} — {}", path, stbi_failure_reason());
         return ui::Err(ui::UiErrc::ASSET_DECODE_FAILED, path);
     }
 
@@ -237,15 +243,16 @@ ui::Result<ImageManager::PixelBuffer> ImageManager::decodePixels(const std::stri
     result.width = width;
     result.height = height;
     const std::size_t dataSize = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4U;
-    result.rgba.assign(pixels.get(), pixels.get() + dataSize);
+    result.rgba.resize(dataSize);
+    std::ranges::copy(std::span<const std::uint8_t>{pixels.get(), dataSize}, result.rgba.begin());
     return result;
 }
 
-wrappers::UniqueGPUTexture ImageManager::uploadToGpu(const detail::GpuDeviceGenerationHandle& generation,
+wrappers::UniqueGPUTexture ImageManager::uploadToGpu(utils::Logger& logger,
+                                                     const detail::GpuDeviceGenerationHandle& generation,
                                                      const std::uint8_t* pixels, std::uint32_t width,
                                                      std::uint32_t height)
 {
-    auto& logger = UiRuntime::current().logger();
     const auto activeDevice = generation.InvokeIfActive([](SDL_GPUDevice* device) { return device; });
     SDL_GPUDevice* const device = activeDevice.value_or(nullptr);
     if (device == nullptr || pixels == nullptr || width == 0 || height == 0 ||

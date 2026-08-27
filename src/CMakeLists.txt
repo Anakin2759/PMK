@@ -1,9 +1,6 @@
 #  ui 模块 CMake 配置文件
 cmake_minimum_required(VERSION 3.20)
-# 构建选项
-# 共享库和静态库选项（默认构建静态库）
-OPTION(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
-OPTION(BUILD_STATIC_LIBS "Build using static libraries" ON)
+# BUILD_SHARED_LIBS 由顶层工程声明；第三方依赖配置完成后会恢复用户选择。
 # 代码覆盖率选项
 option(ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
 # 调试选项
@@ -148,6 +145,7 @@ endif()
 set(UI_OBJECT_CORE_SOURCES
     core/Application.cpp
     core/EventLoop.cpp
+    core/SdlEventWakeup.cpp
     core/SystemManager.cpp
     core/PlatformWindow.cpp
     services/TextEditingService.cpp
@@ -281,6 +279,7 @@ set(UI_HEADERS
     core/Application.hpp
     core/SystemManager.hpp
     core/EventLoop.hpp
+    core/SdlEventWakeup.hpp
     core/UiRuntime.hpp
     core/WindowEntityLookup.hpp
     core/WindowSync.hpp
@@ -544,7 +543,7 @@ set(UI_POOL_RENDERERS "" CACHE STRING "Compile job pool for ui_renderers_objects
 set(UI_POOL_API "" CACHE STRING "Compile job pool for ui_api_objects (empty = global)")
 set(UI_POOL_RESOURCES "" CACHE STRING "Compile job pool for ui_resources_objects (empty = global)")
 
-function(ui_configure_object_library target_name pool_value use_pch)
+function(ui_configure_object_library target_name pool_value pch_mode)
     target_compile_features(${target_name} PRIVATE cxx_std_23)
     target_include_directories(${target_name} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -552,10 +551,16 @@ function(ui_configure_object_library target_name pool_value use_pch)
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/third_party/stb
     )
-    if(UI_ENABLE_PCH AND use_pch)
-        target_precompile_headers(${target_name} PRIVATE
-            "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp>"
-        )
+    if(UI_ENABLE_PCH)
+        if(pch_mode STREQUAL "CREATE")
+            target_precompile_headers(${target_name} PRIVATE
+                "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp>"
+            )
+        elseif(pch_mode STREQUAL "REUSE")
+            target_precompile_headers(${target_name} REUSE_FROM ui_core_objects)
+        elseif(NOT pch_mode STREQUAL "OFF")
+            message(FATAL_ERROR "Unknown PCH mode for ${target_name}: '${pch_mode}'")
+        endif()
     endif()
 
     if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
@@ -602,8 +607,14 @@ function(ui_configure_object_library target_name pool_value use_pch)
         target_compile_options(${target_name} PRIVATE /Zi /Od)
     endif()
 
-    # 可选模块级 JOB_POOL：空值继承全局 JOB_POOL_COMPILE
+    # 可选模块级 JOB_POOL：空值继承全局 JOB_POOL_COMPILE。
+    # 每个模块池是独立额度；低内存模式禁止启用，以免多个池并发叠加导致 OOM。
     if(NOT "${pool_value}" STREQUAL "")
+        if(UI_LOW_MEMORY_MODE)
+            message(FATAL_ERROR
+                "${target_name} sets an independent compile pool while UI_LOW_MEMORY_MODE=ON. "
+                "Clear UI_POOL_* values so all targets share the global single-job pool.")
+        endif()
         if(NOT "${pool_value}" MATCHES "^[1-9][0-9]*$")
             message(FATAL_ERROR "${target_name} pool must be a positive integer or empty: '${pool_value}'")
         endif()
@@ -614,19 +625,19 @@ function(ui_configure_object_library target_name pool_value use_pch)
 endfunction()
 
 # 各模块 Object 库
-# PCH 策略：重型模板模块（core/systems/render/managers）开启 PCH 摊薄模板解析；
-# api/renderers/resources 为薄转发/巨型数据，不开 PCH，避免重复生成成本。
+# PCH 策略：core 生成唯一 PCH，systems/render/managers 复用该产物，避免四次
+# 重复编译相同 pch.hpp；api/renderers/resources 不使用 PCH。
 add_library(ui_core_objects OBJECT ${UI_OBJECT_CORE_SOURCES})
-ui_configure_object_library(ui_core_objects "${UI_POOL_CORE}" ON)
+ui_configure_object_library(ui_core_objects "${UI_POOL_CORE}" CREATE)
 
 add_library(ui_systems_objects OBJECT ${UI_OBJECT_SYSTEMS_SOURCES})
-ui_configure_object_library(ui_systems_objects "${UI_POOL_SYSTEMS}" ON)
+ui_configure_object_library(ui_systems_objects "${UI_POOL_SYSTEMS}" REUSE)
 
 add_library(ui_render_objects OBJECT ${UI_OBJECT_RENDER_SOURCES})
-ui_configure_object_library(ui_render_objects "${UI_POOL_RENDER}" ON)
+ui_configure_object_library(ui_render_objects "${UI_POOL_RENDER}" REUSE)
 
 add_library(ui_managers_objects OBJECT ${UI_OBJECT_MANAGERS_SOURCES})
-ui_configure_object_library(ui_managers_objects "${UI_POOL_MANAGERS}" ON)
+ui_configure_object_library(ui_managers_objects "${UI_POOL_MANAGERS}" REUSE)
 
 add_library(ui_renderers_objects OBJECT ${UI_OBJECT_RENDERERS_SOURCES})
 ui_configure_object_library(ui_renderers_objects "${UI_POOL_RENDERERS}" OFF)
@@ -638,7 +649,7 @@ add_library(ui_resources_objects OBJECT ${UI_OBJECT_RESOURCES_SOURCES})
 ui_configure_object_library(ui_resources_objects "${UI_POOL_RESOURCES}" OFF)
 
 # ==================== 聚合库 ====================
-# BUILD_SHARED_LIBS=ON 时产出单 DLL（VMPUI.dll，P1 补齐导出宏）；默认静态单库（VMPUI.lib，含合并的第三方对象）。
+# BUILD_SHARED_LIBS=ON 时产出单 DLL；默认产出含第三方对象的静态单库。
 set(_UI_OBJECT_REF_LIST
     $<TARGET_OBJECTS:ui_core_objects>
     $<TARGET_OBJECTS:ui_systems_objects>
@@ -650,8 +661,6 @@ set(_UI_OBJECT_REF_LIST
 )
 if(BUILD_SHARED_LIBS)
     add_library(ui SHARED ${_UI_OBJECT_REF_LIST} ${UI_HEADERS} common/CustomEvent.hpp)
-    message(WARNING "BUILD_SHARED_LIBS=ON 为实验性：公共 API 的 VMP_UI_API 导出宏尚未全覆盖（P1），
-                    生成的 VMPUI.dll 可能缺少导出符号，示例/消费者暂无法链接。")
 else()
     add_library(ui STATIC ${_UI_OBJECT_REF_LIST} ${UI_HEADERS} common/CustomEvent.hpp)
 endif()
@@ -659,6 +668,11 @@ add_library(VMPUI::ui ALIAS ui)
 
 # 发行产物统一命名为 VMPUI（静态: VMPUI.lib / 动态: VMPUI.dll + VMPUI.lib 导入库）
 set_target_properties(ui PROPERTIES OUTPUT_NAME VMPUI)
+if(WIN32 AND BUILD_SHARED_LIBS)
+    # 当前公共 API 仍在逐步补齐显式导出宏。CMake 自动导出 OBJECT 库进入 DLL 的
+    # 外部符号，确保现有消费者可链接；稳定 ABI 后可替换为逐 API 导出控制。
+    set_target_properties(ui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
 # 聚合库只向消费者暴露公共 include（PRIVATE 编译目录已由各 object 库持有）
 target_include_directories(ui

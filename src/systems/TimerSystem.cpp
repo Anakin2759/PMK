@@ -69,8 +69,7 @@ uint32_t TimerSystem::addTask(uint32_t interval, VoidCallback func, bool singleS
 
     timerCtx.tasks.emplace(taskId, std::move(task));
 
-    UiRuntime::current().logger().info("TimerSystem: Added task {} with interval {}ms (singleShot={})", taskId,
-                                       interval, singleShot);
+    m_logger->info("TimerSystem: Added task {} with interval {}ms (singleShot={})", taskId, interval, singleShot);
     return taskId;
 }
 
@@ -81,7 +80,7 @@ void TimerSystem::cancelTask(uint32_t handle)
     if (taskIterator != timerCtx.tasks.end())
     {
         taskIterator->second.cancelled = true;
-        UiRuntime::current().logger().info("TimerSystem: Cancelled task {}", handle);
+        m_logger->info("TimerSystem: Cancelled task {}", handle);
     }
 }
 
@@ -145,7 +144,7 @@ void TimerSystem::update(uint32_t deltaMs)
         {
             caret.elapsedTime -= caret.blinkInterval;
             caret.visible = !caret.visible;
-            ui::utils::MarkRenderDirty(entity);
+            ui::utils::MarkRenderDirty(m_reg->runtime(), ui::detail::ToPublic(entity));
         }
     }
 }

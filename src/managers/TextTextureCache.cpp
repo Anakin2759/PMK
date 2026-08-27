@@ -4,10 +4,11 @@
 namespace ui::managers
 {
 
-TextTextureCache::TextTextureCache(ui::managers::DeviceManager& deviceManager, ui::managers::FontManager& fontManager)
-    : m_deviceManager(deviceManager), m_fontManager(fontManager)
+TextTextureCache::TextTextureCache(ui::managers::DeviceManager& deviceManager, ui::managers::FontManager& fontManager,
+                                   utils::Logger& logger)
+    : m_deviceManager(deviceManager), m_fontManager(fontManager), m_logger(&logger)
 {
-    UiRuntime::current().logger().info("[TextTextureCache] Initialized with max size: {}", MAX_CACHE_SIZE);
+    m_logger->info("[TextTextureCache] Initialized with max size: {}", MAX_CACHE_SIZE);
 }
 
 TextTextureCache::~TextTextureCache()
@@ -21,7 +22,7 @@ void TextTextureCache::clear()
     m_cacheGenerationId = 0;
     m_r8SupportCheckedGenerationId = 0;
     m_r8UnormSampledSupportState = R8UnormSampledSupportState::UNKNOWN;
-    UiRuntime::current().logger().info("[TextTextureCache] Cleared all cached textures");
+    m_logger->info("[TextTextureCache] Cleared all cached textures");
 }
 
 TextTextureCache::CacheStats TextTextureCache::getStats() const
@@ -99,7 +100,7 @@ bool TextTextureCache::isR8UnormSampledTextureSupported(SDL_GPUDevice* device, s
 
         if (!supported)
         {
-            UiRuntime::current().logger().warn(
+            m_logger->warn(
                 "[TextTextureCache] Device does not support sampled R8_UNORM format, skip text texture upload");
         }
     }
@@ -203,7 +204,7 @@ wrappers::UniqueGPUTexture TextTextureCache::createAndUploadTexture(const detail
         wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(generation, SDL_CreateGPUTexture, &textureInfo);
     if (!texture)
     {
-        UiRuntime::current().logger().error("[TextTextureCache] Failed to create texture");
+        m_logger->error("[TextTextureCache] Failed to create texture");
         return nullptr;
     }
 
@@ -237,7 +238,7 @@ bool TextTextureCache::uploadTextureData(const detail::GpuDeviceGenerationHandle
         generation, SDL_CreateGPUTransferBuffer, &transferInfo);
     if (!transferBuffer)
     {
-        UiRuntime::current().logger().error("[TextTextureCache] Failed to create transfer buffer");
+        m_logger->error("[TextTextureCache] Failed to create transfer buffer");
         return false;
     }
 
@@ -248,7 +249,7 @@ bool TextTextureCache::uploadTextureData(const detail::GpuDeviceGenerationHandle
     }
     if (data == nullptr)
     {
-        UiRuntime::current().logger().error("[TextTextureCache] Failed to map transfer buffer");
+        m_logger->error("[TextTextureCache] Failed to map transfer buffer");
         return false;
     }
 
@@ -273,8 +274,7 @@ bool TextTextureCache::uploadTextureData(const detail::GpuDeviceGenerationHandle
     {
         if (!SDL_CancelGPUCommandBuffer(cmd))
         {
-            UiRuntime::current().logger().error("[TextTextureCache] Failed to cancel command buffer: {}",
-                                                SDL_GetError());
+            m_logger->error("[TextTextureCache] Failed to cancel command buffer: {}", SDL_GetError());
         }
         return false;
     }
@@ -296,14 +296,13 @@ bool TextTextureCache::uploadTextureData(const detail::GpuDeviceGenerationHandle
     {
         if (!SDL_CancelGPUCommandBuffer(cmd))
         {
-            UiRuntime::current().logger().error("[TextTextureCache] Failed to cancel command buffer: {}",
-                                                SDL_GetError());
+            m_logger->error("[TextTextureCache] Failed to cancel command buffer: {}", SDL_GetError());
         }
         return false;
     }
     if (!SDL_SubmitGPUCommandBuffer(cmd))
     {
-        UiRuntime::current().logger().error("[TextTextureCache] Failed to submit upload: {}", SDL_GetError());
+        m_logger->error("[TextTextureCache] Failed to submit upload: {}", SDL_GetError());
         return false;
     }
 
@@ -337,8 +336,8 @@ void TextTextureCache::evictLRU()
     }
     */
 
-    UiRuntime::current().logger().debug("[TextTextureCache] Evicted LRU entry: {} (access count: {})",
-                                        lru->first.substr(0, 50), lru->second.accessCount);
+    m_logger->debug("[TextTextureCache] Evicted LRU entry: {} (access count: {})",
+                    lru->first.substr(0, 50), lru->second.accessCount);
 
     m_cache.erase(lru);
     m_evictionCount++;
@@ -385,8 +384,7 @@ void TextTextureCache::evictBatch()
     }
 
     m_evictionCount += evicted;
-    UiRuntime::current().logger().info("[TextTextureCache] Batch evicted {} entries, cache size: {}", evicted,
-                                       m_cache.size());
+    m_logger->info("[TextTextureCache] Batch evicted {} entries, cache size: {}", evicted, m_cache.size());
 }
 
 }  // namespace ui::managers

@@ -18,6 +18,7 @@
 #include <string>
 
 #include "SystemManager.hpp"
+#include "SdlEventWakeup.hpp"
 #include "UiRuntime.hpp"
 #include "UiRuntimeScope.hpp"
 #include "SDL3/SDL_error.h"
@@ -40,7 +41,6 @@ static constexpr uint32_t LOOP_DELAY_MS = 1;        // 主循环延迟，防止1
 
 namespace
 {
-void OnDropDownCloseRequested(const ui::events::DropDownCloseRequested& event);
 void WriteStderr(const char* text) noexcept;
 }  // namespace
 
@@ -57,6 +57,7 @@ class ApplicationImpl
     ~ApplicationImpl() noexcept;
 
     void onQuitRequested(events::QuitRequested& event);
+    void onDropDownCloseRequested(const events::DropDownCloseRequested& event);
     void exec();
     [[nodiscard]] UiRuntime& runtime() noexcept;
     [[nodiscard]] const UiRuntime& runtime() const noexcept;
@@ -66,6 +67,7 @@ class ApplicationImpl
     std::unique_ptr<UiRuntimeScope> m_runtimeScope;  // 保持 legacy API 在应用生命周期内绑定当前 Runtime
     EventLoop m_eventLoop;
     detail::ApplicationLifecycle m_lifecycle;
+    std::unique_ptr<detail::SdlEventWakeup> m_eventWakeup;
 
     // 核心 ECS 系统封装
     std::unique_ptr<SystemManager> m_systems;
@@ -143,15 +145,18 @@ ApplicationImpl::ApplicationImpl(std::span<char*> arg)  // NOLINT
         });
 
     m_runtime->dispatcher().sink<events::QuitRequested>().connect<&ApplicationImpl::onQuitRequested>(*this);
-    m_runtime->dispatcher().sink<events::DropDownCloseRequested>().connect<&OnDropDownCloseRequested>();
+    m_runtime->dispatcher().sink<events::DropDownCloseRequested>().connect<&ApplicationImpl::onDropDownCloseRequested>(*this);
+    m_eventWakeup = std::make_unique<detail::SdlEventWakeup>(m_eventLoop);
 }
 
 ApplicationImpl::~ApplicationImpl() noexcept
 {
+    m_eventWakeup.reset();
     try
     {
         m_runtime->dispatcher().sink<events::QuitRequested>().disconnect<&ApplicationImpl::onQuitRequested>(*this);
-        m_runtime->dispatcher().sink<events::DropDownCloseRequested>().disconnect<&OnDropDownCloseRequested>();
+        m_runtime->dispatcher().sink<events::DropDownCloseRequested>().disconnect<
+            &ApplicationImpl::onDropDownCloseRequested>(*this);
         m_systems->unregisterAllHandlers();
     }
     catch (const std::exception& exception)
@@ -171,6 +176,11 @@ ApplicationImpl::~ApplicationImpl() noexcept
 void ApplicationImpl::onQuitRequested([[maybe_unused]] events::QuitRequested& /*event*/)
 {
     m_eventLoop.quit();
+}
+
+void ApplicationImpl::onDropDownCloseRequested(const events::DropDownCloseRequested& event)
+{
+    factory::CloseDropDownPopup(*m_runtime, event.entity);
 }
 
 void ApplicationImpl::exec()
@@ -217,11 +227,6 @@ const UiRuntime& Application::runtime() const noexcept
 
 namespace
 {
-void OnDropDownCloseRequested(const ui::events::DropDownCloseRequested& event)
-{
-    ui::factory::CloseDropDownPopup(event.entity);
-}
-
 void WriteStderr(const char* text) noexcept
 {
     if (text == nullptr)

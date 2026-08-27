@@ -82,6 +82,11 @@ class ActionSystem : public ui::interface::EnableRegister<ActionSystem>
         disp.sink<ui::events::DragDroppedEvent>().disconnect<&ActionSystem::onDragDroppedDefault>(*this);
     }
 
+    [[nodiscard]] ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::LOGIC;
+    }
+
    private:
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
@@ -115,7 +120,7 @@ class ActionSystem : public ui::interface::EnableRegister<ActionSystem>
         options.mode = policies::Play::ONCE;
         options.autoCleanup = true;
 
-        ui::detail::animation::StartTransformAnimation(entity, targetScale, targetOffset, options, defaultScale,
+        ui::detail::animation::StartTransformAnimation(effectiveReg(), entity, targetScale, targetOffset, options, defaultScale,
                                                        defaultOffset);
     }
 
@@ -133,8 +138,8 @@ class ActionSystem : public ui::interface::EnableRegister<ActionSystem>
         childHierarchy->parent = entt::null;
         reg.emplace_or_replace<components::RootTag>(child);
 
-        ui::utils::MarkLayoutAndVisualChanged(parent);
-        ui::utils::MarkLayoutAndVisualChanged(child);
+        ui::utils::MarkLayoutAndVisualChanged(reg.runtime(), parent);
+        ui::utils::MarkLayoutAndVisualChanged(reg.runtime(), child);
     }
 
     static void addChildInternal(Registry& reg, entt::entity parent, entt::entity child)
@@ -157,7 +162,7 @@ class ActionSystem : public ui::interface::EnableRegister<ActionSystem>
             parentHierarchy.children.push_back(child);
         }
 
-        ui::utils::MarkLayoutAndVisualChanged(child);
+        ui::utils::MarkLayoutAndVisualChanged(reg.runtime(), child);
     }
 
     [[nodiscard]] static bool isDropTargetEnabled(Registry& reg, entt::entity target)

@@ -47,6 +47,11 @@ class FocusNavigationSystem : public ui::interface::EnableRegister<FocusNavigati
     void registerHandlersImpl();
     void unregisterHandlersImpl();
 
+    [[nodiscard]] ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::LOGIC;
+    }
+
    private:
     void onRawKeyInput(const events::RawKeyInput& event);
 

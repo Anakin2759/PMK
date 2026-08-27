@@ -110,7 +110,8 @@ bool RunSingleGpuWindowLifecycle(std::string_view expectedDriver, std::string& e
     {
         UiRuntime runtime;
         UiRuntimeScope const scope(runtime);
-        managers::DeviceManager manager;
+        utils::Logger logger;
+        managers::DeviceManager manager{logger};
 
         const auto initializeResult = manager.initialize();
         if (!initializeResult.has_value())

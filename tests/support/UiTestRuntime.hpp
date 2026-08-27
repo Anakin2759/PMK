@@ -20,7 +20,6 @@ class UiRuntimeTest : public ::testing::Test
 
     void TearDown() override
     {
-        UiRuntime::current().dispatcher().update();
         m_scope.reset();
     }
 

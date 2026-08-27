@@ -63,6 +63,11 @@ class ShortcutSystem final : public ui::interface::EnableRegister<ShortcutSystem
         m_disp->sink<ui::events::RawKeyInput>().disconnect<&ShortcutSystem::onRawKeyInput>(*this);
     }
 
+    [[nodiscard]] ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::LOGIC;
+    }
+
     /**
      * @brief 注册快捷键（通过 SDL keycode，支持修饰键）
      * @param key      SDL 虚拟键码（SDLK_* 系列）

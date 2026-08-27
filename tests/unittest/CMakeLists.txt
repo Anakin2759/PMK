@@ -74,12 +74,14 @@ add_ui_test_executable(ui_unit_tests
     test_GpuInitializationTransaction.cpp
 )
 configure_ui_test_target(ui_unit_tests)
+target_link_libraries(ui_unit_tests PRIVATE freetype harfbuzz)
 
 add_ui_test_executable(ui_ecs_tests
     test_MainWindow.cpp
     test_TweenSystem.cpp
     test_AnimationLifecycle.cpp
     test_TaskChain.cpp
+    test_RenderDirty.cpp
     test_Utils.cpp
     test_Visibility.cpp
     test_Hierarchy.cpp
@@ -119,8 +121,21 @@ add_ui_test_executable(ui_eventloop_stress_tests
 )
 configure_ui_test_target(ui_eventloop_stress_tests)
 
+# P1-7：真实 SDL_PushEvent → event watch → EVENT_DRIVEN → InteractionSystem 集成矩阵。
+# 独立目标隔离 SDL 全局事件队列，并与其他 video 测试串行执行。
+add_ui_test_executable(ui_sdl_event_driven_tests
+    test_SdlEventDrivenIntegration.cpp
+)
+configure_ui_test_target(ui_sdl_event_driven_tests)
+
 # Backward-compatible aggregate target name for existing workflows.
-add_custom_target(ui_tests DEPENDS ui_unit_tests ui_ecs_tests ui_api_tests ui_fallback_lifecycle_tests)
+add_custom_target(ui_tests DEPENDS
+    ui_unit_tests
+    ui_ecs_tests
+    ui_api_tests
+    ui_fallback_lifecycle_tests
+    ui_sdl_event_driven_tests
+)
 
 add_library(ui_public_header_check OBJECT
     ${CMAKE_SOURCE_DIR}/tests/support/PublicUmbrellaHeaderCheck.cpp
@@ -203,4 +218,13 @@ gtest_discover_tests(ui_eventloop_stress_tests
     LABELS "stress;concurrency"
     RUN_SERIAL TRUE
     TIMEOUT 300
+)
+gtest_discover_tests(ui_sdl_event_driven_tests
+    DISCOVERY_TIMEOUT 60
+    PROPERTIES
+    LABELS "event-driven"
+    ENVIRONMENT "SDL_VIDEODRIVER=offscreen"
+    RUN_SERIAL TRUE
+    RESOURCE_LOCK ui_sdl_video
+    TIMEOUT 60
 )

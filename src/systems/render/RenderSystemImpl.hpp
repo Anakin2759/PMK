@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include <SDL3/SDL_gpu.h>
@@ -29,6 +30,8 @@
 #include "systems/RenderSystem.hpp"
 #include "systems/render/DeviceClaimState.hpp"
 #include "systems/render/GpuInitializationTransaction.hpp"
+#include "systems/render/WindowRenderState.hpp"
+#include "utils/Logger.hpp"
 
 namespace ui::systems
 {
@@ -62,7 +65,7 @@ struct RenderSystemImpl
         }
     };
 
-    explicit RenderSystemImpl(bool forceFallback);
+    explicit RenderSystemImpl(bool forceFallback, utils::Logger& logger);
 
     std::unique_ptr<managers::DeviceManager> m_deviceManager;        // 负责 GPU 设备和上下文管理
     std::unique_ptr<managers::FontManager> m_fontManager;            // 负责字体管理
@@ -72,7 +75,7 @@ struct RenderSystemImpl
     std::unique_ptr<managers::TextTextureCache> m_textTextureCache;  // 负责文本纹理缓存管理
     std::unique_ptr<managers::BatchManager> m_batchManager;
     std::unique_ptr<managers::CommandBuffer> m_commandBuffer;
-    std::unique_ptr<interface::IBackendRenderer> m_backendRenderer;
+    std::unordered_map<std::uint32_t, render_detail::WindowRenderState> m_windowStates;
 
     std::vector<std::unique_ptr<core::IRenderer>> m_renderers;
     std::vector<RenderItem> m_renderQueue;
@@ -91,8 +94,6 @@ struct RenderSystemImpl
     render::DeviceClaimState m_deviceClaimState;
     render::GpuInitializationTransaction m_gpuInitialization;
 
-    float m_screenWidth = 0.0F;
-    float m_screenHeight = 0.0F;
 };
 
 }  // namespace ui::systems

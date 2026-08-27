@@ -1042,7 +1042,7 @@ void ThemeSystem::update()
         reg.emplace_or_replace<components::ThemedTag>(entity);
         if (changed)
         {
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(m_reg->runtime(), ui::detail::ToPublic(entity));
         }
     }
 
@@ -1051,7 +1051,7 @@ void ThemeSystem::update()
     {
         if (ApplyInteractiveThemeToEntity(reg, entity, themeContext.palette))
         {
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(m_reg->runtime(), ui::detail::ToPublic(entity));
         }
     }
 

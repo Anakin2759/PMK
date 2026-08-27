@@ -47,22 +47,22 @@ std::atomic<ui::log::Level>& LevelStorage()
 namespace ui::log
 {
 
-void SetLevel(Level level)
+void SetLevel(UiRuntime& /*runtime*/, Level level)
 {
     LevelStorage().store(level, std::memory_order_relaxed);
 }
 
-void SetCallback(Callback callback)
+void SetCallback(UiRuntime& /*runtime*/, Callback callback)
 {
     CallbackStorage().store(callback, std::memory_order_relaxed);
 }
 
-void SetFilePath(std::string_view path)
+void SetFilePath(UiRuntime& runtime, std::string_view path)
 {
-    ui::UiRuntime::current().logger().reconfigure(path);
+    runtime.logger().reconfigure(path);
 }
 
-void LogImpl(Level level, std::string_view message)
+void LogImpl(UiRuntime& runtime, Level level, std::string_view message)
 {
     if (level < LevelStorage().load(std::memory_order_relaxed))
         return;
@@ -71,19 +71,19 @@ void LogImpl(Level level, std::string_view message)
     switch (level)
     {
         case Level::DEBUG:
-            ui::UiRuntime::current().logger().debug("{}", message);
+            runtime.logger().debug("{}", message);
             break;
         case Level::INFO:
-            ui::UiRuntime::current().logger().info("{}", message);
+            runtime.logger().info("{}", message);
             break;
         case Level::WARNING:
-            ui::UiRuntime::current().logger().warn("{}", message);
+            runtime.logger().warn("{}", message);
             break;
         case Level::ERROR:
-            ui::UiRuntime::current().logger().error("{}", message);
+            runtime.logger().error("{}", message);
             break;
         case Level::CRITICAL:
-            ui::UiRuntime::current().logger().error("[CRITICAL] {}", message);
+            runtime.logger().error("[CRITICAL] {}", message);
             break;
         default:
             break;

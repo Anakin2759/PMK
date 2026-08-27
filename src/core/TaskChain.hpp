@@ -19,6 +19,7 @@
 #pragma once
 
 #include <entt/entt.hpp>
+#include "common/BufferedEvents.hpp"
 #include "common/Events.hpp"
 #include "common/GlobalContext.hpp"
 #include "core/UiRuntime.hpp"
@@ -39,24 +40,8 @@ namespace detail
  */
 inline void DispatchInternalQueued(Dispatcher& dispatcher)
 {
-    // 平台事件不派生新的缓冲输入事件。
-    dispatcher.update<events::QuitRequested>();
-    dispatcher.update<events::CloseWindow>();
-    dispatcher.update<events::WindowPixelSizeChanged>();
-    dispatcher.update<events::WindowMoved>();
-    dispatcher.update<events::WindowExposed>();
-
-    // 原始指针事件由 HitTestSystem 转换为 HitPointer* 事件。
-    dispatcher.update<events::RawPointerMove>();
-    dispatcher.update<events::RawPointerButton>();
-    dispatcher.update<events::RawPointerWheel>();
-
-    // 命中事件可继续产生悬停状态事件，因此必须先于 Hover/Unhover 派发。
-    dispatcher.update<events::HitPointerMove>();
-    dispatcher.update<events::HitPointerButton>();
-    dispatcher.update<events::HitPointerWheel>();
-    dispatcher.update<events::UnhoverEvent>();
-    dispatcher.update<events::HoverEvent>();
+    events::ForEachInternalBufferedEvent(
+        [&dispatcher]<typename Event>() { dispatcher.update<Event>(); });
 }
 }  // namespace detail
 
@@ -176,7 +161,7 @@ class FrameTick
         disp.trigger<ui::events::UpdateEvent>();
 
         frameContext.stage = globalcontext::FrameStage::DISPATCH_PUBLIC_QUEUED;
-        ui::detail::event_bridge::DispatchQueued();
+        ui::detail::event_bridge::DispatchQueued(*m_runtime);
 
         frameContext.stage = globalcontext::FrameStage::LAYOUT;
         disp.trigger<ui::events::UpdateLayout>();

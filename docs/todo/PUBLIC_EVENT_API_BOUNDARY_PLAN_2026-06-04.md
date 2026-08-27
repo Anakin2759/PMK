@@ -1,5 +1,10 @@
 # 公开事件 API 与内部 ECS 事件隔离改造规划
 
+> 状态：DONE（基础公开事件 API 边界）  
+> 最后复核：2026-08-27  
+> 责任范围：公开事件 API、EventBridge、Runtime 生命周期  
+> 说明：基础边界、Runtime 归属和连接生命周期已完成；未来若开放跨线程注册/派发，另建同步协议规划。
+
 > 日期：2026-06-04  
 > 背景：`src/common/Events.hpp` 属于内部 ECS 事件定义，不作为对外 API 暴露；对外实体句柄 `ui::entity` 固定为 `uint32_t`。需要在 `src/api/` 新增公开事件 API 文件，支持自定义事件注册、事件回调注册、触发事件，并严格隔离公开 API 与内部 EnTT / Dispatcher 实现。
 

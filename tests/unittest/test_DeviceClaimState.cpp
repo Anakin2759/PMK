@@ -160,7 +160,8 @@ TEST_F(DeviceManagerGpuTest, WhiteTextureBelongsToDeviceGenerationAndContainsWhi
 {
     UiRuntime runtime;
     UiRuntimeScope const scope(runtime);
-    managers::DeviceManager manager;
+    utils::Logger logger;
+    managers::DeviceManager manager{logger};
 
     const auto initializeResult = manager.initialize();
     if (!initializeResult.has_value())
@@ -205,7 +206,8 @@ TEST_P(DeviceManagerWhiteTextureFailureTest, FailureDoesNotPublishCandidateState
 {
     UiRuntime runtime;
     UiRuntimeScope const scope(runtime);
-    managers::DeviceManager manager;
+    utils::Logger logger;
+    managers::DeviceManager manager{logger};
     detail::ScopedGpuFault fault(GetParam(), 1, true);
 
     const auto initializeResult = manager.initialize();
@@ -238,7 +240,8 @@ TEST_F(DeviceManagerGpuTest, DeviceCreateFailureDoesNotPublishCandidateState)
 {
     UiRuntime runtime;
     UiRuntimeScope const scope(runtime);
-    managers::DeviceManager manager;
+    utils::Logger logger;
+    managers::DeviceManager manager{logger};
     detail::ScopedGpuFault fault(detail::GpuFaultPoint::DEVICE_CREATE, 1, true);
 
     const auto initializeResult = manager.initialize();
@@ -254,7 +257,8 @@ TEST_F(DeviceManagerGpuTest, DeliberatelyInvalidatedGenerationSkipsLateOwner)
 {
     UiRuntime runtime;
     UiRuntimeScope const scope(runtime);
-    managers::DeviceManager manager;
+    utils::Logger logger;
+    managers::DeviceManager manager{logger};
 
     const auto initializeResult = manager.initialize();
     if (!initializeResult.has_value())

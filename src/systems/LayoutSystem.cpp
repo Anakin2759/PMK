@@ -668,7 +668,7 @@ void UpdateTableCellEntityLayouts(Registry& reg, entt::entity tableEntity, YGNod
                 }
                 if (geometryChanged)
                 {
-                    ui::utils::MarkVisualChanged(cell.cellEntity);
+                    ui::utils::MarkVisualChanged(reg.runtime(), ui::detail::ToPublic(cell.cellEntity));
                 }
             }
             cellX += colWidth;
@@ -722,7 +722,7 @@ void UpdateEntityLayoutFromYoga(Registry& reg, entt::entity entity, YGNodeRef no
 
     if (isDirty)
     {
-        utils::MarkRenderDirty(entity);
+        utils::MarkRenderDirty(reg.runtime(), detail::ToPublic(entity));
     }
 }
 
@@ -788,7 +788,7 @@ void UpdateScrollAreaContentSize(Registry& reg, entt::entity entity, YGNodeRef n
     {
         scrollArea->contentSize.x() = newContentWidth;
         scrollArea->contentSize.y() = newContentHeight;
-        utils::MarkRenderDirty(entity);
+        utils::MarkRenderDirty(reg.runtime(), detail::ToPublic(entity));
     }
 }
 

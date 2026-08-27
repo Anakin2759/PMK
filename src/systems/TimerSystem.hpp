@@ -48,7 +48,8 @@ class TimerSystem : public interface::EnableRegister<TimerSystem>
 {
    public:
     TimerSystem() = default;
-    explicit TimerSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    explicit TimerSystem(UiRuntime& runtime)
+        : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()), m_logger(&runtime.logger())
     {
     }
 
@@ -92,5 +93,6 @@ class TimerSystem : public interface::EnableRegister<TimerSystem>
     void onUpdateTimer(const events::UpdateTimer& event);
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
+    utils::Logger* m_logger = nullptr;
 };
 }  // namespace ui::systems

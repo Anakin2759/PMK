@@ -8,16 +8,21 @@
 #include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::visibility
 {
-void SetVisible(ui::entity entity, bool visible);
-void Show(ui::entity entity);
-void Hide(ui::entity entity);
-void SetAlpha(ui::entity entity, float alpha);
-void SetBackgroundColor(ui::entity entity, const Color& color);
-void SetBorderRadius(ui::entity entity, float radius);
-void SetBorderColor(ui::entity entity, const Color& color);
-void SetBorderThickness(ui::entity entity, float thickness);
+void SetVisible(UiRuntime& runtime, ui::entity entity, bool visible);
+void Show(UiRuntime& runtime, ui::entity entity);
+void Hide(UiRuntime& runtime, ui::entity entity);
+void SetAlpha(UiRuntime& runtime, ui::entity entity, float alpha);
+void SetBackgroundColor(UiRuntime& runtime, ui::entity entity, const Color& color);
+void SetBorderRadius(UiRuntime& runtime, ui::entity entity, float radius);
+void SetBorderColor(UiRuntime& runtime, ui::entity entity, const Color& color);
+void SetBorderThickness(UiRuntime& runtime, ui::entity entity, float thickness);
 }  // namespace ui::visibility
 
 namespace ui::actions::visibility

@@ -98,6 +98,53 @@ TEST(CoreEventLoopSchedulingTest, EventDrivenWakesOnInvoke)
     EXPECT_GT(afterInvokeFrames, idleFrames) << "invoke 应唤醒事件驱动调度器并产生新帧";
 }
 
+TEST(CoreEventLoopSchedulingTest, EventDrivenWakesOnExternalEvent)
+{
+    ui::EventLoop loop;
+    FrameCounter counter;
+    loop.registerDefaultHandler([&counter] { counter.Record(); });
+    loop.setFrameScheduleMode(ui::FrameScheduleMode::EVENT_DRIVEN);
+
+    std::thread loopThread([&loop] { loop.exec(); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    const auto beforeWake = counter.Count();
+
+    loop.notifyExternalEvent();
+    const auto deadline = Clock::now() + std::chrono::milliseconds(200);
+    while (counter.Count() <= beforeWake && Clock::now() < deadline)
+    {
+        std::this_thread::yield();
+    }
+
+    EXPECT_GT(counter.Count(), beforeWake);
+    loop.quit();
+    loopThread.join();
+}
+
+TEST(CoreEventLoopSchedulingTest, SwitchingFromEventDrivenToFixedRateWakesImmediately)
+{
+    ui::EventLoop loop;
+    FrameCounter counter;
+    loop.registerDefaultHandler([&counter] { counter.Record(); });
+    loop.setTargetFrameRate(1);
+    loop.setFrameScheduleMode(ui::FrameScheduleMode::EVENT_DRIVEN);
+
+    std::thread loopThread([&loop] { loop.exec(); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    const auto beforeSwitch = counter.Count();
+
+    loop.setFrameScheduleMode(ui::FrameScheduleMode::FIXED_RATE);
+    const auto deadline = Clock::now() + std::chrono::milliseconds(200);
+    while (counter.Count() <= beforeSwitch && Clock::now() < deadline)
+    {
+        std::this_thread::yield();
+    }
+
+    EXPECT_GT(counter.Count(), beforeSwitch) << "模式切换不应等待 1 秒固定帧间隔";
+    loop.quit();
+    loopThread.join();
+}
+
 /**
  * @brief 锁帧接口：运行中切换帧率应改变帧间隔。
  */
@@ -115,9 +162,9 @@ TEST(CoreEventLoopSchedulingTest, TargetFrameRateCanBeChanged)
     loop.setTargetFrameRate(120);
     EXPECT_EQ(loop.targetFrameRate(), 120U);
 
-    // 0 = 不锁帧
+    // 0 恢复默认固定帧率，不表示不锁帧
     loop.setTargetFrameRate(0);
-    EXPECT_EQ(loop.targetFrameRate(), 0U);
+    EXPECT_EQ(loop.targetFrameRate(), 60U);
 
     // 模式切换往返
     loop.setFrameScheduleMode(ui::FrameScheduleMode::EVENT_DRIVEN);
@@ -130,6 +177,25 @@ TEST(CoreEventLoopSchedulingTest, TargetFrameRateCanBeChanged)
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
     loop.quit();
     loopThread.join();
+}
+
+TEST(CoreEventLoopSchedulingTest, ZeroFrameRateUsesDefaultThrottleWithoutBusyLoop)
+{
+    ui::EventLoop loop;
+    FrameCounter counter;
+
+    loop.registerDefaultHandler([&counter] { counter.Record(); });
+    loop.setTargetFrameRate(0);
+    ASSERT_EQ(loop.targetFrameRate(), 60U);
+
+    std::thread loopThread([&loop] { loop.exec(); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    loop.quit();
+    loopThread.join();
+
+    const auto frames = counter.Count();
+    EXPECT_GE(frames, 2U) << "默认固定帧率应继续产生帧";
+    EXPECT_LE(frames, 20U) << "fps=0 不得退化为无等待忙循环";
 }
 
 }  // namespace

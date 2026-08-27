@@ -24,6 +24,7 @@
 #include <string>
 #include <string_view>
 #include "ui/Result.hpp"
+#include "utils/Logger.hpp"
 
 namespace ui::managers
 {
@@ -54,8 +55,8 @@ struct BinaryResource
 class IResourceProvider
 {
    public:
+    explicit IResourceProvider(utils::Logger& logger) : m_logger(&logger) {}
     virtual ~IResourceProvider() = default;
-    IResourceProvider() = default;
     IResourceProvider(const IResourceProvider&) = delete;
     IResourceProvider& operator=(const IResourceProvider&) = delete;
     IResourceProvider(IResourceProvider&&) = delete;
@@ -63,8 +64,11 @@ class IResourceProvider
 
     [[nodiscard]] virtual bool exists(std::string_view path) const = 0;
     [[nodiscard]] virtual ui::Result<BinaryResource> loadBinary(std::string_view path) const = 0;
+
+   protected:
+    utils::Logger* m_logger;
 };
 
-[[nodiscard]] std::shared_ptr<const IResourceProvider> GetDefaultUiResourceProvider();
+[[nodiscard]] std::shared_ptr<const IResourceProvider> GetDefaultUiResourceProvider(utils::Logger& logger);
 
 }  // namespace ui::managers

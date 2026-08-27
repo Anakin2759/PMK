@@ -23,7 +23,11 @@ namespace ui::interface
 /**
  * @brief 后端渲染器接口，定义了渲染器的基本功能和行为规范。
  */
+enum class BackendType : std::uint8_t;
 enum class BackendCapability : std::uint8_t;
+enum class BackendCapabilityStatus : std::uint8_t;
+[[nodiscard]] constexpr BackendCapabilityStatus GetBackendCapabilityStatus(BackendType backend,
+                                                                            BackendCapability capability) noexcept;
 }  // namespace ui::interface
 
 namespace ui::cpo
@@ -63,21 +67,27 @@ struct LoadBinaryResource
     }
 };
 
+struct BackendCapabilityLevel
+{
+    template <typename Backend>
+    [[nodiscard]] interface::BackendCapabilityStatus operator()(
+        const Backend& backend, interface::BackendCapability capability) const
+    {
+        if constexpr (TagInvocable<BackendCapabilityLevel, const Backend&, interface::BackendCapability>)
+        {
+            return tag_invoke(*this, backend, capability);
+        }
+
+        return backend.capabilityStatus(capability);
+    }
+};
+
 struct BackendSupports
 {
     template <typename Backend>
     [[nodiscard]] bool operator()(const Backend& backend, interface::BackendCapability capability) const
     {
-        if constexpr (TagInvocable<BackendSupports, const Backend&, interface::BackendCapability>)
-        {
-            return tag_invoke(*this, backend, capability);
-        }
-        else if constexpr (requires { backend.supports(capability); })
-        {
-            return backend.supports(capability);
-        }
-
-        return false;
+        return static_cast<std::uint8_t>(BackendCapabilityLevel{}(backend, capability)) != 0U;
     }
 };
 /**
@@ -121,6 +131,7 @@ struct LoadIconFontFromMemory
 
 inline constexpr ResourceExists resource_exists{};
 inline constexpr LoadBinaryResource load_binary_resource{};
+inline constexpr BackendCapabilityLevel backend_capability_level{};
 inline constexpr BackendSupports backend_supports{};
 inline constexpr MeasureTextWidth measure_text_width{};
 inline constexpr LoadIconFontFromMemory load_icon_font_from_memory{};

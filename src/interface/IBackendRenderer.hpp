@@ -34,8 +34,57 @@ enum class BackendType : std::uint8_t
 
 enum class BackendCapability : std::uint8_t
 {
-    CACHED_BITMAP
+    SOLID_RECT,
+    TRANSFORMED_SOLID_QUAD,
+    ROUNDED_RECT,
+    BORDER,
+    SHADOW,
+    CACHED_BITMAP,
+    BITMAP_COLOR_MODULATION,
+    BITMAP_UV_CROP,
+    FILLED_CIRCLE,
+    CIRCLE_OUTLINE,
+    CAPSULE
 };
+
+enum class BackendCapabilityStatus : std::uint8_t
+{
+    UNSUPPORTED,
+    DEGRADED,
+    SUPPORTED
+};
+
+/**
+ * @brief 查询后端能力等级；这是 GPU/fallback 能力矩阵的唯一事实源。
+ * @note DEGRADED 表示功能可用但不承诺与 GPU 像素等价，例如分段几何近似。
+ */
+[[nodiscard]] constexpr BackendCapabilityStatus GetBackendCapabilityStatus(BackendType backend,
+                                                                            BackendCapability capability) noexcept
+{
+    if (backend == BackendType::GPU)
+    {
+        return BackendCapabilityStatus::SUPPORTED;
+    }
+
+    switch (capability)
+    {
+        case BackendCapability::SOLID_RECT:
+        case BackendCapability::CACHED_BITMAP:
+            return BackendCapabilityStatus::SUPPORTED;
+        case BackendCapability::TRANSFORMED_SOLID_QUAD:
+        case BackendCapability::ROUNDED_RECT:
+        case BackendCapability::FILLED_CIRCLE:
+        case BackendCapability::CIRCLE_OUTLINE:
+            return BackendCapabilityStatus::DEGRADED;
+        case BackendCapability::BORDER:
+        case BackendCapability::SHADOW:
+        case BackendCapability::BITMAP_COLOR_MODULATION:
+        case BackendCapability::BITMAP_UV_CROP:
+        case BackendCapability::CAPSULE:
+            return BackendCapabilityStatus::UNSUPPORTED;
+    }
+    return BackendCapabilityStatus::UNSUPPORTED;
+}
 
 class IBackendRenderer
 {
@@ -69,7 +118,7 @@ class IBackendRenderer
      * @param batch 包含要绘制的渲染命令和相关数据的渲染批次对象
      * @param whiteTextureTag 用于绘制纯色图形的白色纹理标签
      */
-    virtual void drawBatch(const render::RenderBatch& batch, SDL_GPUTexture* whiteTextureTag) = 0;
+    virtual ui::Result<void> drawBatch(const render::RenderBatch& batch, SDL_GPUTexture* whiteTextureTag) = 0;
 
     virtual ui::Result<void> drawCachedBitmap(std::string_view cacheKey, std::span<const std::uint8_t> rgbaPixels,
                                               int bitmapWidth, int bitmapHeight, const SDL_FRect& destinationRect,
@@ -89,7 +138,7 @@ class IBackendRenderer
      * @brief 结束渲染一帧
      */
 
-    virtual void endFrame() = 0;
+    virtual ui::Result<void> endFrame() = 0;
 
     /**
      * @brief 获取渲染器类型
@@ -97,10 +146,14 @@ class IBackendRenderer
      */
     [[nodiscard]] virtual BackendType getType() const = 0;
 
+    [[nodiscard]] virtual BackendCapabilityStatus capabilityStatus(BackendCapability capability) const
+    {
+        return GetBackendCapabilityStatus(getType(), capability);
+    }
+
     [[nodiscard]] virtual bool supports(BackendCapability capability) const
     {
-        static_cast<void>(capability);
-        return false;
+        return capabilityStatus(capability) != BackendCapabilityStatus::UNSUPPORTED;
     }
 };
 

@@ -20,17 +20,9 @@
 #include "common/components/Data.hpp"
 namespace ui::utils
 {
-namespace
+void MarkLayoutChanged(UiRuntime& runtime, ui::entity entity)
 {
-[[nodiscard]] Registry& CurrentRegistry()
-{
-    return UiRuntime::current().registry();
-}
-}  // namespace
-
-void MarkLayoutChanged(ui::entity entity)
-{
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     if (!reg.valid(entity))
     {
         return;
@@ -45,9 +37,9 @@ void MarkLayoutChanged(ui::entity entity)
     }
 }
 
-void MarkVisualChanged(ui::entity entity)
+void MarkVisualChanged(UiRuntime& runtime, ui::entity entity)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     if (!reg.valid(entity))
         return;
 
@@ -73,23 +65,23 @@ void MarkVisualChanged(ui::entity entity)
     }
 }
 
-void MarkLayoutAndVisualChanged(ui::entity entity)
+void MarkLayoutAndVisualChanged(UiRuntime& runtime, ui::entity entity)
 {
-    if (!CurrentRegistry().valid(entity))
+    if (!runtime.registry().valid(entity))
         return;
 
-    MarkLayoutChanged(entity);
-    MarkVisualChanged(entity);
+    MarkLayoutChanged(runtime, entity);
+    MarkVisualChanged(runtime, entity);
 }
 
-void MarkLayoutDirty(ui::entity entity)
+void MarkLayoutDirty(UiRuntime& runtime, ui::entity entity)
 {
-    MarkLayoutChanged(entity);
+    MarkLayoutChanged(runtime, entity);
 }
 
-void MarkRenderDirty(ui::entity entity)
+void MarkRenderDirty(UiRuntime& runtime, ui::entity entity)
 {
-    MarkVisualChanged(entity);
+    MarkVisualChanged(runtime, entity);
 }
 
 bool HasAlignment(policies::Alignment value, policies::Alignment flag)
@@ -97,9 +89,9 @@ bool HasAlignment(policies::Alignment value, policies::Alignment flag)
     return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0;
 }
 
-void SetWindowFlag(ui::entity entity, policies::WindowFlag flag)
+void SetWindowFlag(UiRuntime& runtime, ui::entity entity, policies::WindowFlag flag)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     if (!reg.valid(entity))
         return;
     auto& windowComp = reg.get_or_emplace<components::Window>(entity);
@@ -107,22 +99,22 @@ void SetWindowFlag(ui::entity entity, policies::WindowFlag flag)
     windowComp.flags |= flag;
 }
 
-void CloseWindow(ui::entity entity)
+void CloseWindow(UiRuntime& runtime, ui::entity entity)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     if (!reg.valid(entity))
         return;
-    UiRuntime::current().dispatcher().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
+    runtime.dispatcher().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
 }
 
-void QuitUiEventLoop()
+void QuitUiEventLoop(UiRuntime& runtime)
 {
-    UiRuntime::current().dispatcher().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
+    runtime.dispatcher().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
 };
 
-Vec2 GetAbsolutePosition(ui::entity entity)
+Vec2 GetAbsolutePosition(UiRuntime& runtime, ui::entity entity)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     std::vector<entt::entity> path;
     entt::entity current = detail::ToInternal(entity);
     while (current != entt::null && reg.valid(current))
@@ -162,9 +154,9 @@ Vec2 GetAbsolutePosition(ui::entity entity)
     return position;
 }
 
-Rect GetEntityRect(ui::entity entity)
+Rect GetEntityRect(UiRuntime& runtime, ui::entity entity)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     if (!reg.valid(entity))
     {
         return {};
@@ -173,16 +165,16 @@ Rect GetEntityRect(ui::entity entity)
     const auto* sizeComp = reg.try_get<components::Size>(entity);
     if (sizeComp == nullptr)
     {
-        return {GetAbsolutePosition(entity), Vec2(0.0F, 0.0F)};
+        return {GetAbsolutePosition(runtime, entity), Vec2(0.0F, 0.0F)};
     }
 
-    return {GetAbsolutePosition(entity), sizeComp->size};
+    return {GetAbsolutePosition(runtime, entity), sizeComp->size};
 }
 
-Rect GetScrollViewportRect(ui::entity entity)
+Rect GetScrollViewportRect(UiRuntime& runtime, ui::entity entity)
 {
-    const Rect entityRect = GetEntityRect(entity);
-    const auto* padding = CurrentRegistry().try_get<components::Padding>(entity);
+    const Rect entityRect = GetEntityRect(runtime, entity);
+    const auto* padding = runtime.registry().try_get<components::Padding>(entity);
     if (padding == nullptr)
     {
         return entityRect;
@@ -197,15 +189,15 @@ Rect GetScrollViewportRect(ui::entity entity)
             std::max(0.0F, entityRect.height() - top - bottom)};
 }
 
-float GetScrollViewportLength(ui::entity entity, bool isVertical)
+float GetScrollViewportLength(UiRuntime& runtime, ui::entity entity, bool isVertical)
 {
-    const Rect viewportRect = GetScrollViewportRect(entity);
+    const Rect viewportRect = GetScrollViewportRect(runtime, entity);
     return isVertical ? viewportRect.height() : viewportRect.width();
 }
 
-float GetScrollContentLength(ui::entity entity, bool isVertical)
+float GetScrollContentLength(UiRuntime& runtime, ui::entity entity, bool isVertical)
 {
-    const auto* scrollArea = CurrentRegistry().try_get<components::ScrollArea>(entity);
+    const auto* scrollArea = runtime.registry().try_get<components::ScrollArea>(entity);
     if (scrollArea == nullptr)
     {
         return 0.0F;
@@ -214,17 +206,17 @@ float GetScrollContentLength(ui::entity entity, bool isVertical)
     return isVertical ? scrollArea->contentSize.y() : scrollArea->contentSize.x();
 }
 
-float GetScrollMaxOffset(ui::entity entity, bool isVertical)
+float GetScrollMaxOffset(UiRuntime& runtime, ui::entity entity, bool isVertical)
 {
-    const float contentLength = GetScrollContentLength(entity, isVertical);
-    const float viewportLength = GetScrollViewportLength(entity, isVertical);
+    const float contentLength = GetScrollContentLength(runtime, entity, isVertical);
+    const float viewportLength = GetScrollViewportLength(runtime, entity, isVertical);
     return std::max(0.0F, contentLength - viewportLength);
 }
 
-VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
+VerticalScrollbarGeometry GetVerticalScrollbarGeometry(UiRuntime& runtime, ui::entity entity)
 {
     VerticalScrollbarGeometry geometry;
-    const auto* scrollArea = CurrentRegistry().try_get<components::ScrollArea>(entity);
+    const auto* scrollArea = runtime.registry().try_get<components::ScrollArea>(entity);
     if (scrollArea == nullptr)
     {
         return geometry;
@@ -237,8 +229,8 @@ VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
         return geometry;
     }
 
-    const Rect containerRect = GetEntityRect(entity);
-    const Rect viewportRect = GetScrollViewportRect(entity);
+    const Rect containerRect = GetEntityRect(runtime, entity);
+    const Rect viewportRect = GetScrollViewportRect(runtime, entity);
     geometry.containerRect = {containerRect.x(), containerRect.y(), containerRect.width(), containerRect.height()};
     geometry.viewportRect = {viewportRect.x(), viewportRect.y(), viewportRect.width(), viewportRect.height()};
     geometry.viewportHeight = geometry.viewportRect.height;
@@ -307,9 +299,9 @@ void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle)
  * @return true 实体存在
  * @return false 实体不存在
  */
-bool IsEntityExist(const std::string& alias)
+bool IsEntityExist(UiRuntime& runtime, const std::string& alias)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     auto view = reg.view<components::BaseInfo>();
 
     return std::ranges::any_of(view, [&view, &alias](entt::entity entity) -> bool

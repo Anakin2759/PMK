@@ -10,15 +10,46 @@ include(CMakePackageConfigHelpers)
 option(ENABLE_BUILD_TESTS "Enable building of unit tests" OFF)
 option(ENABLE_BUILD_BENCHMARKS "Enable building of benchmarks (Google Benchmark)" OFF)
 option(BUILD_EXAMPLES "Enable building examples" ON)
+option(BUILD_SHARED_LIBS "Build VMPUI as a shared library" OFF)
+# 第三方依赖必须保持静态，以便静态模式合并为单库、动态模式链接进单 DLL。
+# 保存用户对 VMPUI 本身的选择；配置第三方期间会临时覆盖 BUILD_SHARED_LIBS。
+set(_VMPUI_BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS}")
+if(_VMPUI_BUILD_SHARED_LIBS)
+    # 非 Windows 平台将静态第三方对象链接进 VMPUI 共享库时需要 PIC。
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 # IPO/LTO 默认关闭：自包含发行模式下合并后的静态库含第三方对象，开启 LTO 会要求
 # 消费者链接时使用相同 LTO 配置（LTCG / ThinLTO），破坏"即插即用"。需要时显式启用：
 #   cmake -B build -DENABLE_LTO=ON
 option(ENABLE_LTO "Enable IPO/LTO for Release and RelWithDebInfo builds" OFF)
 option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis" OFF)
 
+# 可选编译缓存：AUTO 优先使用 sccache，其次 ccache；未安装时保持常规增量构建。
+# ON 要求缓存程序存在，OFF 完全禁用。launcher 必须在创建第三方和项目目标前设置。
+set(UI_COMPILER_CACHE "AUTO" CACHE STRING "Compiler cache mode: AUTO, ON, or OFF")
+set_property(CACHE UI_COMPILER_CACHE PROPERTY STRINGS AUTO ON OFF)
+if(NOT UI_COMPILER_CACHE MATCHES "^(AUTO|ON|OFF)$")
+    message(FATAL_ERROR "UI_COMPILER_CACHE must be AUTO, ON, or OFF")
+endif()
+if(NOT UI_COMPILER_CACHE STREQUAL "OFF")
+    find_program(UI_COMPILER_CACHE_PROGRAM NAMES sccache ccache)
+    if(UI_COMPILER_CACHE_PROGRAM)
+        set(CMAKE_C_COMPILER_LAUNCHER "${UI_COMPILER_CACHE_PROGRAM}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${UI_COMPILER_CACHE_PROGRAM}")
+        message(STATUS "Compiler cache enabled: ${UI_COMPILER_CACHE_PROGRAM}")
+    elseif(UI_COMPILER_CACHE STREQUAL "ON")
+        message(FATAL_ERROR
+            "UI_COMPILER_CACHE=ON but neither sccache nor ccache was found")
+    else()
+        message(STATUS "Compiler cache not found; using Ninja dependency-based incremental builds")
+    endif()
+endif()
+
 # clang-cl 编译 EnTT/Eigen 等模板密集型翻译单元时单进程内存占用较高。
 # Ninja 默认按 CPU 核心数并行，完整构建可能同时启动大量编译进程并耗尽内存。
 # 使用全局任务池约束所有后续目标（包括第三方库、示例和测试）的并发度。
+option(UI_LOW_MEMORY_MODE
+    "Serialize compile/link jobs to minimize peak memory usage" ON)
 set(UI_COMPILE_JOB_LIMIT 2 CACHE STRING
     "Maximum concurrent compiler processes for memory-intensive Ninja builds")
 set(UI_LINK_JOB_LIMIT 1 CACHE STRING
@@ -32,13 +63,22 @@ if(CMAKE_GENERATOR MATCHES "Ninja")
         message(FATAL_ERROR "UI_LINK_JOB_LIMIT must be a positive integer")
     endif()
 
+    if(UI_LOW_MEMORY_MODE)
+        set(_UI_EFFECTIVE_COMPILE_JOB_LIMIT 1)
+        set(_UI_EFFECTIVE_LINK_JOB_LIMIT 1)
+    else()
+        set(_UI_EFFECTIVE_COMPILE_JOB_LIMIT ${UI_COMPILE_JOB_LIMIT})
+        set(_UI_EFFECTIVE_LINK_JOB_LIMIT ${UI_LINK_JOB_LIMIT})
+    endif()
+
     set_property(GLOBAL PROPERTY JOB_POOLS
-        ui_compile_pool=${UI_COMPILE_JOB_LIMIT}
-        ui_link_pool=${UI_LINK_JOB_LIMIT})
+        ui_compile_pool=${_UI_EFFECTIVE_COMPILE_JOB_LIMIT}
+        ui_link_pool=${_UI_EFFECTIVE_LINK_JOB_LIMIT})
     set(CMAKE_JOB_POOL_COMPILE ui_compile_pool)
     set(CMAKE_JOB_POOL_LINK ui_link_pool)
     message(STATUS
-        "Ninja job pools: compile=${UI_COMPILE_JOB_LIMIT}, link=${UI_LINK_JOB_LIMIT}")
+        "Ninja job pools: compile=${_UI_EFFECTIVE_COMPILE_JOB_LIMIT}, "
+        "link=${_UI_EFFECTIVE_LINK_JOB_LIMIT}, low-memory=${UI_LOW_MEMORY_MODE}")
 endif()
 
 #==================== IPO / LTO 设置 ====================
@@ -121,6 +161,8 @@ endif()
 
 
 # ==================== 第三方库 ====================
+# BUILD_SHARED_LIBS 是 CMake 的全局约定变量，但这里主库与第三方的策略不同：
+# VMPUI 的类型由用户选择，第三方始终静态并封装进最终 VMPUI 产物。
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(SDL_INSTALL ON CACHE BOOL "" FORCE)
 set(SDL_INSTALL_CPACK OFF CACHE BOOL "" FORCE)
@@ -160,6 +202,16 @@ if(ENABLE_BUILD_BENCHMARKS)
     set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
     add_subdirectory(third_party/benchmark)
+endif()
+
+# 第三方配置完成后恢复用户对 VMPUI 的选择，保证 src/CMakeLists.txt 的
+# STATIC/SHARED 分支真实可达，并让 cache/configure 输出与用户请求一致。
+set(BUILD_SHARED_LIBS "${_VMPUI_BUILD_SHARED_LIBS}" CACHE BOOL
+    "Build VMPUI as a shared library" FORCE)
+if(BUILD_SHARED_LIBS)
+    message(STATUS "[VMPUI] Library type: SHARED")
+else()
+    message(STATUS "[VMPUI] Library type: STATIC")
 endif()
 
 # ===================== SDK package =====================

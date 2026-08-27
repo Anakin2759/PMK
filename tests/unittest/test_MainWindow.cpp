@@ -49,6 +49,11 @@ class UiIntegrationTest : public ::testing::Test
         m_scope.reset();
     }
 
+    [[nodiscard]] UiRuntime& runtime() noexcept
+    {
+        return m_runtime;
+    }
+
    private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
@@ -59,13 +64,14 @@ bool ContainsChild(const components::Hierarchy& hierarchy, entt::entity child)
     return std::ranges::find(hierarchy.children, child) != hierarchy.children.end();
 }
 
-void ConfigureTextBrowser(ui::entity browser, bool& submitCalled, std::string& changedText)
+void ConfigureTextBrowser(UiRuntime& runtime, ui::entity browser, bool& submitCalled, std::string& changedText)
 {
     using namespace ui::chains;
 
-    browser | TextEditContent("ok") | TextColor(Color::Red()) | PasswordMode(policies::TextFlag::PASSWORD) |
-        OnSubmit([&submitCalled]() { submitCalled = true; }) |
-        OnTextChanged([&changedText](const std::string& value) { changedText = value; });
+    WithRuntime(runtime, browser,
+                TextEditContent("ok") | TextColor(Color::Red()) | PasswordMode(policies::TextFlag::PASSWORD) |
+                    OnSubmit([&submitCalled]() { submitCalled = true; }) |
+                    OnTextChanged([&changedText](const std::string& value) { changedText = value; }));
 }
 
 void ExpectTextBrowserCallbacks(components::TextEdit& textEdit, bool& submitCalled, std::string& changedText)
@@ -117,14 +123,17 @@ TEST_F(UiIntegrationTest, DslBuildsWidgetTreeWithinUiModule)
 {
     using namespace ui::chains;
 
-    const auto root = factory::CreateVBoxLayout("root_layout");
-    const auto button = factory::CreateButton("Start", "start_button");
-    const auto editor = factory::CreateLineEdit("seed", "placeholder", "name_input");
+    const auto root = factory::CreateVBoxLayout(runtime(), "root_layout");
+    const auto buttonResult = factory::CreateButton(runtime(), "Start", "start_button");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
+    const auto editor = factory::CreateLineEdit(runtime(), "seed", "placeholder", "name_input");
 
-    root | Spacing(12.0F) | Padding(8.0F) | AddChild(button) | AddChild(editor);
-    button | FixedSize(180.0F, 44.0F) | BackgroundColor(Color::Blue()) | BorderRadius(6.0F) |
-        BorderColor(Color::White()) | BorderThickness(2.0F) | Text("Ready") | FontSize(18.0F) |
-        TextAlignment(policies::Alignment::CENTER) | Show();
+    WithRuntime(runtime(), root, Spacing(12.0F) | Padding(8.0F) | AddChild(button) | AddChild(editor));
+    WithRuntime(runtime(), button,
+                FixedSize(180.0F, 44.0F) | BackgroundColor(Color::Blue()) | BorderRadius(6.0F) |
+                    BorderColor(Color::White()) | BorderThickness(2.0F) | Text("Ready") | FontSize(18.0F) |
+                    TextAlignment(policies::Alignment::CENTER) | Show());
 
     auto& registry = ActiveRegistry();
     const auto& rootHierarchy = registry.get<components::Hierarchy>(root);
@@ -167,11 +176,11 @@ TEST_F(UiIntegrationTest, DslBuildsWidgetTreeWithinUiModule)
 
 TEST_F(UiIntegrationTest, ReparentAndRemoveChildKeepHierarchyConsistent)
 {
-    const auto firstParent = factory::CreateHBoxLayout("first_parent");
-    const auto secondParent = factory::CreateVBoxLayout("second_parent");
-    const auto child = factory::CreateLabel("Status", "status_label");
+    const auto firstParent = factory::CreateHBoxLayout(runtime(), "first_parent");
+    const auto secondParent = factory::CreateVBoxLayout(runtime(), "second_parent");
+    const auto child = factory::CreateLabel(runtime(), "Status", "status_label");
 
-    hierarchy::AddChild(firstParent, child);
+    hierarchy::AddChild(runtime(), firstParent, child);
 
     auto& registry = ActiveRegistry();
     auto& firstHierarchy = registry.get<components::Hierarchy>(firstParent);
@@ -179,7 +188,7 @@ TEST_F(UiIntegrationTest, ReparentAndRemoveChildKeepHierarchyConsistent)
     EXPECT_TRUE(ContainsChild(firstHierarchy, static_cast<entt::entity>(child)));
     EXPECT_EQ(registry.get<components::Hierarchy>(child).parent, static_cast<entt::entity>(firstParent));
 
-    hierarchy::AddChild(secondParent, child);
+    hierarchy::AddChild(runtime(), secondParent, child);
 
     const auto& secondHierarchy = registry.get<components::Hierarchy>(secondParent);
     EXPECT_TRUE(firstHierarchy.children.empty());
@@ -190,7 +199,7 @@ TEST_F(UiIntegrationTest, ReparentAndRemoveChildKeepHierarchyConsistent)
     EXPECT_TRUE(registry.all_of<components::LayoutDirtyTag>(firstParent));
     EXPECT_TRUE(registry.all_of<components::LayoutDirtyTag>(secondParent));
 
-    hierarchy::RemoveChild(secondParent, child);
+    hierarchy::RemoveChild(runtime(), secondParent, child);
 
     EXPECT_TRUE(registry.get<components::Hierarchy>(secondParent).children.empty());
     EXPECT_TRUE(registry.get<components::Hierarchy>(child).parent == entt::null);
@@ -199,11 +208,11 @@ TEST_F(UiIntegrationTest, ReparentAndRemoveChildKeepHierarchyConsistent)
 
 TEST_F(UiIntegrationTest, TextBrowserFactoryCombinesScrollableReadOnlyEditorState)
 {
-    const auto browser = factory::CreateTextBrowser("hello world", "unused", "log_browser");
+    const auto browser = factory::CreateTextBrowser(runtime(), "hello world", "unused", "log_browser");
 
     bool submitCalled = false;
     std::string changedText;
-    ConfigureTextBrowser(browser, submitCalled, changedText);
+    ConfigureTextBrowser(runtime(), browser, submitCalled, changedText);
 
     auto& textEdit = ActiveRegistry().get<components::TextEdit>(browser);
     ExpectTextBrowserCallbacks(textEdit, submitCalled, changedText);
@@ -214,9 +223,9 @@ TEST_F(UiIntegrationTest, TextBrowserFactoryCombinesScrollableReadOnlyEditorStat
 
 TEST_F(UiIntegrationTest, ContainerFactoriesUseSensibleDefaultAlignment)
 {
-    const auto vbox = factory::CreateVBoxLayout("vbox_layout");
-    const auto hbox = factory::CreateHBoxLayout("hbox_layout");
-    const auto scrollArea = factory::CreateScrollArea("scroll_area");
+    const auto vbox = factory::CreateVBoxLayout(runtime(), "vbox_layout");
+    const auto hbox = factory::CreateHBoxLayout(runtime(), "hbox_layout");
+    const auto scrollArea = factory::CreateScrollArea(runtime(), "scroll_area");
 
     auto& registry = ActiveRegistry();
     const auto& vboxLayout = registry.get<components::LayoutInfo>(vbox);

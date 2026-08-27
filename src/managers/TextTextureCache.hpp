@@ -22,6 +22,7 @@
 #include "DeviceManager.hpp"
 #include "FontManager.hpp"
 #include "common/GPUWrappers.hpp"
+#include "utils/Logger.hpp"
 #include <Eigen/Dense>
 
 namespace ui::managers
@@ -36,7 +37,8 @@ namespace ui::managers
 class TextTextureCache
 {
    public:
-    TextTextureCache(ui::managers::DeviceManager& deviceManager, ui::managers::FontManager& fontManager);
+    TextTextureCache(ui::managers::DeviceManager& deviceManager, ui::managers::FontManager& fontManager,
+                     utils::Logger& logger);
 
     ~TextTextureCache();
 
@@ -139,6 +141,7 @@ class TextTextureCache
 
     DeviceManager& m_deviceManager;
     FontManager& m_fontManager;
+    utils::Logger* m_logger;
     std::unordered_map<std::string, CacheEntry> m_cache;
 
     enum class R8UnormSampledSupportState : std::uint8_t

@@ -23,6 +23,11 @@
 #include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::table
 {
 
@@ -32,22 +37,22 @@ namespace ui::table
  * @param count 列数
  * @param headers 表头文字（可为空）
  */
-void SetColumns(ui::entity entity, int count, std::vector<std::string> headers = {});
+void SetColumns(UiRuntime& runtime, ui::entity entity, int count, std::vector<std::string> headers = {});
 
 /**
  * @brief 设置每列固定宽度
  * @param widths 宽度列表，size 必须与 columnCount 一致
  */
-void SetColumnWidths(ui::entity entity, std::vector<float> widths);
+void SetColumnWidths(UiRuntime& runtime, ui::entity entity, std::vector<float> widths);
 
 /**
  * @brief 在末尾追加一行
  * @param texts 每列文字，数量不足时自动补空
  */
-void AddRow(ui::entity entity, std::vector<std::string> texts);
+void AddRow(UiRuntime& runtime, ui::entity entity, std::vector<std::string> texts);
 
 /** @brief 设置指定单元格文字 */
-void SetCell(ui::entity entity, int row, int col, std::string text);
+void SetCell(UiRuntime& runtime, ui::entity entity, int row, int col, std::string text);
 
 /**
  * @brief 在指定单元格中嵌入任意控件实体
@@ -60,53 +65,63 @@ void SetCell(ui::entity entity, int row, int col, std::string text);
  * @param col 列索引（0-based）
  * @param widgetEntity 要嵌入的控件实体
  */
-void SetCellWidget(ui::entity tableEntity, int row, int col, ui::entity widgetEntity);
+void SetCellWidget(UiRuntime& runtime, ui::entity tableEntity, int row, int col, ui::entity widgetEntity);
 
 /**
  * @brief 设置指定单元格颜色
  * @param textColor 文字颜色
  * @param bgColor 背景颜色（alpha=0 表示使用行默认背景）
  */
-void SetCellColor(ui::entity entity, int row, int col, Color textColor, Color bgColor);
+void SetCellColor(UiRuntime& runtime, ui::entity entity, int row, int col, Color textColor, Color bgColor);
 
 /** @brief 清空所有行数据（保留列定义和表头） */
-void ClearRows(ui::entity entity);
+void ClearRows(UiRuntime& runtime, ui::entity entity);
 
 /** @brief 设置选中行，-1 为无选中 */
-void SetSelectedRow(ui::entity entity, int row);
+void SetSelectedRow(UiRuntime& runtime, ui::entity entity, int row);
 
 /**
  * @brief 设置表头文字颜色
  * @param color 文字颜色
  */
-void SetHeaderTextColor(ui::entity entity, Color color);
+void SetHeaderTextColor(UiRuntime& runtime, ui::entity entity, Color color);
 
 /** @brief 设置列宽分配策略 */
-void SetColumnSizing(ui::entity entity, policies::TableColumnSizing sizing);
+void SetColumnSizing(UiRuntime& runtime, ui::entity entity, policies::TableColumnSizing sizing);
 
 /**
  * @brief 设置各列最小宽度
  * @param minWidths 最小宽度列表，不足 columnCount 时后补 0
  */
-void SetMinColumnWidths(ui::entity entity, std::vector<float> minWidths);
+void SetMinColumnWidths(UiRuntime& runtime, ui::entity entity, std::vector<float> minWidths);
 
 /** @brief 设置行最小高度（rowHeight 实际生效高度 = max(rowHeight, minRowHeight)） */
-void SetMinRowHeight(ui::entity entity, float height);
+void SetMinRowHeight(UiRuntime& runtime, ui::entity entity, float height);
 
 /** @brief 设置行高 */
-void SetRowHeight(ui::entity entity, float height);
+void SetRowHeight(UiRuntime& runtime, ui::entity entity, float height);
 
 }  // namespace ui::table
 
 namespace ui::actions::table
 {
 
-inline constexpr EntityAction<&ui::table::SetColumns> SET_COLUMNS_ACTION{};
-inline constexpr EntityAction<&ui::table::SetColumnWidths> SET_COLUMN_WIDTHS_ACTION{};
-inline constexpr EntityAction<&ui::table::AddRow> ADD_ROW_ACTION{};
-inline constexpr EntityAction<&ui::table::ClearRows> CLEAR_ROWS_ACTION{};
-inline constexpr EntityAction<&ui::table::SetSelectedRow> SET_SELECTED_ROW_ACTION{};
-inline constexpr EntityAction<&ui::table::SetCellWidget> SET_CELL_WIDGET_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, int, std::vector<std::string>)>(
+    &ui::table::SetColumns)>
+    SET_COLUMNS_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, std::vector<float>)>(
+    &ui::table::SetColumnWidths)>
+    SET_COLUMN_WIDTHS_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, std::vector<std::string>)>(
+    &ui::table::AddRow)>
+    ADD_ROW_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity)>(&ui::table::ClearRows)>
+    CLEAR_ROWS_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, int)>(&ui::table::SetSelectedRow)>
+    SET_SELECTED_ROW_ACTION{};
+inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, int, int, ui::entity)>(
+    &ui::table::SetCellWidget)>
+    SET_CELL_WIDGET_ACTION{};
 
 }  // namespace ui::actions::table
 
@@ -146,7 +161,7 @@ inline auto TableClearRows()
 /** @brief Chain DSL：设置表头文字颜色 */
 inline auto TableHeaderTextColor(Color color)
 {
-    return Chain{[color](ui::entity entity) { ui::table::SetHeaderTextColor(entity, color); }};
+    return Chain{[color](UiRuntime& runtime, ui::entity entity) { ui::table::SetHeaderTextColor(runtime, entity, color); }};
 }
 
 /** @brief Chain DSL：设置选中行 */
@@ -170,7 +185,7 @@ inline auto TableSetCellWidget(int row, int col, ui::entity widgetEntity)
  */
 inline auto TableColumnSizingMode(policies::TableColumnSizing sizing)
 {
-    return Chain{[sizing](ui::entity entity) { ui::table::SetColumnSizing(entity, sizing); }};
+    return Chain{[sizing](UiRuntime& runtime, ui::entity entity) { ui::table::SetColumnSizing(runtime, entity, sizing); }};
 }
 
 /**
@@ -179,20 +194,20 @@ inline auto TableColumnSizingMode(policies::TableColumnSizing sizing)
  */
 inline auto TableMinColumnWidths(std::vector<float> minWidths)
 {
-    return Chain{[minWidths = std::move(minWidths)](ui::entity entity) mutable
-                 { ui::table::SetMinColumnWidths(entity, std::move(minWidths)); }};
+    return Chain{[minWidths = std::move(minWidths)](UiRuntime& runtime, ui::entity entity) mutable
+                 { ui::table::SetMinColumnWidths(runtime, entity, std::move(minWidths)); }};
 }
 
 /** @brief Chain DSL：设置行最小高度 */
 inline auto TableMinRowHeight(float height)
 {
-    return Chain{[height](ui::entity entity) { ui::table::SetMinRowHeight(entity, height); }};
+    return Chain{[height](UiRuntime& runtime, ui::entity entity) { ui::table::SetMinRowHeight(runtime, entity, height); }};
 }
 
 /** @brief Chain DSL：设置行高 */
 inline auto TableRowHeight(float height)
 {
-    return Chain{[height](ui::entity entity) { ui::table::SetRowHeight(entity, height); }};
+    return Chain{[height](UiRuntime& runtime, ui::entity entity) { ui::table::SetRowHeight(runtime, entity, height); }};
 }
 
 }  // namespace ui::chains

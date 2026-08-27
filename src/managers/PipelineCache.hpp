@@ -40,9 +40,9 @@ namespace ui::managers
 class PipelineCache
 {
    public:
-    explicit PipelineCache(DeviceManager& deviceManager,
-                           std::shared_ptr<const IResourceProvider> resourceProvider = GetDefaultUiResourceProvider())
-        : m_deviceManager(&deviceManager), m_resourceProvider(std::move(resourceProvider))
+    explicit PipelineCache(DeviceManager& deviceManager, utils::Logger& logger,
+                           std::shared_ptr<const IResourceProvider> resourceProvider = nullptr)
+        : m_deviceManager(&deviceManager), m_logger(&logger), m_resourceProvider(std::move(resourceProvider))
     {
     }
     ~PipelineCache()
@@ -90,7 +90,7 @@ class PipelineCache
 
         if (candidateVertexShader == nullptr || candidateFragmentShader == nullptr)
         {
-            ui::UiRuntime::current().logger().error("着色器加载失败 (驱动: {})", driver);
+            m_logger->error("着色器加载失败 (驱动: {})", driver);
             return Err(UiErrc::SHADER_COMPILE_FAILED, driver);
         }
         if (generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
@@ -100,7 +100,7 @@ class PipelineCache
         m_vertexShader = std::move(candidateVertexShader);
         m_fragmentShader = std::move(candidateFragmentShader);
         m_generationId = generation.Id();
-        ui::UiRuntime::current().logger().info("着色器加载成功 (驱动: {})", driver);
+        m_logger->info("着色器加载成功 (驱动: {})", driver);
         return Ok();
     }
 
@@ -138,7 +138,7 @@ class PipelineCache
         colorTargetDesc.format = SDL_GetGPUSwapchainTextureFormat(device, sdlWindow);
         if (colorTargetDesc.format == SDL_GPU_TEXTUREFORMAT_INVALID)
         {
-            ui::UiRuntime::current().logger().warn("Swapchain format invalid, falling back to B8G8R8A8_UNORM");
+            m_logger->warn("Swapchain format invalid, falling back to B8G8R8A8_UNORM");
             colorTargetDesc.format = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
         }
         colorTargetDesc.blend_state = buildBlendState();
@@ -174,7 +174,7 @@ class PipelineCache
 
         if (candidatePipeline == nullptr)
         {
-            ui::UiRuntime::current().logger().error("图形管线创建失败: {}", SDL_GetError());
+            m_logger->error("图形管线创建失败: {}", SDL_GetError());
             m_creationFailed = true;  // 标记失败，阻止后续重试
             return Err(UiErrc::PIPELINE_UNAVAILABLE,
                        SDL_GetError());  // 管线失败则不创建采样器，避免下次 guard 失效导致重复重试
@@ -197,7 +197,7 @@ class PipelineCache
             wrappers::MakeGpuResource<wrappers::UniqueGPUSampler>(generation, SDL_CreateGPUSampler, &samplerInfo);
         if (candidateSampler == nullptr)
         {
-            ui::UiRuntime::current().logger().error("采样器创建失败: {}", SDL_GetError());
+            m_logger->error("采样器创建失败: {}", SDL_GetError());
             m_creationFailed = true;
             return Err(UiErrc::PIPELINE_UNAVAILABLE, SDL_GetError());
         }
@@ -329,14 +329,14 @@ class PipelineCache
     {
         if (m_resourceProvider == nullptr)
         {
-            ui::UiRuntime::current().logger().error("着色器资源提供器未初始化: {}", resourcePath);
+            m_logger->error("着色器资源提供器未初始化: {}", resourcePath);
             return nullptr;
         }
 
         auto resourceResult = ui::cpo::load_binary_resource(*m_resourceProvider, resourcePath);
         if (!resourceResult.has_value())
         {
-            ui::UiRuntime::current().logger().error("着色器资源加载失败: {} ({})", resourcePath,
+            m_logger->error("着色器资源加载失败: {} ({})", resourcePath,
                                                     resourceResult.error().ToString());
             return nullptr;
         }
@@ -359,6 +359,7 @@ class PipelineCache
     }
 
     DeviceManager* m_deviceManager;
+    utils::Logger* m_logger;
     std::shared_ptr<const IResourceProvider> m_resourceProvider;
     wrappers::UniqueGPUGraphicsPipeline m_pipeline;
     wrappers::UniqueGPUShader m_vertexShader;

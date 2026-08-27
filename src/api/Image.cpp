@@ -8,17 +8,9 @@
 
 namespace ui::image
 {
-namespace
+void SetImagePath(UiRuntime& runtime, ui::entity entity, std::string_view path)
 {
-[[nodiscard]] Registry& CurrentRegistry()
-{
-    return UiRuntime::current().registry();
-}
-}  // namespace
-
-void SetImagePath(ui::entity entity, std::string_view path)
-{
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     const auto internal = detail::ToInternal(entity);
     if (!reg.valid(internal))
         return;
@@ -29,9 +21,9 @@ void SetImagePath(ui::entity entity, std::string_view path)
     src.loadFailed = false;
 }
 
-void SetImageTint(ui::entity entity, Color color)
+void SetImageTint(UiRuntime& runtime, ui::entity entity, Color color)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     const auto internal = detail::ToInternal(entity);
     if (!reg.valid(internal))
         return;
@@ -40,9 +32,9 @@ void SetImageTint(ui::entity entity, Color color)
     img.tintColor = color;
 }
 
-void SetImageUV(ui::entity entity, Vec2 uvMin, Vec2 uvMax)
+void SetImageUV(UiRuntime& runtime, ui::entity entity, Vec2 uvMin, Vec2 uvMax)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = runtime.registry();
     const auto internal = detail::ToInternal(entity);
     if (!reg.valid(internal))
         return;

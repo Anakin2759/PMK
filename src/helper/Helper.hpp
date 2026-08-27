@@ -41,10 +41,30 @@ class UiRuntime;
 
 namespace ui::utils
 {
-void MarkVisualChanged(ui::entity entity);
-void MarkLayoutAndVisualChanged(ui::entity entity);
-void MarkLayoutDirty(ui::entity entity);
-void MarkRenderDirty(ui::entity entity);
+void MarkVisualChanged(UiRuntime& runtime, ui::entity entity);
+void MarkLayoutAndVisualChanged(UiRuntime& runtime, ui::entity entity);
+void MarkLayoutDirty(UiRuntime& runtime, ui::entity entity);
+void MarkRenderDirty(UiRuntime& runtime, ui::entity entity);
+
+inline void MarkVisualChanged(UiRuntime& runtime, entt::entity entity)
+{
+    MarkVisualChanged(runtime, static_cast<ui::entity>(entity));
+}
+
+inline void MarkLayoutAndVisualChanged(UiRuntime& runtime, entt::entity entity)
+{
+    MarkLayoutAndVisualChanged(runtime, static_cast<ui::entity>(entity));
+}
+
+inline void MarkLayoutDirty(UiRuntime& runtime, entt::entity entity)
+{
+    MarkLayoutDirty(runtime, static_cast<ui::entity>(entity));
+}
+
+inline void MarkRenderDirty(UiRuntime& runtime, entt::entity entity)
+{
+    MarkRenderDirty(runtime, static_cast<ui::entity>(entity));
+}
 }  // namespace ui::utils
 
 namespace ui::detail
@@ -83,61 +103,52 @@ static_assert(ui::null_entity == static_cast<ui::entity>(entt::null), "ui::null_
 
 }  // namespace ui::detail
 
-namespace ui::utils
-{
-void MarkVisualChanged(entt::entity entity);
-void MarkLayoutAndVisualChanged(entt::entity entity);
-void MarkLayoutDirty(entt::entity entity);
-}  // namespace ui::utils
-
 namespace ui::detail::animation
 {
 // 实现位于 src/helper/HelperAnimation.cpp（非 inline，摊薄 entt 模板实例化，
 // 降低每个包含 Helper.hpp 的 TU 的编译内存峰值）。
-void MarkRenderDirtyInternal(entt::entity entity);
-void ConfigureTiming(entt::entity entity, const ui::animation::TweenOptions& options);
-void StartPositionAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+void MarkRenderDirtyInternal(Registry& reg, entt::entity entity);
+void ConfigureTiming(Registry& reg, entt::entity entity, const ui::animation::TweenOptions& options);
+void StartPositionAnimation(Registry& reg, entt::entity entity, const Vec2& from, const Vec2& to,
                             const ui::animation::TweenOptions& options = {});
-void StartAlphaAnimation(entt::entity entity, float from, float to,
+void StartAlphaAnimation(Registry& reg, entt::entity entity, float from, float to,
                          const ui::animation::TweenOptions& options = {});
-void StartScaleAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+void StartScaleAnimation(Registry& reg, entt::entity entity, const Vec2& from, const Vec2& to,
                          const ui::animation::TweenOptions& options = {});
-void StartRenderOffsetAnimation(entt::entity entity, const Vec2& from, const Vec2& to,
+void StartRenderOffsetAnimation(Registry& reg, entt::entity entity, const Vec2& from, const Vec2& to,
                                 const ui::animation::TweenOptions& options = {});
-void StartColorAnimation(entt::entity entity, const Color& from, const Color& to,
+void StartColorAnimation(Registry& reg, entt::entity entity, const Color& from, const Color& to,
                          const ui::animation::TweenOptions& options = {});
-void StartTransformAnimation(entt::entity entity, const std::optional<Vec2>& targetScale,
+void StartTransformAnimation(Registry& reg, entt::entity entity, const std::optional<Vec2>& targetScale,
                              const std::optional<Vec2>& targetOffset,
                              const ui::animation::TweenOptions& options = {},
                              const Vec2& defaultScale = {1.0F, 1.0F}, const Vec2& defaultOffset = {0.0F, 0.0F});
-void StopAnimation(entt::entity entity);
+void StopAnimation(Registry& reg, entt::entity entity);
 
 // ==================== P2-4：暂停/恢复/完成/取消 + 回调 ====================
 
-void PauseAnimation(entt::entity entity);
-void ResumeAnimation(entt::entity entity);
-void FinishAnimation(entt::entity entity, bool settleToEnd = false);
-void CancelAnimation(entt::entity entity, bool settleToEnd = false);
-void SetAnimationCallbacks(entt::entity entity, ui::Callback<> onComplete, ui::Callback<> onCancel = {},
+void PauseAnimation(Registry& reg, entt::entity entity);
+void ResumeAnimation(Registry& reg, entt::entity entity);
+void FinishAnimation(Registry& reg, entt::entity entity, bool settleToEnd = false);
+void CancelAnimation(Registry& reg, entt::entity entity, bool settleToEnd = false);
+void SetAnimationCallbacks(Registry& reg, entt::entity entity, ui::Callback<> onComplete, ui::Callback<> onCancel = {},
                            ui::Callback<> onStart = {});
 }  // namespace ui::detail::animation
 
 namespace ui::controls::bridge
 {
-inline void SetSliderRange(entt::entity e, float min, float max)
+inline void SetSliderRange(Registry& r, entt::entity e, float min, float max)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     auto& v = r.get_or_emplace<components::SliderInfo>(e);
     v.minValue = std::min(min, max);
     v.maxValue = std::max(min, max);
     v.currentValue = std::clamp(v.currentValue, v.minValue, v.maxValue);
-    utils::MarkLayoutAndVisualChanged(e);
+    utils::MarkLayoutAndVisualChanged(r.runtime(), detail::ToPublic(e));
 }
-inline void SetSliderValue(entt::entity e, float value)
+inline void SetSliderValue(Registry& r, entt::entity e, float value)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     auto& v = r.get_or_emplace<components::SliderInfo>(e);
@@ -147,19 +158,17 @@ inline void SetSliderValue(entt::entity e, float value)
     v.currentValue = x;
     if (v.onValueChanged)
         v.onValueChanged(x);
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), detail::ToPublic(e));
 }
-inline void SetSliderStep(entt::entity e, float value)
+inline void SetSliderStep(Registry& r, entt::entity e, float value)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::SliderInfo>(e).step = std::max(0.0F, value);
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetSliderOrientation(entt::entity e, policies::Orientation value)
+inline void SetSliderOrientation(Registry& r, entt::entity e, policies::Orientation value)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::SliderInfo>(e).vertical = value;
@@ -167,149 +176,131 @@ inline void SetSliderOrientation(entt::entity e, policies::Orientation value)
     size.size = value == policies::Orientation::VERTICAL ? Vec2{scale::Metric(28.0F), scale::Metric(200.0F)}
                                                          : Vec2{scale::Metric(200.0F), scale::Metric(28.0F)};
     size.sizePolicy = policies::Size::FIXED;
-    utils::MarkLayoutAndVisualChanged(e);
+    utils::MarkLayoutAndVisualChanged(r.runtime(), e);
 }
-inline void SetSliderOnValueChanged(entt::entity e, components::on_event<float> cb)
+inline void SetSliderOnValueChanged(Registry& r, entt::entity e, components::on_event<float> cb)
 {
-    auto& r = UiRuntime::current().registry();
     if (r.valid(e))
         r.get_or_emplace<components::SliderInfo>(e).onValueChanged = std::move(cb);
 }
-inline void SetSliderTrackColor(entt::entity e, const Color& v)
+inline void SetSliderTrackColor(Registry& r, entt::entity e, const Color& v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::SliderInfo>(e).trackColor = v;
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetSliderFillColor(entt::entity e, const Color& v)
+inline void SetSliderFillColor(Registry& r, entt::entity e, const Color& v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::SliderInfo>(e).fillColor = v;
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetSliderThumbColor(entt::entity e, const Color& v)
+inline void SetSliderThumbColor(Registry& r, entt::entity e, const Color& v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::SliderInfo>(e).thumbColor = v;
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetSliderThumbSize(entt::entity e, float v)
+inline void SetSliderThumbSize(Registry& r, entt::entity e, float v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     auto& x = r.get_or_emplace<components::SliderInfo>(e);
     x.thumbSize = std::max(scale::Metric(4.0F), scale::Metric(v));
     x.thumbRadius = x.thumbSize * 0.5F;
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetSliderTrackThickness(entt::entity e, float v)
+inline void SetSliderTrackThickness(Registry& r, entt::entity e, float v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::SliderInfo>(e).trackThickness = std::max(scale::Metric(2.0F), scale::Metric(v));
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetProgressValue(entt::entity e, float v)
+inline void SetProgressValue(Registry& r, entt::entity e, float v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ProgressBar>(e).progress = std::clamp(v, 0.0F, 1.0F);
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetProgressFillColor(entt::entity e, const Color& v)
+inline void SetProgressFillColor(Registry& r, entt::entity e, const Color& v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ProgressBar>(e).fillColor = v;
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetProgressBackgroundColor(entt::entity e, const Color& v)
+inline void SetProgressBackgroundColor(Registry& r, entt::entity e, const Color& v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ProgressBar>(e).backgroundColor = v;
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetProgressLabelVisibility(entt::entity e, policies::LabelVisibility v)
+inline void SetProgressLabelVisibility(Registry& r, entt::entity e, policies::LabelVisibility v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ProgressBar>(e).showLabel = v;
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetProgressAnimated(entt::entity e, policies::AnimationState v)
+inline void SetProgressAnimated(Registry& r, entt::entity e, policies::AnimationState v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ProgressBar>(e).animated = v;
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetScrollMode(entt::entity e, policies::Scroll v)
+inline void SetScrollMode(Registry& r, entt::entity e, policies::Scroll v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ScrollArea>(e).scroll = v;
-    utils::MarkLayoutAndVisualChanged(e);
+    utils::MarkLayoutAndVisualChanged(r.runtime(), e);
 }
-inline void SetScrollBarPolicy(entt::entity e, policies::ScrollBar v)
+inline void SetScrollBarPolicy(Registry& r, entt::entity e, policies::ScrollBar v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ScrollArea>(e).scrollBar = v;
-    utils::MarkLayoutAndVisualChanged(e);
+    utils::MarkLayoutAndVisualChanged(r.runtime(), e);
 }
-inline void SetScrollAnchor(entt::entity e, policies::ScrollAnchor v)
+inline void SetScrollAnchor(Registry& r, entt::entity e, policies::ScrollAnchor v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ScrollArea>(e).anchor = v;
-    utils::MarkLayoutAndVisualChanged(e);
+    utils::MarkLayoutAndVisualChanged(r.runtime(), e);
 }
-inline void SetScrollSpeed(entt::entity e, float v)
+inline void SetScrollSpeed(Registry& r, entt::entity e, float v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     r.get_or_emplace<components::ScrollArea>(e).scrollSpeed = std::max(1.0F, v);
-    utils::MarkVisualChanged(e);
+    utils::MarkVisualChanged(r.runtime(), e);
 }
-inline void SetCheckBoxChecked(entt::entity e, bool v)
+inline void SetCheckBoxChecked(Registry& r, entt::entity e, bool v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     if (auto* x = r.try_get<components::CheckBox>(e))
     {
         x->checked = v;
-        utils::MarkVisualChanged(e);
+        utils::MarkVisualChanged(r.runtime(), e);
     }
 }
-inline void SetCheckBoxOnChanged(entt::entity e, components::on_event<bool> cb)
+inline void SetCheckBoxOnChanged(Registry& r, entt::entity e, components::on_event<bool> cb)
 {
-    auto& r = UiRuntime::current().registry();
     if (r.valid(e))
         if (auto* x = r.try_get<components::CheckBox>(e))
             x->onChanged = std::move(cb);
 }
-inline void SetDropDownOptions(entt::entity e, std::vector<std::string> v)
+inline void SetDropDownOptions(Registry& r, entt::entity e, std::vector<std::string> v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     if (auto* x = r.try_get<components::DropDown>(e))
@@ -318,12 +309,11 @@ inline void SetDropDownOptions(entt::entity e, std::vector<std::string> v)
         x->selectedIndex = 0;
         if (auto* text = r.try_get<components::Text>(e))
             text->content = x->selectedText();
-        utils::MarkVisualChanged(e);
+        utils::MarkVisualChanged(r.runtime(), e);
     }
 }
-inline void SetDropDownSelected(entt::entity e, int v)
+inline void SetDropDownSelected(Registry& r, entt::entity e, int v)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     if (auto* x = r.try_get<components::DropDown>(e))
@@ -331,53 +321,46 @@ inline void SetDropDownSelected(entt::entity e, int v)
         x->selectedIndex = x->options.empty() ? 0 : std::clamp(v, 0, static_cast<int>(x->options.size()) - 1);
         if (auto* text = r.try_get<components::Text>(e))
             text->content = x->selectedText();
-        utils::MarkVisualChanged(e);
+        utils::MarkVisualChanged(r.runtime(), e);
     }
 }
-inline void SetDropDownOnChanged(entt::entity e, components::on_event<int> cb)
+inline void SetDropDownOnChanged(Registry& r, entt::entity e, components::on_event<int> cb)
 {
-    auto& r = UiRuntime::current().registry();
     if (r.valid(e))
         if (auto* x = r.try_get<components::DropDown>(e))
             x->onChanged = std::move(cb);
 }
-inline void SetDraggable(entt::entity e, bool v)
+inline void SetDraggable(Registry& r, entt::entity e, bool v)
 {
-    auto& r = UiRuntime::current().registry();
     if (r.valid(e))
         r.get_or_emplace<components::Draggable>(e).enabled =
             v ? policies::Feature::ENABLED : policies::Feature::DISABLED;
 }
-inline void SetDragLockAxis(entt::entity e, bool x, bool y)
+inline void SetDragLockAxis(Registry& r, entt::entity e, bool x, bool y)
 {
-    auto& r = UiRuntime::current().registry();
     if (!r.valid(e))
         return;
     auto& v = r.get_or_emplace<components::Draggable>(e);
     v.lockX = x;
     v.lockY = y;
 }
-inline void SetOnDragStart(entt::entity e, components::on_event<> cb)
+inline void SetOnDragStart(Registry& r, entt::entity e, components::on_event<> cb)
 {
-    auto& r = UiRuntime::current().registry();
     if (r.valid(e))
         r.get_or_emplace<components::Draggable>(e).onDragStart = std::move(cb);
 }
-inline void SetOnDragEnd(entt::entity e, components::on_event<> cb)
+inline void SetOnDragEnd(Registry& r, entt::entity e, components::on_event<> cb)
 {
-    auto& r = UiRuntime::current().registry();
     if (r.valid(e))
         r.get_or_emplace<components::Draggable>(e).onDragEnd = std::move(cb);
 }
-inline void SetOnDragMove(entt::entity e, components::on_event<Vec2> cb)
+inline void SetOnDragMove(Registry& r, entt::entity e, components::on_event<Vec2> cb)
 {
-    auto& r = UiRuntime::current().registry();
     if (r.valid(e))
         r.get_or_emplace<components::Draggable>(e).onDragMove = std::move(cb);
 }
-inline void SetDroppable(entt::entity e, bool v)
+inline void SetDroppable(Registry& r, entt::entity e, bool v)
 {
-    auto& r = UiRuntime::current().registry();
     if (r.valid(e))
         r.get_or_emplace<components::Droppable>(e).enabled =
             v ? policies::Feature::ENABLED : policies::Feature::DISABLED;
@@ -386,18 +369,16 @@ inline void SetDroppable(entt::entity e, bool v)
 
 namespace ui::detail::text
 {
-inline void SetText(entt::entity entity, const std::string& content)
+inline void SetText(Registry& reg, entt::entity entity, const std::string& content)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity) || !reg.any_of<components::Text>(entity))
         return;
     reg.get<components::Text>(entity).content = content;
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetButtonEnabled(entt::entity entity, bool enabled)
+inline void SetButtonEnabled(Registry& reg, entt::entity entity, bool enabled)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (enabled)
@@ -406,36 +387,32 @@ inline void SetButtonEnabled(entt::entity entity, bool enabled)
         reg.emplace_or_replace<components::DisabledTag>(entity);
 }
 
-inline void SetTextContent(entt::entity entity, const std::string& content)
+inline void SetTextContent(Registry& reg, entt::entity entity, const std::string& content)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Text>(entity).content = content;
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetTextWordWrap(entt::entity entity, policies::TextWrap mode)
+inline void SetTextWordWrap(Registry& reg, entt::entity entity, policies::TextWrap mode)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Text>(entity).wordWrap = mode;
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetTextAlignment(entt::entity entity, policies::Alignment alignment)
+inline void SetTextAlignment(Registry& reg, entt::entity entity, policies::Alignment alignment)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Text>(entity).alignment = alignment;
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetTextColor(entt::entity entity, const Color& color)
+inline void SetTextColor(Registry& reg, entt::entity entity, const Color& color)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (auto* text = reg.try_get<components::Text>(entity))
@@ -444,9 +421,8 @@ inline void SetTextColor(entt::entity entity, const Color& color)
         edit->textColor = color;
 }
 
-[[nodiscard]] inline std::string GetTextEditContent(entt::entity entity)
+[[nodiscard]] inline std::string GetTextEditContent(Registry& reg, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (reg.valid(entity))
     {
         if (const auto* edit = reg.try_get<components::TextEdit>(entity))
@@ -455,9 +431,8 @@ inline void SetTextColor(entt::entity entity, const Color& color)
     return {};
 }
 
-inline void SetTextEditContent(entt::entity entity, const std::string& content)
+inline void SetTextEditContent(Registry& reg, entt::entity entity, const std::string& content)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (auto* edit = reg.try_get<components::TextEdit>(entity))
@@ -470,18 +445,16 @@ inline void SetTextEditContent(entt::entity entity, const std::string& content)
     }
 }
 
-inline void SetPasswordMode(entt::entity entity, policies::TextFlag mode)
+inline void SetPasswordMode(Registry& reg, entt::entity entity, policies::TextFlag mode)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (auto* edit = reg.try_get<components::TextEdit>(entity))
         edit->inputMode |= mode;
 }
 
-inline void SetClickCallback(entt::entity entity, components::on_event<> callback)
+inline void SetClickCallback(Registry& reg, entt::entity entity, components::on_event<> callback)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& clickable = reg.get_or_emplace<components::Clickable>(entity);
@@ -489,96 +462,90 @@ inline void SetClickCallback(entt::entity entity, components::on_event<> callbac
     clickable.enabled = policies::Feature::ENABLED;
 }
 
-inline void SetOnSubmit(entt::entity entity, components::on_event<> callback)
+inline void SetOnSubmit(Registry& reg, entt::entity entity, components::on_event<> callback)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (auto* edit = reg.try_get<components::TextEdit>(entity))
         edit->onSubmit = std::move(callback);
 }
 
-inline void SetOnTextChanged(entt::entity entity, components::on_event<const std::string&> callback)
+inline void SetOnTextChanged(Registry& reg, entt::entity entity, components::on_event<const std::string&> callback)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (auto* edit = reg.try_get<components::TextEdit>(entity))
         edit->onTextChanged = std::move(callback);
 }
 
-inline void SetLineHeight(entt::entity entity, float height)
+inline void SetLineHeight(Registry& reg, entt::entity entity, float height)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Text>(entity).lineHeight = scale::Metric(height);
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetCharacterSpacing(entt::entity entity, float spacing)
+inline void SetCharacterSpacing(Registry& reg, entt::entity entity, float spacing)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Text>(entity).letterSpacing = scale::Metric(spacing);
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetTextWrapWidth(entt::entity entity, float width)
+inline void SetTextWrapWidth(Registry& reg, entt::entity entity, float width)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Text>(entity).wrapWidth = scale::Metric(width);
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetFontSize(entt::entity entity, float size)
+inline void SetFontSize(Registry& reg, entt::entity entity, float size)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Text>(entity).fontSize = scale::Metric(size);
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 }  // namespace ui::detail::text
 
 namespace ui::detail::table
 {
-inline void SetColumns(entt::entity e, int count, std::vector<std::string> headers = {})
+inline void SetColumns(Registry& reg, entt::entity e, int count, std::vector<std::string> headers = {})
 {
-    auto& v = UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e);
+    auto& v = reg.get_or_emplace<components::TableInfo>(e);
     v.columnCount = count;
     v.headers = std::move(headers);
     for (auto& row : v.cells)
         row.resize(static_cast<size_t>(count));
 }
-inline void SetColumnWidths(entt::entity e, std::vector<float> values)
+inline void SetColumnWidths(Registry& reg, entt::entity e, std::vector<float> values)
 {
-    auto& v = UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e);
+    auto& v = reg.get_or_emplace<components::TableInfo>(e);
     if (v.columnSizing == policies::TableColumnSizing::FIXED || v.columnSizing == policies::TableColumnSizing::ADAPTIVE)
         for (auto& x : values)
             x = scale::Metric(x);
     v.columnWidths = std::move(values);
 }
-inline void AddRow(entt::entity e, std::vector<std::string> values)
+inline void AddRow(Registry& reg, entt::entity e, std::vector<std::string> values)
 {
-    auto& v = UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e);
+    auto& v = reg.get_or_emplace<components::TableInfo>(e);
     std::vector<components::TableCell> row(static_cast<size_t>(v.columnCount));
     for (int i = 0; i < v.columnCount && std::cmp_less(i, values.size()); ++i)
         row[static_cast<size_t>(i)].text = std::move(values[static_cast<size_t>(i)]);
     v.cells.push_back(std::move(row));
 }
-inline void SetCell(entt::entity e, int row, int col, std::string value)
+inline void SetCell(Registry& reg, entt::entity e, int row, int col, std::string value)
 {
-    auto* v = UiRuntime::current().registry().try_get<components::TableInfo>(e);
+    auto* v = reg.try_get<components::TableInfo>(e);
     if (v && row >= 0 && std::cmp_less(row, v->cells.size()) && col >= 0 && col < v->columnCount)
         v->cells[static_cast<size_t>(row)][static_cast<size_t>(col)].text = std::move(value);
 }
-inline void SetCellColor(entt::entity e, int row, int col, Color text, Color bg)
+inline void SetCellColor(Registry& reg, entt::entity e, int row, int col, Color text, Color bg)
 {
-    auto* v = UiRuntime::current().registry().try_get<components::TableInfo>(e);
+    auto* v = reg.try_get<components::TableInfo>(e);
     if (v && row >= 0 && std::cmp_less(row, v->cells.size()) && col >= 0 && col < v->columnCount)
     {
         auto& c = v->cells[static_cast<size_t>(row)][static_cast<size_t>(col)];
@@ -586,40 +553,40 @@ inline void SetCellColor(entt::entity e, int row, int col, Color text, Color bg)
         c.bgColor = bg;
     }
 }
-inline void ClearRows(entt::entity e)
+inline void ClearRows(Registry& reg, entt::entity e)
 {
-    if (auto* v = UiRuntime::current().registry().try_get<components::TableInfo>(e))
+    if (auto* v = reg.try_get<components::TableInfo>(e))
     {
         v->cells.clear();
         v->selectedRow = -1;
     }
 }
-inline void SetSelectedRow(entt::entity e, int v)
+inline void SetSelectedRow(Registry& reg, entt::entity e, int v)
 {
-    UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e).selectedRow = v;
+    reg.get_or_emplace<components::TableInfo>(e).selectedRow = v;
 }
-inline void SetHeaderTextColor(entt::entity e, Color v)
+inline void SetHeaderTextColor(Registry& reg, entt::entity e, Color v)
 {
-    UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e).headerTextColor = v;
+    reg.get_or_emplace<components::TableInfo>(e).headerTextColor = v;
 }
-inline void SetColumnSizing(entt::entity e, policies::TableColumnSizing v)
+inline void SetColumnSizing(Registry& reg, entt::entity e, policies::TableColumnSizing v)
 {
-    UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e).columnSizing = v;
+    reg.get_or_emplace<components::TableInfo>(e).columnSizing = v;
 }
-inline void SetMinColumnWidths(entt::entity e, std::vector<float> v)
+inline void SetMinColumnWidths(Registry& reg, entt::entity e, std::vector<float> v)
 {
     for (auto& x : v)
         x = scale::Metric(x);
-    UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e).minColumnWidths = std::move(v);
+    reg.get_or_emplace<components::TableInfo>(e).minColumnWidths = std::move(v);
 }
-inline void SetMinRowHeight(entt::entity e, float v)
+inline void SetMinRowHeight(Registry& reg, entt::entity e, float v)
 {
-    UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e).minRowHeight =
+    reg.get_or_emplace<components::TableInfo>(e).minRowHeight =
         std::max(0.0F, scale::Metric(v));
 }
-inline void SetRowHeight(entt::entity e, float v)
+inline void SetRowHeight(Registry& reg, entt::entity e, float v)
 {
-    UiRuntime::current().registry().get_or_emplace<components::TableInfo>(e).rowHeight =
+    reg.get_or_emplace<components::TableInfo>(e).rowHeight =
         std::max(0.0F, scale::Metric(v));
 }
 [[nodiscard]] inline float MinColumnWidthAt(const components::TableInfo& info, int columnIndex)
@@ -740,9 +707,8 @@ inline void SetRowHeight(entt::entity e, float v)
     }
 }
 
-inline void SetCellWidget(entt::entity tableEntity, int row, int col, entt::entity widgetEntity)
+inline void SetCellWidget(Registry& reg, entt::entity tableEntity, int row, int col, entt::entity widgetEntity)
 {
-    auto& reg = UiRuntime::current().registry();
     auto* info = reg.try_get<components::TableInfo>(tableEntity);
     if (info == nullptr || row < 0 || !std::cmp_less(row, info->cells.size()) || col < 0 || col >= info->columnCount ||
         !reg.valid(widgetEntity))
@@ -775,89 +741,89 @@ namespace ui::utils
 {
 
 bool HasAlignment(policies::Alignment value, policies::Alignment flag);
-void SetWindowFlag(ui::entity entity, policies::WindowFlag flag);
-void MarkLayoutChanged(ui::entity entity);
-void MarkVisualChanged(ui::entity entity);
-void MarkLayoutAndVisualChanged(ui::entity entity);
-void MarkLayoutDirty(ui::entity entity);
-void CloseWindow(ui::entity entity);
-void QuitUiEventLoop();
-[[nodiscard]] Vec2 GetAbsolutePosition(ui::entity entity);
-[[nodiscard]] Rect GetEntityRect(ui::entity entity);
-[[nodiscard]] Rect GetScrollViewportRect(ui::entity entity);
-[[nodiscard]] float GetScrollViewportLength(ui::entity entity, bool isVertical);
-[[nodiscard]] float GetScrollContentLength(ui::entity entity, bool isVertical);
-[[nodiscard]] float GetScrollMaxOffset(ui::entity entity, bool isVertical);
-[[nodiscard]] VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity);
+void SetWindowFlag(UiRuntime& runtime, ui::entity entity, policies::WindowFlag flag);
+void MarkLayoutChanged(UiRuntime& runtime, ui::entity entity);
+void MarkVisualChanged(UiRuntime& runtime, ui::entity entity);
+void MarkLayoutAndVisualChanged(UiRuntime& runtime, ui::entity entity);
+void MarkLayoutDirty(UiRuntime& runtime, ui::entity entity);
+void CloseWindow(UiRuntime& runtime, ui::entity entity);
+void QuitUiEventLoop(UiRuntime& runtime);
+[[nodiscard]] Vec2 GetAbsolutePosition(UiRuntime& runtime, ui::entity entity);
+[[nodiscard]] Rect GetEntityRect(UiRuntime& runtime, ui::entity entity);
+[[nodiscard]] Rect GetScrollViewportRect(UiRuntime& runtime, ui::entity entity);
+[[nodiscard]] float GetScrollViewportLength(UiRuntime& runtime, ui::entity entity, bool isVertical);
+[[nodiscard]] float GetScrollContentLength(UiRuntime& runtime, ui::entity entity, bool isVertical);
+[[nodiscard]] float GetScrollMaxOffset(UiRuntime& runtime, ui::entity entity, bool isVertical);
+[[nodiscard]] VerticalScrollbarGeometry GetVerticalScrollbarGeometry(UiRuntime& runtime, ui::entity entity);
 void InvokeTask(UiRuntime& runtime, VoidCallback func);
 using TaskHandle = uint32_t;
 TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, VoidCallback func);
 void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle);
-bool IsEntityExist(const std::string& alias);
+bool IsEntityExist(UiRuntime& runtime, const std::string& alias);
 
-inline void SetWindowFlag(entt::entity entity, policies::WindowFlag flag)
+inline void SetWindowFlag(Registry& registry, entt::entity entity, policies::WindowFlag flag)
 {
-    SetWindowFlag(detail::ToPublic(entity), flag);
+    SetWindowFlag(registry.runtime(), detail::ToPublic(entity), flag);
 }
 
-inline void MarkLayoutChanged(entt::entity entity)
+inline void MarkLayoutChanged(Registry& registry, entt::entity entity)
 {
-    MarkLayoutChanged(detail::ToPublic(entity));
+    MarkLayoutChanged(registry.runtime(), detail::ToPublic(entity));
 }
 
-inline void MarkVisualChanged(entt::entity entity)
+inline void MarkVisualChanged(Registry& registry, entt::entity entity)
 {
-    MarkVisualChanged(static_cast<ui::entity>(entity));
+    MarkVisualChanged(registry.runtime(), detail::ToPublic(entity));
 }
 
-inline void MarkLayoutAndVisualChanged(entt::entity entity)
+inline void MarkLayoutAndVisualChanged(Registry& registry, entt::entity entity)
 {
-    MarkLayoutAndVisualChanged(static_cast<ui::entity>(entity));
+    MarkLayoutAndVisualChanged(registry.runtime(), detail::ToPublic(entity));
 }
 
-inline void MarkLayoutDirty(entt::entity entity)
+inline void MarkLayoutDirty(Registry& registry, entt::entity entity)
 {
-    MarkLayoutDirty(detail::ToPublic(entity));
+    MarkLayoutDirty(registry.runtime(), detail::ToPublic(entity));
 }
 
-inline void MarkRenderDirty(entt::entity entity)
+inline void MarkRenderDirty(Registry& registry, entt::entity entity)
 {
-    MarkRenderDirty(detail::ToPublic(entity));
+    MarkRenderDirty(registry.runtime(), detail::ToPublic(entity));
 }
 
-[[nodiscard]] inline Vec2 GetAbsolutePosition(entt::entity entity)
+[[nodiscard]] inline Vec2 GetAbsolutePosition(Registry& registry, entt::entity entity)
 {
-    return GetAbsolutePosition(detail::ToPublic(entity));
+    return GetAbsolutePosition(registry.runtime(), detail::ToPublic(entity));
 }
 
-[[nodiscard]] inline Rect GetEntityRect(entt::entity entity)
+[[nodiscard]] inline Rect GetEntityRect(Registry& registry, entt::entity entity)
 {
-    return GetEntityRect(detail::ToPublic(entity));
+    return GetEntityRect(registry.runtime(), detail::ToPublic(entity));
 }
 
-[[nodiscard]] inline Rect GetScrollViewportRect(entt::entity entity)
+[[nodiscard]] inline Rect GetScrollViewportRect(Registry& registry, entt::entity entity)
 {
-    return GetScrollViewportRect(detail::ToPublic(entity));
+    return GetScrollViewportRect(registry.runtime(), detail::ToPublic(entity));
 }
 
-[[nodiscard]] inline float GetScrollViewportLength(entt::entity entity, bool isVertical)
+[[nodiscard]] inline float GetScrollViewportLength(Registry& registry, entt::entity entity, bool isVertical)
 {
-    return GetScrollViewportLength(detail::ToPublic(entity), isVertical);
+    return GetScrollViewportLength(registry.runtime(), detail::ToPublic(entity), isVertical);
 }
 
-[[nodiscard]] inline float GetScrollContentLength(entt::entity entity, bool isVertical)
+[[nodiscard]] inline float GetScrollContentLength(Registry& registry, entt::entity entity, bool isVertical)
 {
-    return GetScrollContentLength(detail::ToPublic(entity), isVertical);
+    return GetScrollContentLength(registry.runtime(), detail::ToPublic(entity), isVertical);
 }
 
-[[nodiscard]] inline float GetScrollMaxOffset(entt::entity entity, bool isVertical)
+[[nodiscard]] inline float GetScrollMaxOffset(Registry& registry, entt::entity entity, bool isVertical)
 {
-    return GetScrollMaxOffset(detail::ToPublic(entity), isVertical);
+    return GetScrollMaxOffset(registry.runtime(), detail::ToPublic(entity), isVertical);
 }
 
-[[nodiscard]] inline VerticalScrollbarGeometry GetVerticalScrollbarGeometry(entt::entity entity)
+[[nodiscard]] inline VerticalScrollbarGeometry GetVerticalScrollbarGeometry(Registry& registry, entt::entity entity)
 {
-    return GetVerticalScrollbarGeometry(detail::ToPublic(entity));
+    return GetVerticalScrollbarGeometry(registry.runtime(), detail::ToPublic(entity));
 }
 
 }  // namespace ui::utils
@@ -865,43 +831,39 @@ inline void MarkRenderDirty(entt::entity entity)
 namespace ui::detail::size
 {
 
-inline void SetFixedSize(entt::entity entity, float width, float height)
+inline void SetFixedSize(Registry& reg, entt::entity entity, float width, float height)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
 
     auto& size = reg.get_or_emplace<components::Size>(entity);
     size.sizePolicy = policies::Size::FIXED;
     size.size = {scale::Metric(width), scale::Metric(height)};
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetSizePolicy(entt::entity entity, policies::Size policy)
+inline void SetSizePolicy(Registry& reg, entt::entity entity, policies::Size policy)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Size>(entity).sizePolicy = policy;
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetSize(entt::entity entity, float width, float height)
+inline void SetSize(Registry& reg, entt::entity entity, float width, float height)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Size>(entity).size = {scale::Metric(width), scale::Metric(height)};
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetPosition(entt::entity entity, float positionX, float positionY)
+inline void SetPosition(Registry& reg, entt::entity entity, float positionX, float positionY)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Position>(entity).value = {scale::Metric(positionX), scale::Metric(positionY)};
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
 }  // namespace ui::detail::size
@@ -909,9 +871,8 @@ inline void SetPosition(entt::entity entity, float positionX, float positionY)
 namespace ui::detail::visibility
 {
 
-inline void SetVisible(entt::entity entity, bool visible)
+inline void SetVisible(Registry& reg, entt::entity entity, bool visible)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (visible)
@@ -922,12 +883,11 @@ inline void SetVisible(entt::entity entity, bool visible)
     {
         reg.remove<components::VisibleTag>(entity);
     }
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(reg.runtime(), entity);
 }
 
-inline void Show(entt::entity entity)
+inline void Show(Registry& reg, utils::Logger& logger, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.emplace_or_replace<components::VisibleTag>(entity);
@@ -937,7 +897,7 @@ inline void Show(entt::entity entity)
         SDL_Window* sdlWindow = SDL_GetWindowFromID(windowComp->windowID);
         if (sdlWindow != nullptr)
         {
-            window_sync::SyncWindowProperties(entity, *windowComp, sdlWindow);
+            window_sync::SyncWindowProperties(reg, logger, entity, *windowComp, sdlWindow);
             SDL_SetWindowPosition(sdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             SDL_ShowWindow(sdlWindow);
             int posX = 0;
@@ -949,12 +909,11 @@ inline void Show(entt::entity entity)
             }
         }
     }
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(reg.runtime(), entity);
 }
 
-inline void Hide(entt::entity entity)
+inline void Hide(Registry& reg, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.remove<components::VisibleTag>(entity);
@@ -964,32 +923,29 @@ inline void Hide(entt::entity entity)
         if (SDL_Window* sdlWindow = SDL_GetWindowFromID(windowComp->windowID))
             SDL_HideWindow(sdlWindow);
     }
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(reg.runtime(), entity);
 }
 
-inline void SetAlpha(entt::entity entity, float alpha)
+inline void SetAlpha(Registry& reg, entt::entity entity, float alpha)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Alpha>(entity).value = std::clamp(alpha, 0.0F, 1.0F);
-    utils::MarkVisualChanged(entity);
+    utils::MarkVisualChanged(reg.runtime(), entity);
 }
 
-inline void SetBackgroundColor(entt::entity entity, const Color& color)
+inline void SetBackgroundColor(Registry& reg, entt::entity entity, const Color& color)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& background = reg.get_or_emplace<components::Background>(entity);
     background.color = color;
     background.enabled = policies::Feature::ENABLED;
-    utils::MarkVisualChanged(entity);
+    utils::MarkVisualChanged(reg.runtime(), entity);
 }
 
-inline void SetBorderRadius(entt::entity entity, float radius)
+inline void SetBorderRadius(Registry& reg, entt::entity entity, float radius)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& background = reg.get_or_emplace<components::Background>(entity);
@@ -1000,29 +956,27 @@ inline void SetBorderRadius(entt::entity entity, float radius)
     {
         border->borderRadius = {CLAMPED, CLAMPED, CLAMPED, CLAMPED};
     }
-    utils::MarkVisualChanged(entity);
+    utils::MarkVisualChanged(reg.runtime(), entity);
 }
 
-inline void SetBorderColor(entt::entity entity, const Color& color)
+inline void SetBorderColor(Registry& reg, entt::entity entity, const Color& color)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& border = reg.get_or_emplace<components::Border>(entity);
     border.color = color;
     border.enabled = policies::Feature::ENABLED;
-    utils::MarkVisualChanged(entity);
+    utils::MarkVisualChanged(reg.runtime(), entity);
 }
 
-inline void SetBorderThickness(entt::entity entity, float thickness)
+inline void SetBorderThickness(Registry& reg, entt::entity entity, float thickness)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     auto& border = reg.get_or_emplace<components::Border>(entity);
     border.thickness = scale::Metric(thickness);
     border.enabled = policies::Feature::ENABLED;
-    utils::MarkVisualChanged(entity);
+    utils::MarkVisualChanged(reg.runtime(), entity);
 }
 
 }  // namespace ui::detail::visibility
@@ -1030,45 +984,42 @@ inline void SetBorderThickness(entt::entity entity, float thickness)
 namespace ui::detail::layout
 {
 
-inline void SetLayoutDirection(entt::entity entity, policies::LayoutDirection direction)
+inline void SetLayoutDirection(Registry& reg, entt::entity entity, policies::LayoutDirection direction)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::LayoutInfo>(entity).direction = direction;
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetLayoutSpacing(entt::entity entity, float spacing)
+inline void SetLayoutSpacing(Registry& reg, entt::entity entity, float spacing)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (auto* layout = reg.try_get<components::LayoutInfo>(entity))
     {
         layout->spacing = std::max(0.0F, scale::Metric(spacing));
-        utils::MarkLayoutDirty(entity);
+        utils::MarkLayoutDirty(reg.runtime(), entity);
     }
 }
 
-inline void SetPadding(entt::entity entity, float left, float top, float right, float bottom)
+inline void SetPadding(Registry& reg, entt::entity entity, float left, float top, float right, float bottom)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::Padding>(entity).values =
         Vec4(scale::Metric(top), scale::Metric(right), scale::Metric(bottom), scale::Metric(left));
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
-inline void SetPadding(entt::entity entity, float padding)
+inline void SetPadding(Registry& reg, entt::entity entity, float padding)
 {
-    SetPadding(entity, padding, padding, padding, padding);
+    SetPadding(reg, entity, padding, padding, padding, padding);
 }
 
-inline void CenterInParent(entt::entity entity)
+inline void CenterInParent(Registry& reg, entt::entity entity)
 {
-    utils::MarkLayoutDirty(entity);
+    utils::MarkLayoutDirty(reg.runtime(), entity);
 }
 
 }  // namespace ui::detail::layout
@@ -1094,9 +1045,8 @@ inline void AppendChildrenPostOrder(Registry& reg, entt::entity parent, std::vec
     }
 }
 
-inline void RemoveChild(entt::entity parent, entt::entity child)
+inline void RemoveChild(Registry& reg, entt::entity parent, entt::entity child)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(parent) || !reg.valid(child))
         return;
     auto* parentHierarchy = reg.try_get<components::Hierarchy>(parent);
@@ -1106,31 +1056,30 @@ inline void RemoveChild(entt::entity parent, entt::entity child)
         std::erase(parentHierarchy->children, child);
         childHierarchy->parent = entt::null;
         reg.emplace_or_replace<components::RootTag>(child);
-        utils::MarkLayoutAndVisualChanged(parent);
-        utils::MarkLayoutAndVisualChanged(child);
+        utils::MarkLayoutAndVisualChanged(reg.runtime(), parent);
+        utils::MarkLayoutAndVisualChanged(reg.runtime(), child);
     }
 }
 
-inline void AddChild(entt::entity parent, entt::entity child)
+inline void AddChild(Registry& reg, entt::entity parent, entt::entity child)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(parent) || !reg.valid(child))
         return;
     auto& childHierarchy = reg.get_or_emplace<components::Hierarchy>(child);
     if (childHierarchy.parent != entt::null && childHierarchy.parent != parent)
-        RemoveChild(childHierarchy.parent, child);
+        RemoveChild(reg, childHierarchy.parent, child);
     childHierarchy.parent = parent;
     reg.remove<components::RootTag>(child);
     auto& children = reg.get_or_emplace<components::Hierarchy>(parent).children;
     if (std::ranges::find(children, child) == children.end())
         children.push_back(child);
-    utils::MarkLayoutAndVisualChanged(child);
+    utils::MarkLayoutAndVisualChanged(reg.runtime(), child);
 }
 
-[[nodiscard]] inline std::vector<entt::entity> ChildrenPostOrder(entt::entity parent)
+[[nodiscard]] inline std::vector<entt::entity> ChildrenPostOrder(Registry& reg, entt::entity parent)
 {
     std::vector<entt::entity> children;
-    AppendChildrenPostOrder(UiRuntime::current().registry(), parent, children);
+    AppendChildrenPostOrder(reg, parent, children);
     return children;
 }
 
@@ -1139,11 +1088,10 @@ inline void AddChild(entt::entity parent, entt::entity child)
 namespace ui::detail::icon
 {
 
-inline void SetIcon(entt::entity entity, const std::string& textureId,
+inline void SetIcon(Registry& reg, entt::entity entity, const std::string& textureId,
                     policies::IconFlag iconflag = policies::IconFlag::DEFAULT, float iconSize = 16.0F,
                     float spacing = 4.0F)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     (void)iconflag;
@@ -1154,14 +1102,13 @@ inline void SetIcon(entt::entity entity, const std::string& textureId,
     icon.codepoint = 0;
     icon.size = {scale::Metric(iconSize), scale::Metric(iconSize)};
     icon.spacing = scale::Metric(spacing);
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(reg.runtime(), entity);
 }
 
-inline void SetIcon(entt::entity entity, const std::string& fontName, uint32_t codepoint,
+inline void SetIcon(Registry& reg, entt::entity entity, const std::string& fontName, uint32_t codepoint,
                     policies::IconFlag iconflag = policies::IconFlag::DEFAULT, float iconSize = 16.0F,
                     float spacing = 4.0F)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     (void)iconflag;
@@ -1175,18 +1122,17 @@ inline void SetIcon(entt::entity entity, const std::string& fontName, uint32_t c
     icon.textureId.clear();
     icon.size = {scale::Metric(iconSize), scale::Metric(iconSize)};
     icon.spacing = scale::Metric(spacing);
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(reg.runtime(), entity);
 }
 
-inline void RemoveIcon(entt::entity entity)
+inline void RemoveIcon(Registry& reg, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     if (reg.any_of<components::Icon>(entity))
     {
         reg.remove<components::Icon>(entity);
-        utils::MarkLayoutAndVisualChanged(entity);
+        utils::MarkLayoutAndVisualChanged(reg.runtime(), entity);
     }
 }
 
@@ -1195,16 +1141,15 @@ inline void RemoveIcon(entt::entity entity)
 namespace ui::query::bridge
 {
 
-[[nodiscard]] inline bool IsValid(entt::entity entity) noexcept
+[[nodiscard]] inline bool IsValid(const Registry& reg, entt::entity entity) noexcept
 {
-    return UiRuntime::current().registry().valid(entity);
+    return reg.valid(entity);
 }
 
-[[nodiscard]] inline Result<entt::entity> FindByAlias(std::string_view alias)
+[[nodiscard]] inline Result<entt::entity> FindByAlias(Registry& reg, std::string_view alias)
 {
     if (alias.empty())
         return Err(UiErrc::INVALID_ARGUMENT, "empty alias");
-    auto& reg = UiRuntime::current().registry();
     for (const auto ENTITY : reg.view<components::BaseInfo>())
     {
         if (reg.get<components::BaseInfo>(ENTITY).alias == alias)
@@ -1213,9 +1158,8 @@ namespace ui::query::bridge
     return Err(UiErrc::INVALID_ENTITY, std::string(alias));
 }
 
-[[nodiscard]] inline std::string GetAlias(entt::entity entity)
+[[nodiscard]] inline std::string GetAlias(const Registry& reg, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return {};
     const auto* info = reg.try_get<components::BaseInfo>(entity);
@@ -1232,36 +1176,42 @@ namespace ui::theme::bridge
     return ThemePalette{};
 }
 
-inline void SetTheme(const ThemePalette& palette)
+inline void SetTheme(UiRuntime& runtime, const ThemePalette& palette)
 {
-    auto& context = UiRuntime::current().ensureContext<ThemeContext>();
+    auto& context = runtime.ensureContext<ThemeContext>();
     context.previousPalette = context.palette;
     context.palette = palette;
     ++context.version;
     context.reapplyRequested = true;
 }
 
-inline void UseDefaultDarkTheme()
+inline void UseDefaultDarkTheme(UiRuntime& runtime)
 {
-    ui::theme::bridge::SetTheme(DefaultDarkTheme());
+    ui::theme::bridge::SetTheme(runtime, DefaultDarkTheme());
 }
 
-inline void RequestThemeReapply()
+inline void RequestThemeReapply(UiRuntime& runtime)
 {
-    auto& context = UiRuntime::current().ensureContext<ThemeContext>();
+    auto& context = runtime.ensureContext<ThemeContext>();
     context.previousPalette = context.palette;
     context.reapplyRequested = true;
 }
 
-[[nodiscard]] inline const ThemePalette& CurrentTheme()
+[[nodiscard]] inline const ThemePalette& CurrentTheme(UiRuntime& runtime)
 {
-    return UiRuntime::current().ensureContext<ThemeContext>().palette;
+    return runtime.ensureContext<ThemeContext>().palette;
 }
 
 }  // namespace ui::theme::bridge
 
 namespace ui::detail::event_bridge
 {
+struct ConnectionHandle
+{
+    std::weak_ptr<EventDomain> domain;
+    std::uint64_t token = 0;
+};
+
 namespace impl
 {
 struct CallbackSlot
@@ -1277,23 +1227,42 @@ struct QueuedCustomEvent
     ui::event::EventPayload payload;
 };
 
-struct EventRegistryContext
+}  // namespace impl
+
+struct EventDomain
 {
     std::unordered_map<std::string, ui::event::EventId> idsByName;
     std::unordered_map<ui::event::EventId, std::string> namesById;
-    std::unordered_map<ui::event::EventId, std::vector<CallbackSlot>> callbacks;
+    std::unordered_map<ui::event::EventId, std::vector<ui::detail::event_bridge::impl::CallbackSlot>> callbacks;
     std::unordered_map<std::uint64_t, ui::event::EventId> idsByToken;
-    std::vector<QueuedCustomEvent> queue;
+    std::vector<ui::detail::event_bridge::impl::QueuedCustomEvent> queue;
     std::uint64_t nextToken = 1;
     ui::event::EventId nextEventId = 1;
 };
 
-[[nodiscard]] inline EventRegistryContext& CurrentContext()
+namespace impl
 {
-    return UiRuntime::current().ensureContext<EventRegistryContext>();
+struct EventRegistryContext
+{
+    std::shared_ptr<EventDomain> domain = std::make_shared<EventDomain>();
+};
+
+[[nodiscard]] inline EventRegistryContext& CurrentContext(UiRuntime& runtime)
+{
+    return runtime.ensureContext<EventRegistryContext>();
 }
 
-[[nodiscard]] inline CallbackSlot* FindSlot(EventRegistryContext& context, std::uint64_t token) noexcept
+[[nodiscard]] inline EventDomain& CurrentDomain(UiRuntime& runtime)
+{
+    return *CurrentContext(runtime).domain;
+}
+
+[[nodiscard]] inline std::shared_ptr<EventDomain> CurrentDomainHandle(UiRuntime& runtime)
+{
+    return CurrentContext(runtime).domain;
+}
+
+[[nodiscard]] inline CallbackSlot* FindSlot(EventDomain& context, std::uint64_t token) noexcept
 {
     auto idIt = context.idsByToken.find(token);
     if (idIt == context.idsByToken.end())
@@ -1306,26 +1275,36 @@ struct EventRegistryContext
     return slotIt == slots.end() ? nullptr : &*slotIt;
 }
 
-inline void Dispatch(EventRegistryContext& context, ui::event::EventId eventId, const ui::event::EventPayload& payload)
+inline void Dispatch(EventDomain& context, ui::event::EventId eventId,
+                     const ui::event::EventPayload& payload)
 {
     if (eventId == ui::event::INVALID_EVENT_ID)
         return;
     auto callbacksIt = context.callbacks.find(eventId);
     if (callbacksIt == context.callbacks.end())
         return;
-    for (auto& slot : callbacksIt->second)
+    const auto snapshot = callbacksIt->second;
+    for (const auto& slot : snapshot)
     {
-        if (slot.connected && slot.callback != nullptr && static_cast<bool>(*slot.callback))
+        const auto* current = FindSlot(context, slot.token);
+        if (current != nullptr && current->connected && slot.callback != nullptr && static_cast<bool>(*slot.callback))
             (*slot.callback)(payload);
+    }
+
+    callbacksIt = context.callbacks.find(eventId);
+    if (callbacksIt != context.callbacks.end())
+    {
+        auto& slots = callbacksIt->second;
+        std::erase_if(slots, [](const CallbackSlot& slot) { return !slot.connected; });
     }
 }
 }  // namespace impl
 
-[[nodiscard]] inline ui::event::EventId RegisterEvent(std::string_view name)
+[[nodiscard]] inline ui::event::EventId RegisterEvent(UiRuntime& runtime, std::string_view name)
 {
     if (name.empty())
         return ui::event::INVALID_EVENT_ID;
-    auto& context = impl::CurrentContext();
+    auto& context = impl::CurrentDomain(runtime);
     const std::string KEY{name};
     if (auto eventIt = context.idsByName.find(KEY); eventIt != context.idsByName.end())
         return eventIt->second;
@@ -1335,85 +1314,84 @@ inline void Dispatch(EventRegistryContext& context, ui::event::EventId eventId, 
     return eventId;
 }
 
-[[nodiscard]] inline bool IsEventRegistered(ui::event::EventId eventId)
+[[nodiscard]] inline bool IsEventRegistered(UiRuntime& runtime, ui::event::EventId eventId)
 {
-    return eventId != ui::event::INVALID_EVENT_ID && impl::CurrentContext().namesById.contains(eventId);
+    return eventId != ui::event::INVALID_EVENT_ID && impl::CurrentDomain(runtime).namesById.contains(eventId);
 }
 
-[[nodiscard]] inline bool IsEventRegistered(std::string_view name)
+[[nodiscard]] inline bool IsEventRegistered(UiRuntime& runtime, std::string_view name)
 {
-    return !name.empty() && impl::CurrentContext().idsByName.contains(std::string{name});
+    return !name.empty() && impl::CurrentDomain(runtime).idsByName.contains(std::string{name});
 }
 
-[[nodiscard]] inline std::uint64_t Connect(ui::event::EventId eventId, ui::event::EventCallback callback)
+[[nodiscard]] inline ConnectionHandle Connect(UiRuntime& runtime, ui::event::EventId eventId, ui::event::EventCallback callback)
 {
     if (eventId == ui::event::INVALID_EVENT_ID || !static_cast<bool>(callback))
-        return 0;
-    auto& context = impl::CurrentContext();
+        return {};
+    auto domain = impl::CurrentDomainHandle(runtime);
+    auto& context = *domain;
     if (!context.namesById.contains(eventId))
-        return 0;
+        return {};
     const auto TOKEN = context.nextToken++;
     context.callbacks[eventId].push_back({.token = TOKEN,
                                           .callback = std::make_shared<ui::event::EventCallback>(std::move(callback)),
                                           .connected = true});
     context.idsByToken.emplace(TOKEN, eventId);
-    return TOKEN;
+    return {.domain = domain, .token = TOKEN};
 }
 
-[[nodiscard]] inline std::uint64_t Connect(std::string_view name, ui::event::EventCallback callback)
+[[nodiscard]] inline ConnectionHandle Connect(UiRuntime& runtime, std::string_view name, ui::event::EventCallback callback)
 {
-    return Connect(RegisterEvent(name), std::move(callback));
+    return Connect(runtime, RegisterEvent(runtime, name), std::move(callback));
 }
 
-inline void Disconnect(std::uint64_t token) noexcept
+inline void Disconnect(EventDomain& context, std::uint64_t token) noexcept
 {
     if (token == 0)
         return;
-    auto& context = impl::CurrentContext();
     if (auto* slot = impl::FindSlot(context, token); slot != nullptr)
         slot->connected = false;
     context.idsByToken.erase(token);
 }
 
-[[nodiscard]] inline bool Connected(std::uint64_t token) noexcept
+[[nodiscard]] inline bool Connected(EventDomain& context, std::uint64_t token) noexcept
 {
     if (token == 0)
         return false;
-    auto& context = impl::CurrentContext();
     const auto* slot = impl::FindSlot(context, token);
     return slot != nullptr && slot->connected;
 }
 
 // NOLINTNEXTLINE(performance-unnecessary-value-param) -- 与公开 API 的按值载荷契约一致。
-inline void Trigger(ui::event::EventId eventId, ui::event::EventPayload payload)
+inline void Trigger(UiRuntime& runtime, ui::event::EventId eventId, ui::event::EventPayload payload)
 {
-    impl::Dispatch(impl::CurrentContext(), eventId, payload);
+    impl::Dispatch(impl::CurrentDomain(runtime), eventId, payload);
 }
 
 // NOLINTNEXTLINE(performance-unnecessary-value-param) -- 与公开 API 的按值载荷契约一致。
-inline void Trigger(std::string_view name, ui::event::EventPayload payload)
+inline void Trigger(UiRuntime& runtime, std::string_view name, ui::event::EventPayload payload)
 {
-    impl::Dispatch(impl::CurrentContext(), RegisterEvent(name), payload);
+    impl::Dispatch(impl::CurrentDomain(runtime), RegisterEvent(runtime, name), payload);
 }
 
-inline void Enqueue(ui::event::EventId eventId, ui::event::EventPayload payload)
+inline void Enqueue(UiRuntime& runtime, ui::event::EventId eventId, ui::event::EventPayload payload)
 {
-    if (!IsEventRegistered(eventId))
+    if (!IsEventRegistered(runtime, eventId))
         return;
-    impl::CurrentContext().queue.push_back({.id = eventId, .payload = std::move(payload)});
+    impl::CurrentDomain(runtime).queue.push_back({.id = eventId, .payload = std::move(payload)});
 }
 
-inline void Enqueue(std::string_view name, ui::event::EventPayload payload)
+inline void Enqueue(UiRuntime& runtime, std::string_view name, ui::event::EventPayload payload)
 {
-    auto eventId = RegisterEvent(name);
+    auto eventId = RegisterEvent(runtime, name);
     if (eventId == ui::event::INVALID_EVENT_ID)
         return;
-    impl::CurrentContext().queue.push_back({.id = eventId, .payload = std::move(payload)});
+    impl::CurrentDomain(runtime).queue.push_back({.id = eventId, .payload = std::move(payload)});
 }
 
-inline void DispatchQueued()
+inline void DispatchQueued(UiRuntime& runtime)
 {
-    auto& context = impl::CurrentContext();
+    auto& context = impl::CurrentDomain(runtime);
     auto pending = std::exchange(context.queue, {});
     for (const auto& event : pending)
         impl::Dispatch(context, event.id, event.payload);
@@ -1424,17 +1402,15 @@ inline void DispatchQueued()
 namespace ui::detail::canvas
 {
 
-inline void Clear(entt::entity entity)
+inline void Clear(Registry& reg, entt::entity entity)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::CanvasDrawList>(entity).commands.clear();
 }
 
-inline void DrawLine(entt::entity entity, Vec2 from, Vec2 endPos, Color color, float lineWidth = 1.0F)
+inline void DrawLine(Registry& reg, entt::entity entity, Vec2 from, Vec2 endPos, Color color, float lineWidth = 1.0F)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::CanvasDrawList>(entity).commands.push_back({.type = components::CanvasDrawType::LINE,
@@ -1447,9 +1423,8 @@ inline void DrawLine(entt::entity entity, Vec2 from, Vec2 endPos, Color color, f
                                                                                .points = {}});
 }
 
-inline void DrawRect(entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, float lineWidth = 1.0F)
+inline void DrawRect(Registry& reg, entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, float lineWidth = 1.0F)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::CanvasDrawList>(entity).commands.push_back({.type = components::CanvasDrawType::RECT,
@@ -1462,9 +1437,8 @@ inline void DrawRect(entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color 
                                                                                .points = {}});
 }
 
-inline void DrawFilledRect(entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color)
+inline void DrawFilledRect(Registry& reg, entt::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::CanvasDrawList>(entity).commands.push_back(
@@ -1478,9 +1452,8 @@ inline void DrawFilledRect(entt::entity entity, Vec2 topLeft, Vec2 bottomRight, 
          .points = {}});
 }
 
-inline void DrawCircle(entt::entity entity, Vec2 center, float radius, Color color, float lineWidth = 1.0F)
+inline void DrawCircle(Registry& reg, entt::entity entity, Vec2 center, float radius, Color color, float lineWidth = 1.0F)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::CanvasDrawList>(entity).commands.push_back(
@@ -1494,9 +1467,8 @@ inline void DrawCircle(entt::entity entity, Vec2 center, float radius, Color col
          .points = {}});
 }
 
-inline void DrawFilledCircle(entt::entity entity, Vec2 center, float radius, Color color)
+inline void DrawFilledCircle(Registry& reg, entt::entity entity, Vec2 center, float radius, Color color)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     reg.get_or_emplace<components::CanvasDrawList>(entity).commands.push_back(
@@ -1510,9 +1482,8 @@ inline void DrawFilledCircle(entt::entity entity, Vec2 center, float radius, Col
          .points = {}});
 }
 
-inline void DrawPolyline(entt::entity entity, std::vector<Vec2> points, Color color, float lineWidth = 1.0F)
+inline void DrawPolyline(Registry& reg, entt::entity entity, std::vector<Vec2> points, Color color, float lineWidth = 1.0F)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity) || points.size() < 2)
         return;
     components::CanvasDrawCommand command;
@@ -1525,10 +1496,9 @@ inline void DrawPolyline(entt::entity entity, std::vector<Vec2> points, Color co
     reg.get_or_emplace<components::CanvasDrawList>(entity).commands.push_back(std::move(command));
 }
 
-inline void DrawCubicBezier(entt::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color,
+inline void DrawCubicBezier(Registry& reg, entt::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color,
                             float lineWidth = 1.0F)
 {
-    auto& reg = UiRuntime::current().registry();
     if (!reg.valid(entity))
         return;
     components::CanvasDrawCommand command;

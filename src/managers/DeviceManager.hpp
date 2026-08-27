@@ -66,7 +66,7 @@ class DeviceManager
         std::function<void(SDL_PropertiesID)> configure;
     };
 
-    DeviceManager()
+    explicit DeviceManager(utils::Logger& logger) : m_logger(&logger)
     {
         m_backends = {{.name = "direct3d12",
                        .configure =
@@ -104,8 +104,7 @@ class DeviceManager
             return Ok();
         }
 
-        ui::UiRuntime::current().logger().info(
-            "DeviceManager: 开始初始化 GPU 后端 (Strategy: Iterative Configuration)");
+        m_logger->info("DeviceManager: 开始初始化 GPU 后端 (Strategy: Iterative Configuration)");
 
         applyPreferredBackend();
 
@@ -117,7 +116,7 @@ class DeviceManager
             }
         }
 
-        ui::UiRuntime::current().logger().error("所有 GPU 后端方案均初始化失败！请检查显卡驱动或虚拟机 3D 加速设置。");
+        m_logger->error("所有 GPU 后端方案均初始化失败！请检查显卡驱动或虚拟机 3D 加速设置。");
         return Err(UiErrc::BACKEND_UNAVAILABLE);
     }
 
@@ -125,7 +124,7 @@ class DeviceManager
     {
         if (m_gpuDevice == nullptr || sdlWindow == nullptr)
         {
-            ui::UiRuntime::current().logger().error("claimWindow: 无效的设备或窗口句柄");
+            m_logger->error("claimWindow: 无效的设备或窗口句柄");
             return Err(UiErrc::INVALID_ARGUMENT);
         }
 
@@ -149,8 +148,7 @@ class DeviceManager
         }
 
         // 核心修改：如果声明失败（例如 D3D12 在 VM 中无法渲染），尝试回退到其他后端
-        ui::UiRuntime::current().logger().warn("当前后端 {} 无法声明窗口 ({}). 尝试切换其他后端...", m_gpuDriver,
-                                               SDL_GetError());
+        m_logger->warn("当前后端 {} 无法声明窗口 ({}). 尝试切换其他后端...", m_gpuDriver, SDL_GetError());
 
         // 尝试后续的后端
         size_t nextIndex = m_currentBackendIndex + 1;
@@ -162,18 +160,18 @@ class DeviceManager
             // 尝试创建下一个设备
             if (createDevice(nextIndex))
             {
-                ui::UiRuntime::current().logger().info("已切换至后端: {}，重试声明窗口...", m_gpuDriver);
+                m_logger->info("已切换至后端: {}，重试声明窗口...", m_gpuDriver);
                 if (SDL_ClaimWindowForGPUDevice(m_gpuDevice.get(), sdlWindow))
                 {
                     m_claimedWindows.insert(windowID);
                     return Ok();
                 }
-                ui::UiRuntime::current().logger().warn("后端 {} 也无法声明窗口，继续寻找...", m_gpuDriver);
+                m_logger->warn("后端 {} 也无法声明窗口，继续寻找...", m_gpuDriver);
             }
             nextIndex++;
         }
 
-        ui::UiRuntime::current().logger().error("致命错误: 所有可用后端均无法声明/渲染窗口！");
+        m_logger->error("致命错误: 所有可用后端均无法声明/渲染窗口！");
         return Err(UiErrc::WINDOW_CLAIM_FAILED, SDL_GetError());
     }
 
@@ -274,7 +272,7 @@ class DeviceManager
      * @note 成功表示上传命令已提交，不表示 GPU 已执行完成。调用 Submit 后命令缓冲已由
      * SDL 消费，无论 Submit 返回值如何都不得再取消该命令缓冲。
      */
-    static bool createWhiteTexture(const detail::GpuDeviceGenerationHandle& generation,
+    static bool createWhiteTexture(const detail::GpuDeviceGenerationHandle& generation, utils::Logger& logger,
                                    wrappers::UniqueGPUTexture& candidateWhiteTexture)
     {
         const auto activeDevice = generation.InvokeIfActive([](SDL_GPUDevice* device) { return device; });
@@ -301,7 +299,7 @@ class DeviceManager
             wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(generation, SDL_CreateGPUTexture, &textureInfo);
         if (!whiteTexture)
         {
-            ui::UiRuntime::current().logger().error("DeviceManager: 创建白色纹理失败 ({})", SDL_GetError());
+            logger.error("DeviceManager: 创建白色纹理失败 ({})", SDL_GetError());
             return false;
         }
 
@@ -316,7 +314,7 @@ class DeviceManager
             generation, SDL_CreateGPUTransferBuffer, &transferInfo);
         if (!transferBuffer)
         {
-            ui::UiRuntime::current().logger().error("DeviceManager: 创建白纹理上传缓冲失败 ({})", SDL_GetError());
+            logger.error("DeviceManager: 创建白纹理上传缓冲失败 ({})", SDL_GetError());
             return false;
         }
 
@@ -327,7 +325,7 @@ class DeviceManager
         }
         if (mappedData == nullptr)
         {
-            ui::UiRuntime::current().logger().error("DeviceManager: 映射白纹理上传缓冲失败 ({})", SDL_GetError());
+            logger.error("DeviceManager: 映射白纹理上传缓冲失败 ({})", SDL_GetError());
             return false;
         }
         std::memcpy(mappedData, WHITE_PIXEL.data(), WHITE_PIXEL.size());
@@ -340,7 +338,7 @@ class DeviceManager
         }
         if (commandBuffer == nullptr)
         {
-            ui::UiRuntime::current().logger().error("DeviceManager: 获取白纹理命令缓冲失败 ({})", SDL_GetError());
+            logger.error("DeviceManager: 获取白纹理命令缓冲失败 ({})", SDL_GetError());
             return false;
         }
 
@@ -351,10 +349,10 @@ class DeviceManager
         }
         if (copyPass == nullptr)
         {
-            ui::UiRuntime::current().logger().error("DeviceManager: 开始白纹理复制通道失败 ({})", SDL_GetError());
+            logger.error("DeviceManager: 开始白纹理复制通道失败 ({})", SDL_GetError());
             if (!SDL_CancelGPUCommandBuffer(commandBuffer))
             {
-                ui::UiRuntime::current().logger().error("DeviceManager: 取消白纹理命令缓冲失败 ({})", SDL_GetError());
+                logger.error("DeviceManager: 取消白纹理命令缓冲失败 ({})", SDL_GetError());
             }
             return false;
         }
@@ -370,13 +368,13 @@ class DeviceManager
         {
             if (!SDL_CancelGPUCommandBuffer(commandBuffer))
             {
-                ui::UiRuntime::current().logger().error("DeviceManager: 取消白纹理命令缓冲失败 ({})", SDL_GetError());
+                logger.error("DeviceManager: 取消白纹理命令缓冲失败 ({})", SDL_GetError());
             }
             return false;
         }
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
         {
-            ui::UiRuntime::current().logger().error("DeviceManager: 提交白纹理上传失败 ({})", SDL_GetError());
+            logger.error("DeviceManager: 提交白纹理上传失败 ({})", SDL_GetError());
             return false;
         }
 
@@ -401,15 +399,14 @@ class DeviceManager
                                         [&](const BackendConfig& cfg) { return cfg.name == preferred; });
         if (backendIter == m_backends.end())
         {
-            ui::UiRuntime::current().logger().warn("未知 GPU 后端 \"{}\"，使用默认顺序。可选: direct3d12 / vulkan",
-                                                   preferred);
+            m_logger->warn("未知 GPU 后端 \"{}\"，使用默认顺序。可选: direct3d12 / vulkan", preferred);
             return;
         }
         if (backendIter != m_backends.begin())
         {
             std::rotate(m_backends.begin(), backendIter, backendIter + 1);
         }
-        ui::UiRuntime::current().logger().info("应用命令行 GPU 后端偏好：优先尝试 {}", m_backends.front().name);
+        m_logger->info("应用命令行 GPU 后端偏好：优先尝试 {}", m_backends.front().name);
     }
 
     bool createDevice(size_t index)
@@ -420,7 +417,7 @@ class DeviceManager
         }
 
         const auto& config = m_backends[index];
-        ui::UiRuntime::current().logger().info("尝试初始化后端: {}...", config.name);
+        m_logger->info("尝试初始化后端: {}...", config.name);
 
         wrappers::UniquePropertiesID props(SDL_CreateProperties());
         if (config.configure)
@@ -435,18 +432,18 @@ class DeviceManager
         }
         if (candidateDevice == nullptr)
         {
-            ui::UiRuntime::current().logger().warn("后端 {} 初始化失败 ({})", config.name, SDL_GetError());
+            m_logger->warn("后端 {} 初始化失败 ({})", config.name, SDL_GetError());
             return false;
         }
 
         detail::GpuDeviceGeneration candidateGeneration(candidateDevice.get());
         wrappers::UniqueGPUTexture candidateWhiteTexture;
-        if (!createWhiteTexture(candidateGeneration.GetHandle(), candidateWhiteTexture))
+        if (!createWhiteTexture(candidateGeneration.GetHandle(), *m_logger, candidateWhiteTexture))
         {
             candidateWhiteTexture.reset();
             candidateGeneration.Invalidate();
             candidateDevice.reset();
-            ui::UiRuntime::current().logger().warn("后端 {} 白色纹理初始化失败，尝试下一后端", config.name);
+            m_logger->warn("后端 {} 白色纹理初始化失败，尝试下一后端", config.name);
             return false;
         }
 
@@ -455,10 +452,11 @@ class DeviceManager
         m_whiteTexture = std::move(candidateWhiteTexture);
         m_gpuDriver = config.name;
         m_currentBackendIndex = index;
-        ui::UiRuntime::current().logger().info("GPU 初始化成功，锁定后端: {}", m_gpuDriver);
+        m_logger->info("GPU 初始化成功，锁定后端: {}", m_gpuDriver);
         return true;
     }
 
+    utils::Logger* m_logger;
     wrappers::UniqueGPUDevice m_gpuDevice;
     std::optional<detail::GpuDeviceGeneration> m_generation;
     wrappers::UniqueGPUTexture m_whiteTexture;  ///< 当前设备代际唯一拥有的白色纹理

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/utils/EventLoop.hpp"
+#include "src/utils/MpscQueue.hpp"
 
 namespace ui::tests
 {
@@ -57,6 +58,96 @@ class CompletionGate
     std::condition_variable cv_;
     bool done_{false};
 };
+
+struct BlockingMoveState
+{
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool moveEntered{false};
+    bool allowMove{false};
+    bool blockNextMove{true};
+};
+
+class BlockingMoveTask
+{
+   public:
+    BlockingMoveTask(std::shared_ptr<BlockingMoveState> state, std::atomic_bool& executed)
+        : state_(std::move(state)), executed_(&executed)
+    {
+    }
+
+    BlockingMoveTask(BlockingMoveTask&& other) noexcept : state_(std::move(other.state_)), executed_(other.executed_)
+    {
+        std::unique_lock lock(state_->mutex);
+        if (state_->blockNextMove)
+        {
+            state_->blockNextMove = false;
+            state_->moveEntered = true;
+            state_->cv.notify_all();
+            state_->cv.wait(lock, [this] { return state_->allowMove; });
+        }
+    }
+
+    BlockingMoveTask(const BlockingMoveTask&) = delete;
+    BlockingMoveTask& operator=(const BlockingMoveTask&) = delete;
+    BlockingMoveTask& operator=(BlockingMoveTask&&) = delete;
+    ~BlockingMoveTask() = default;
+
+    void operator()() const
+    {
+        executed_->store(true, std::memory_order_release);
+    }
+
+   private:
+    std::shared_ptr<BlockingMoveState> state_;
+    std::atomic_bool* executed_;
+};
+
+TEST(MpscQueuePublicationTest, ConsumerCannotObserveSlotBeforeAccountingCommit)
+{
+    ui::utils::MpscQueue<int> queue{2};
+    std::atomic_bool committed{false};
+
+    ASSERT_TRUE(queue.TryEmplaceBeforePublish(
+        [&committed]() noexcept { committed.store(true, std::memory_order_release); }, 42));
+    auto value = queue.TryDequeue();
+
+    ASSERT_TRUE(value.has_value());
+    EXPECT_TRUE(committed.load(std::memory_order_acquire));
+    EXPECT_EQ(*value, 42);
+}
+
+TEST(EventLoopStressTest, DrainWaitsForProducerAlreadyInsidePost)
+{
+    ui::utils::EventLoop loop{kPingQueueCapacity};
+    std::thread consumer([&loop] { loop.Exec(); });
+    auto state = std::make_shared<BlockingMoveState>();
+    std::atomic_bool executed{false};
+    bool posted = false;
+
+    std::thread producer([&]
+                         { posted = loop.Post(BlockingMoveTask{state, executed}); });
+    {
+        std::unique_lock lock(state->mutex);
+        ASSERT_TRUE(state->cv.wait_for(lock, std::chrono::milliseconds(kPingTimeoutMs),
+                                       [&state] { return state->moveEntered; }));
+    }
+
+    loop.Exit(0, true);
+    EXPECT_TRUE(loop.IsRunning());
+
+    {
+        std::lock_guard lock(state->mutex);
+        state->allowMove = true;
+    }
+    state->cv.notify_all();
+
+    producer.join();
+    consumer.join();
+    EXPECT_TRUE(posted);
+    EXPECT_TRUE(executed.load(std::memory_order_acquire));
+    EXPECT_EQ(loop.PendingCount(), 0U);
+}
 
 /**
  * @brief 单任务 ping 观测：循环投递单个任务并等待其执行。

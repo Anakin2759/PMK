@@ -61,22 +61,22 @@ namespace
     return entt::null;
 }
 
-[[nodiscard]] Rect GetHorizontalScrollbarTrackRect(entt::entity entity)
+[[nodiscard]] Rect GetHorizontalScrollbarTrackRect(Registry& reg, entt::entity entity)
 {
     static constexpr float TRACK_HEIGHT = 12.0F;
     static constexpr float TRACK_PADDING = 2.0F;
-    const Rect entityRect = ui::utils::GetEntityRect(entity);
+    const Rect entityRect = ui::utils::GetEntityRect(reg.runtime(), ui::detail::ToPublic(entity));
     return {entityRect.x(), entityRect.y() + entityRect.height() - TRACK_HEIGHT - TRACK_PADDING, entityRect.width(),
             TRACK_HEIGHT};
 }
 
-[[nodiscard]] Rect GetHorizontalScrollbarThumbRect(entt::entity entity, const components::ScrollArea& scrollArea)
+[[nodiscard]] Rect GetHorizontalScrollbarThumbRect(Registry& reg, entt::entity entity, const components::ScrollArea& scrollArea)
 {
     static constexpr float TRACK_HEIGHT = 12.0F;
     static constexpr float TRACK_PADDING = 2.0F;
     static constexpr float BAR_HEIGHT = 10.0F;
-    const Rect entityRect = ui::utils::GetEntityRect(entity);
-    const float viewportWidth = ui::utils::GetScrollViewportLength(entity, false);
+    const Rect entityRect = ui::utils::GetEntityRect(reg.runtime(), ui::detail::ToPublic(entity));
+    const float viewportWidth = ui::utils::GetScrollViewportLength(reg.runtime(), ui::detail::ToPublic(entity), false);
     const float contentWidth = std::max(1.0F, scrollArea.contentSize.x());
     const float visibleRatio = viewportWidth / contentWidth;
     const float trackWidth = std::max(0.0F, entityRect.width());
@@ -193,7 +193,7 @@ void StateSystem::SliderStateHelpers::updateValueFromPointer(StateSystem& system
         return;
     }
 
-    Vec2 absPos = HitTestSystem::getAbsolutePosition(entity);
+    const Vec2 absPos = ui::utils::GetAbsolutePosition(reg.runtime(), ui::detail::ToPublic(entity));
     const Vec2 size = sizeComp->size;
 
     float ratio = 0.0F;
@@ -232,7 +232,7 @@ void StateSystem::SliderStateHelpers::updateValueFromPointer(StateSystem& system
         slider->onValueChanged(slider->currentValue);
     }
 
-    ui::utils::MarkVisualChanged(entity);
+    ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(entity));
 }
 
 // =============================================================================
@@ -271,7 +271,7 @@ entt::entity StateSystem::ScrollbarStateHelpers::findScrollTargetAtPosition(Stat
     for (auto entity : view)
     {
         const auto& size = view.get<components::Size>(entity);
-        Vec2 absPos = HitTestSystem::getAbsolutePosition(entity);
+        const Vec2 absPos = ui::utils::GetAbsolutePosition(reg.runtime(), ui::detail::ToPublic(entity));
         if (HitTestSystem::isPointInRect(pointerPosition, absPos, size.size))
         {
             return entity;
@@ -295,7 +295,8 @@ void StateSystem::ScrollbarStateHelpers::applyScrollWheelDelta(StateSystem& syst
         const float deltaY = -scrollDelta.y() * 30.0F;
         const float oldOffsetY = scroll.scrollOffset.y();
         scroll.scrollOffset.y() =
-            std::clamp(scroll.scrollOffset.y() + deltaY, 0.0F, ui::utils::GetScrollMaxOffset(target, true));
+            std::clamp(scroll.scrollOffset.y() + deltaY, 0.0F,
+                   ui::utils::GetScrollMaxOffset(system.m_reg->runtime(), ui::detail::ToPublic(target), true));
         changed = changed || oldOffsetY != scroll.scrollOffset.y();
     }
 
@@ -306,13 +307,14 @@ void StateSystem::ScrollbarStateHelpers::applyScrollWheelDelta(StateSystem& syst
         const float deltaX = -scrollDelta.x() * 30.0F;
         const float oldOffsetX = scroll.scrollOffset.x();
         scroll.scrollOffset.x() =
-            std::clamp(scroll.scrollOffset.x() + deltaX, 0.0F, ui::utils::GetScrollMaxOffset(target, false));
+            std::clamp(scroll.scrollOffset.x() + deltaX, 0.0F,
+                   ui::utils::GetScrollMaxOffset(system.m_reg->runtime(), ui::detail::ToPublic(target), false));
         changed = changed || oldOffsetX != scroll.scrollOffset.x();
     }
 
     if (changed)
     {
-        ui::utils::MarkLayoutAndVisualChanged(target);
+        ui::utils::MarkLayoutAndVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(target));
     }
 }
 
@@ -342,7 +344,7 @@ void StateSystem::ScrollbarStateHelpers::updateHoverStates(StateSystem& system, 
             continue;
         }
 
-        const VerticalScrollbarGeometry geometry = ui::utils::GetVerticalScrollbarGeometry(entity);
+        const VerticalScrollbarGeometry geometry = ui::utils::GetVerticalScrollbarGeometry(system.m_reg->runtime(), ui::detail::ToPublic(entity));
         if (!geometry.visible)
         {
             continue;
@@ -360,7 +362,7 @@ void StateSystem::ScrollbarStateHelpers::updateHoverStates(StateSystem& system, 
 
         if (wasHovered != (interState.scrollbarHovered || interState.trackHovered))
         {
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(entity));
         }
     }
 }
@@ -373,7 +375,7 @@ void StateSystem::ScrollbarStateHelpers::handleDrag(StateSystem& system, const e
 
     auto& reg = *system.m_reg;
     auto& scroll = reg.get<components::ScrollArea>(state.dragScrollEntity);
-    const float maxScroll = ui::utils::GetScrollMaxOffset(state.dragScrollEntity, state.isVerticalDrag);
+    const float maxScroll = ui::utils::GetScrollMaxOffset(system.m_reg->runtime(), ui::detail::ToPublic(state.dragScrollEntity), state.isVerticalDrag);
     const float trackScrollableArea = state.dragTrackLength - state.dragThumbSize;
 
     if (trackScrollableArea > 0.0F && maxScroll > 0.0F)
@@ -387,7 +389,7 @@ void StateSystem::ScrollbarStateHelpers::handleDrag(StateSystem& system, const e
 
         currentOffset = std::clamp(startOffset + offsetDelta, 0.0F, maxScroll);
 
-        ui::utils::MarkLayoutAndVisualChanged(state.dragScrollEntity);
+        ui::utils::MarkLayoutAndVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(state.dragScrollEntity));
     }
 }
 
@@ -429,7 +431,7 @@ bool StateSystem::ScrollbarStateHelpers::tryHandlePress(StateSystem& system, con
 
         float trackLength = 0.0F;
         float thumbSize = 0.0F;
-        calculateGeometry(scrollEntity, isVertical, trackLength, thumbSize);
+        calculateGeometry(reg, scrollEntity, isVertical, trackLength, thumbSize);
         state.beginScrollbarDrag(scrollEntity, event.raw.position, scroll.scrollOffset, isVertical, trackLength,
                                  thumbSize);
     }
@@ -438,7 +440,7 @@ bool StateSystem::ScrollbarStateHelpers::tryHandlePress(StateSystem& system, con
         handleTrackClick(system, scrollEntity, event.raw.position, isVertical);
     }
 
-    ui::utils::MarkVisualChanged(scrollEntity);
+    ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(scrollEntity));
     return true;
 }
 
@@ -456,7 +458,7 @@ StateSystem::ScrollbarHitType StateSystem::ScrollbarStateHelpers::checkHit(State
         return ScrollbarHitType::NONE;
     }
 
-    const VerticalScrollbarGeometry geometry = ui::utils::GetVerticalScrollbarGeometry(entity);
+    const VerticalScrollbarGeometry geometry = ui::utils::GetVerticalScrollbarGeometry(system.m_reg->runtime(), ui::detail::ToPublic(entity));
     if (geometry.visible)
     {
         if (geometry.trackRect.Contains(mousePos.x(), mousePos.y()))
@@ -474,14 +476,15 @@ StateSystem::ScrollbarHitType StateSystem::ScrollbarStateHelpers::checkHit(State
 
     const bool hasHorizontalScroll =
         scrollArea->scroll == policies::Scroll::HORIZONTAL || scrollArea->scroll == policies::Scroll::BOTH;
-    const float viewportWidth = ui::utils::GetScrollViewportLength(entity, false);
+    const float viewportWidth =
+        ui::utils::GetScrollViewportLength(system.m_reg->runtime(), ui::detail::ToPublic(entity), false);
     if (hasHorizontalScroll && scrollArea->contentSize.x() > viewportWidth)
     {
-        const Rect trackRect = GetHorizontalScrollbarTrackRect(entity);
+        const Rect trackRect = GetHorizontalScrollbarTrackRect(*system.m_reg, entity);
         if (trackRect.contains(mousePos))
         {
             outIsVertical = false;
-            const Rect thumbRect = GetHorizontalScrollbarThumbRect(entity, *scrollArea);
+            const Rect thumbRect = GetHorizontalScrollbarThumbRect(*system.m_reg, entity, *scrollArea);
             if (thumbRect.contains(mousePos))
             {
                 return ScrollbarHitType::THUMB;
@@ -492,13 +495,15 @@ StateSystem::ScrollbarHitType StateSystem::ScrollbarStateHelpers::checkHit(State
     return ScrollbarHitType::NONE;
 }
 
-void StateSystem::ScrollbarStateHelpers::calculateGeometry(entt::entity entity, bool isVertical, float& outTrackLen,
-                                                           float& outThumbSize)
+void StateSystem::ScrollbarStateHelpers::calculateGeometry(Registry& reg, entt::entity entity, bool isVertical,
+                                                           float& outTrackLen, float& outThumbSize)
 {
-    outTrackLen = std::max(
-        0.0F, isVertical ? ui::utils::GetEntityRect(entity).height() : ui::utils::GetEntityRect(entity).width());
-    const float viewportSize = ui::utils::GetScrollViewportLength(entity, isVertical);
-    const float contentSize = std::max(1.0F, ui::utils::GetScrollContentLength(entity, isVertical));
+    const Rect entityRect = ui::utils::GetEntityRect(reg.runtime(), ui::detail::ToPublic(entity));
+    outTrackLen = std::max(0.0F, isVertical ? entityRect.height() : entityRect.width());
+    const float viewportSize =
+        ui::utils::GetScrollViewportLength(reg.runtime(), ui::detail::ToPublic(entity), isVertical);
+    const float contentSize =
+        std::max(1.0F, ui::utils::GetScrollContentLength(reg.runtime(), ui::detail::ToPublic(entity), isVertical));
     const float visibleRatio = std::max(0.001F, viewportSize / contentSize);
     outThumbSize =
         std::min(outTrackLen, std::max(components::ScrollArea::SCROLLBAR_THUMB_MIN_SIZE, outTrackLen * visibleRatio));
@@ -509,9 +514,9 @@ void StateSystem::ScrollbarStateHelpers::handleTrackClick(StateSystem& system, e
 {
     auto& reg = *system.m_reg;
     auto& scrollArea = reg.get<components::ScrollArea>(entity);
-    const Rect entityRect = ui::utils::GetEntityRect(entity);
-    const float viewportSize = ui::utils::GetScrollViewportLength(entity, isVertical);
-    const float contentSize = ui::utils::GetScrollContentLength(entity, isVertical);
+    const Rect entityRect = ui::utils::GetEntityRect(system.m_reg->runtime(), ui::detail::ToPublic(entity));
+    const float viewportSize = ui::utils::GetScrollViewportLength(system.m_reg->runtime(), ui::detail::ToPublic(entity), isVertical);
+    const float contentSize = ui::utils::GetScrollContentLength(system.m_reg->runtime(), ui::detail::ToPublic(entity), isVertical);
     const float maxScroll = std::max(0.0F, contentSize - viewportSize);
     if (maxScroll <= 0.0F)
     {
@@ -532,7 +537,7 @@ void StateSystem::ScrollbarStateHelpers::handleTrackClick(StateSystem& system, e
     const float targetRatio = scrollableTrack > 0.0F ? (targetThumbPos / scrollableTrack) : 0.0F;
     scrollOffset = std::clamp(targetRatio * maxScroll, 0.0F, maxScroll);
 
-    ui::utils::MarkLayoutAndVisualChanged(entity);
+    ui::utils::MarkLayoutAndVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(entity));
 }
 
 // =============================================================================
@@ -654,7 +659,7 @@ void StateSystem::PointerStateHelpers::setFocus(StateSystem& system, entt::entit
 
     if (state.focusedEntity != entt::null && reg.valid(state.focusedEntity))
     {
-        ui::utils::MarkVisualChanged(state.focusedEntity);
+        ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(state.focusedEntity));
         reg.remove<components::FocusedTag>(state.focusedEntity);
     }
 
@@ -662,7 +667,7 @@ void StateSystem::PointerStateHelpers::setFocus(StateSystem& system, entt::entit
     if (entity != entt::null && reg.valid(entity))
     {
         reg.emplace_or_replace<components::FocusedTag>(entity);
-        ui::utils::MarkVisualChanged(entity);
+        ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(entity));
 
         if (reg.any_of<components::TextEditTag>(entity))
         {
@@ -686,7 +691,7 @@ void StateSystem::PointerStateHelpers::clearFocus(StateSystem& system, SDL_Windo
 
     if (state.focusedEntity != entt::null && reg.valid(state.focusedEntity))
     {
-        ui::utils::MarkVisualChanged(state.focusedEntity);
+        ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(state.focusedEntity));
         reg.remove<components::FocusedTag>(state.focusedEntity);
         state.focusedEntity = entt::null;
     }
@@ -741,7 +746,7 @@ bool StateSystem::PointerStateHelpers::finishScrollbarDragRelease(StateSystem& s
         {
             ist->scrollbarPressed = false;
         }
-        ui::utils::MarkVisualChanged(state.dragScrollEntity);
+        ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(state.dragScrollEntity));
     }
 
     state.stopScrollbarDrag();
@@ -801,8 +806,8 @@ void StateSystem::PointerStateHelpers::handleEntityRelease(StateSystem& system, 
         if (!suppressClick && event.hitEntity != entt::null &&
             reg.try_get<components::Clickable>(event.hitEntity) != nullptr)
         {
-            UiRuntime::current().logger().debug("StateSystem: Click Event (fallback) on entity {}",
-                                                static_cast<uint32_t>(event.hitEntity));
+            system.m_logger->debug("StateSystem: Click Event (fallback) on entity {}",
+                                   static_cast<uint32_t>(event.hitEntity));
             disp.trigger<events::ClickEvent>(events::ClickEvent{event.hitEntity});
         }
 
@@ -834,7 +839,7 @@ void StateSystem::PointerStateHelpers::tryEmitTableCellClicked(StateSystem& syst
         return;
     }
 
-    const Vec2 absPos = HitTestSystem::getAbsolutePosition(hitEntity);
+    const Vec2 absPos = ui::utils::GetAbsolutePosition(reg.runtime(), ui::detail::ToPublic(hitEntity));
     const float localX = pointerPosition.x() - absPos.x();
     const float localY = pointerPosition.y() - absPos.y();
     const float tableWidth = sizeComp->size.x();
@@ -957,7 +962,7 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
             case events::WindowMetricChangeSource::DISPLAY_SCALE_CHANGED:
                 if (sdlWindow != nullptr)
                 {
-                    window_sync::SyncWindowDisplayMetrics(*window, sdlWindow);
+                    window_sync::SyncWindowDisplayMetrics(*system.m_logger, *window, sdlWindow);
                 }
                 break;
         }
@@ -1004,16 +1009,16 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
 
     if (sizeChanged)
     {
-        ui::utils::MarkLayoutAndVisualChanged(entity);
+        ui::utils::MarkLayoutAndVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(entity));
     }
     else
     {
-        ui::utils::MarkVisualChanged(entity);
+        ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(entity));
     }
 
     if (config::AppConfig::instance().debugScaling())
     {
-        UiRuntime::current().logger().info(
+        system.m_logger->info(
             "[Scaling][StateSystem] entity={} windowId={} source={} eventSize=({}, {}) rootSize=({:.1f}, {:.1f}) "
             "windowLogical=({:.1f}, {:.1f}) windowPixel=({:.1f}, {:.1f}) sizeChanged={}",
             static_cast<uint32_t>(entity), event.windowID, WindowMetricSourceName(event.source), event.width,
@@ -1032,12 +1037,12 @@ void StateSystem::WindowStateHelpers::handleExposed(StateSystem& system, const e
         return;
     }
 
-    ui::utils::MarkVisualChanged(entity);
+    ui::utils::MarkVisualChanged(system.m_reg->runtime(), ui::detail::ToPublic(entity));
 
     if (config::AppConfig::instance().debugScaling())
     {
-        UiRuntime::current().logger().info("[Scaling][StateSystem] entity={} windowId={} source=exposed repaint=true",
-                                           static_cast<uint32_t>(entity), event.windowID);
+        system.m_logger->info("[Scaling][StateSystem] entity={} windowId={} source=exposed repaint=true",
+                      static_cast<uint32_t>(entity), event.windowID);
     }
 }
 
@@ -1426,7 +1431,7 @@ StateSystem::ScrollbarHitType StateSystem::checkScrollbarHit(entt::entity entity
 void StateSystem::calculateScrollbarGeometry(entt::entity entity, bool isVertical, float& outTrackLen,
                                              float& outThumbSize)
 {
-    ScrollbarStateHelpers::calculateGeometry(entity, isVertical, outTrackLen, outThumbSize);
+    ScrollbarStateHelpers::calculateGeometry(*m_reg, entity, isVertical, outTrackLen, outThumbSize);
 }
 
 /**

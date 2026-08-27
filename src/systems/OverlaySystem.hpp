@@ -45,6 +45,11 @@ class OverlaySystem : public ui::interface::EnableRegister<OverlaySystem>
     void registerHandlersImpl();
     void unregisterHandlersImpl();
 
+    [[nodiscard]] ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::LOGIC;
+    }
+
    private:
     void onOpenRequest(const events::OverlayOpenRequest& event);
     void onCloseRequest(const events::OverlayCloseRequest& event);

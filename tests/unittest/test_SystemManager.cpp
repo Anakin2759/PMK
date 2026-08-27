@@ -137,8 +137,7 @@ TEST(SystemManagerTest, BuiltInSystemsExposeExpectedPhaseContract)
     SystemManager manager(&runtime);
 
     EXPECT_EQ(manager.getSystemPhases(),
-              (std::vector{interface::SystemPhase::INPUT,      // PlatformWindowSystem
-                           interface::SystemPhase::INPUT,      // InteractionSystem
+              (std::vector{interface::SystemPhase::INPUT,      // InteractionSystem
                            interface::SystemPhase::INPUT,      // TextInputSystem
                            interface::SystemPhase::LOGIC,      // HitTestSystem
                            interface::SystemPhase::ANIMATION,  // TweenSystem

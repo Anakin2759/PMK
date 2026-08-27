@@ -119,6 +119,11 @@ std::optional<std::vector<uint8_t>> ReadTexture(const detail::GpuDeviceGeneratio
 class TextureAtlasGpuTest : public ::testing::Test
 {
    protected:
+    [[nodiscard]] utils::Logger& Logger() noexcept
+    {
+        return m_runtime.logger();
+    }
+
     [[nodiscard]] detail::GpuDeviceGenerationHandle Generation() const
     {
         return m_generation->GetHandle();
@@ -399,7 +404,7 @@ TEST(GpuFailureInjectionTest, ScopeIsThreadLocalAndDisabledAfterExit)
 TEST_F(TextureAtlasGpuTest, UploadsR8BitmapAndCachesOnlySuccessfulGlyphs)
 {
     constexpr uint32_t ATLAS_SIZE = 8;
-    managers::TextureAtlas atlas(Generation(), ATLAS_SIZE, 0);
+    managers::TextureAtlas atlas(Generation(), Logger(), ATLAS_SIZE, 0);
     constexpr std::array<uint8_t, 6> BITMAP{1, 2, 3, 4, 5, 6};
 
     const auto glyph = atlas.addGlyph(1, BITMAP.data(), 3, 2, 4, 5, 6.0F);
@@ -418,7 +423,7 @@ TEST_F(TextureAtlasGpuTest, UploadsR8BitmapAndCachesOnlySuccessfulGlyphs)
 
 TEST_F(TextureAtlasGpuTest, ExpansionMigratesPixelsAndPreservesGlyphMetadata)
 {
-    managers::TextureAtlas atlas(Generation(), 4, 0);
+    managers::TextureAtlas atlas(Generation(), Logger(), 4, 0);
     constexpr std::array<uint8_t, 16> FIRST_BITMAP{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     constexpr std::array<uint8_t, 1> SECOND_BITMAP{99};
 
@@ -451,7 +456,7 @@ TEST_F(TextureAtlasGpuTest, ExpansionMigratesPixelsAndPreservesGlyphMetadata)
 TEST_F(TextureAtlasGpuTest, MaximumSizeRejectionPreservesExistingGlyph)
 {
     constexpr uint32_t MAX_ATLAS_SIZE = 4096;
-    managers::TextureAtlas atlas(Generation(), MAX_ATLAS_SIZE, 0);
+    managers::TextureAtlas atlas(Generation(), Logger(), MAX_ATLAS_SIZE, 0);
     constexpr std::array<uint8_t, 1> BITMAP{77};
     ASSERT_TRUE(atlas.addGlyph(20, BITMAP.data(), 1, 1, 1, 2, 3.0F).has_value());
     const auto existingGlyph = atlas.getGlyph(20);
@@ -467,7 +472,7 @@ TEST_F(TextureAtlasGpuTest, MaximumSizeRejectionPreservesExistingGlyph)
 TEST_P(TextureAtlasUploadFailureTest, FailedUploadDoesNotCommitGlyphOrShelfState)
 {
     constexpr uint32_t ATLAS_SIZE = 8;
-    managers::TextureAtlas atlas(Generation(), ATLAS_SIZE, 0);
+    managers::TextureAtlas atlas(Generation(), Logger(), ATLAS_SIZE, 0);
     ASSERT_TRUE(atlas.isValid());
     const auto statsBefore = atlas.getStats();
     constexpr std::array<uint8_t, 1> BITMAP{42};
@@ -490,7 +495,7 @@ INSTANTIATE_TEST_SUITE_P(UploadStages, TextureAtlasUploadFailureTest,
 TEST_P(TextureAtlasExpansionFailureTest, FailedExpansionPreservesTextureSizeAndGlyphMetadata)
 {
     constexpr uint32_t INITIAL_SIZE = 4;
-    managers::TextureAtlas atlas(Generation(), INITIAL_SIZE, 0);
+    managers::TextureAtlas atlas(Generation(), Logger(), INITIAL_SIZE, 0);
     constexpr std::array<uint8_t, 16> FIRST_BITMAP{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     constexpr std::array<uint8_t, 1> SECOND_BITMAP{99};
     const auto existing = atlas.addGlyph(200, FIRST_BITMAP.data(), 4, 4, 2, 3, 5.0F);

@@ -4,12 +4,17 @@
 #include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::size
 {
-void SetFixedSize(ui::entity entity, float width, float height);
-void SetSizePolicy(ui::entity entity, policies::Size policy);
-void SetSize(ui::entity entity, float width, float height);
-void SetPosition(ui::entity entity, float positionX, float positionY);
+void SetFixedSize(UiRuntime& runtime, ui::entity entity, float width, float height);
+void SetSizePolicy(UiRuntime& runtime, ui::entity entity, policies::Size policy);
+void SetSize(UiRuntime& runtime, ui::entity entity, float width, float height);
+void SetPosition(UiRuntime& runtime, ui::entity entity, float positionX, float positionY);
 }  // namespace ui::size
 
 namespace ui::actions::size

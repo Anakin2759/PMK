@@ -62,6 +62,11 @@ class DragDropTest : public ::testing::Test
 
     std::unique_ptr<systems::ActionSystem> m_actionSystem;
 
+    [[nodiscard]] UiRuntime& runtime() noexcept
+    {
+        return m_runtime;
+    }
+
    private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
@@ -73,9 +78,9 @@ class DragDropTest : public ::testing::Test
 
 TEST_F(DragDropTest, SetDraggableAddsComponent)
 {
-    const auto entity = factory::CreateLabel("D", "drag_entity_1");
+    const auto entity = factory::CreateLabel(runtime(), "D", "drag_entity_1");
 
-    controls::SetDraggable(entity, true);
+    controls::SetDraggable(runtime(), entity, true);
 
     const auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
@@ -84,9 +89,9 @@ TEST_F(DragDropTest, SetDraggableAddsComponent)
 
 TEST_F(DragDropTest, SetDraggableFalseDisablesComponent)
 {
-    const auto entity = factory::CreateLabel("D", "drag_entity_2");
+    const auto entity = factory::CreateLabel(runtime(), "D", "drag_entity_2");
 
-    controls::SetDraggable(entity, false);
+    controls::SetDraggable(runtime(), entity, false);
 
     const auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
@@ -95,9 +100,9 @@ TEST_F(DragDropTest, SetDraggableFalseDisablesComponent)
 
 TEST_F(DragDropTest, SetDragLockAxisPreservesFlags)
 {
-    const auto entity = factory::CreateLabel("D", "drag_lock_1");
+    const auto entity = factory::CreateLabel(runtime(), "D", "drag_lock_1");
 
-    controls::SetDragLockAxis(entity, true, false);
+    controls::SetDragLockAxis(runtime(), entity, true, false);
 
     const auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
@@ -133,10 +138,10 @@ TEST_F(DragDropTest, ClickCallbackCanGrowClickableStorageWithoutInvalidatingItse
 
 TEST_F(DragDropTest, SetOnDragStartStoresCallback)
 {
-    const auto entity = factory::CreateLabel("D", "drag_cb_1");
+    const auto entity = factory::CreateLabel(runtime(), "D", "drag_cb_1");
     bool called = false;
 
-    controls::SetOnDragStart(entity, [&called] { called = true; });
+    controls::SetOnDragStart(runtime(), entity, [&called] { called = true; });
 
     auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
@@ -148,16 +153,16 @@ TEST_F(DragDropTest, SetOnDragStartStoresCallback)
 TEST_F(DragDropTest, OnDragStartChainTransfersMoveOnlyCallbackOwnership)
 {
     constexpr int RESOURCE_VALUE = 42;
-    const auto entity = factory::CreateLabel("D", "drag_cb_move_only");
+    const auto entity = factory::CreateLabel(runtime(), "D", "drag_cb_move_only");
     auto owner = std::make_unique<int>(RESOURCE_VALUE);
     bool called = false;
 
-    entity | chains::OnDragStart(
-                 [resource = std::move(owner), &called, expected = RESOURCE_VALUE]
-                 {
-                     EXPECT_EQ(*resource, expected);
-                     called = true;
-                 });
+    chains::WithRuntime(runtime(), entity,
+                        chains::OnDragStart([resource = std::move(owner), &called, expected = RESOURCE_VALUE]
+                                            {
+                                                EXPECT_EQ(*resource, expected);
+                                                called = true;
+                                            }));
 
     EXPECT_EQ(owner, nullptr);
     auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
@@ -169,10 +174,10 @@ TEST_F(DragDropTest, OnDragStartChainTransfersMoveOnlyCallbackOwnership)
 
 TEST_F(DragDropTest, SetOnDragEndStoresCallback)
 {
-    const auto entity = factory::CreateLabel("D", "drag_cb_2");
+    const auto entity = factory::CreateLabel(runtime(), "D", "drag_cb_2");
     bool called = false;
 
-    controls::SetOnDragEnd(entity, [&called] { called = true; });
+    controls::SetOnDragEnd(runtime(), entity, [&called] { called = true; });
 
     auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
@@ -183,10 +188,10 @@ TEST_F(DragDropTest, SetOnDragEndStoresCallback)
 
 TEST_F(DragDropTest, SetOnDragMoveStoresCallback)
 {
-    const auto entity = factory::CreateLabel("D", "drag_cb_3");
+    const auto entity = factory::CreateLabel(runtime(), "D", "drag_cb_3");
     Vec2 received{0.0F, 0.0F};
 
-    controls::SetOnDragMove(entity, [&received](Vec2 delta) { received = delta; });
+    controls::SetOnDragMove(runtime(), entity, [&received](Vec2 delta) { received = delta; });
 
     auto* comp = ActiveRegistry().try_get<components::Draggable>(entity);
     ASSERT_NE(comp, nullptr);
@@ -200,9 +205,9 @@ TEST_F(DragDropTest, SetOnDragMoveStoresCallback)
 
 TEST_F(DragDropTest, SetDroppableAddsComponent)
 {
-    const auto entity = factory::CreateVBoxLayout("drop_entity_1");
+    const auto entity = factory::CreateVBoxLayout(runtime(), "drop_entity_1");
 
-    controls::SetDroppable(entity, true);
+    controls::SetDroppable(runtime(), entity, true);
 
     const auto* comp = ActiveRegistry().try_get<components::Droppable>(entity);
     ASSERT_NE(comp, nullptr);
@@ -211,9 +216,9 @@ TEST_F(DragDropTest, SetDroppableAddsComponent)
 
 TEST_F(DragDropTest, SetDroppableFalseDisablesComponent)
 {
-    const auto entity = factory::CreateVBoxLayout("drop_entity_2");
+    const auto entity = factory::CreateVBoxLayout(runtime(), "drop_entity_2");
 
-    controls::SetDroppable(entity, false);
+    controls::SetDroppable(runtime(), entity, false);
 
     const auto* comp = ActiveRegistry().try_get<components::Droppable>(entity);
     ASSERT_NE(comp, nullptr);
@@ -224,11 +229,11 @@ TEST_F(DragDropTest, SetDroppableFalseDisablesComponent)
 
 TEST_F(DragDropTest, DragDroppedReparentsSourceUnderTarget)
 {
-    const auto source = factory::CreateLabel("SRC", "dd_source_1");
-    const auto target = factory::CreateVBoxLayout("dd_target_1");
+    const auto source = factory::CreateLabel(runtime(), "SRC", "dd_source_1");
+    const auto target = factory::CreateVBoxLayout(runtime(), "dd_target_1");
 
     // target 必须有 Droppable（enabled）
-    controls::SetDroppable(target, true);
+    controls::SetDroppable(runtime(), target, true);
 
     TriggerDragDropped(source, target);
 
@@ -239,8 +244,8 @@ TEST_F(DragDropTest, DragDroppedReparentsSourceUnderTarget)
 
 TEST_F(DragDropTest, DragDroppedIsBlockedWhenTargetNotDroppable)
 {
-    const auto source = factory::CreateLabel("SRC", "dd_source_2");
-    const auto target = factory::CreateVBoxLayout("dd_target_2");
+    const auto source = factory::CreateLabel(runtime(), "SRC", "dd_source_2");
+    const auto target = factory::CreateVBoxLayout(runtime(), "dd_target_2");
 
     // target 没有 Droppable 组件
     TriggerDragDropped(source, target);
@@ -255,10 +260,10 @@ TEST_F(DragDropTest, DragDroppedIsBlockedWhenTargetNotDroppable)
 
 TEST_F(DragDropTest, DragDroppedIsBlockedWhenTargetDroppableDisabled)
 {
-    const auto source = factory::CreateLabel("SRC", "dd_source_3");
-    const auto target = factory::CreateVBoxLayout("dd_target_3");
+    const auto source = factory::CreateLabel(runtime(), "SRC", "dd_source_3");
+    const auto target = factory::CreateVBoxLayout(runtime(), "dd_target_3");
 
-    controls::SetDroppable(target, false);  // 存在但禁用
+    controls::SetDroppable(runtime(), target, false);  // 存在但禁用
 
     TriggerDragDropped(source, target);
 
@@ -271,8 +276,8 @@ TEST_F(DragDropTest, DragDroppedIsBlockedWhenTargetDroppableDisabled)
 
 TEST_F(DragDropTest, DragDroppedIsBlockedByDroppingOnSelf)
 {
-    const auto entity = factory::CreateLabel("SELF", "dd_self_1");
-    controls::SetDroppable(entity, true);
+    const auto entity = factory::CreateLabel(runtime(), "SELF", "dd_self_1");
+    controls::SetDroppable(runtime(), entity, true);
 
     // 把自己拖到自己上
     TriggerDragDropped(entity, entity);
@@ -290,11 +295,11 @@ TEST_F(DragDropTest, DragDroppedIsBlockedByDroppingOnSelf)
 TEST_F(DragDropTest, DragDroppedIsBlockedByDirectCycle)
 {
     //  parent → child，再尝试把 parent 拖到 child 下 → 循环
-    const auto parent = factory::CreateVBoxLayout("dd_cycle_p1");
-    const auto child = factory::CreateLabel("C", "dd_cycle_c1");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "dd_cycle_p1");
+    const auto child = factory::CreateLabel(runtime(), "C", "dd_cycle_c1");
 
-    hierarchy::AddChild(parent, child);
-    controls::SetDroppable(child, true);
+    hierarchy::AddChild(runtime(), parent, child);
+    controls::SetDroppable(runtime(), child, true);
 
     TriggerDragDropped(parent, child);
 
@@ -309,13 +314,13 @@ TEST_F(DragDropTest, DragDroppedIsBlockedByDirectCycle)
 TEST_F(DragDropTest, DragDroppedIsBlockedByIndirectCycle)
 {
     //  grandparent → parent → child；尝试 grandparent 拖到 child 下
-    const auto grandparent = factory::CreateVBoxLayout("dd_cycle_gp");
-    const auto parent = factory::CreateVBoxLayout("dd_cycle_p2");
-    const auto child = factory::CreateLabel("C", "dd_cycle_c2");
+    const auto grandparent = factory::CreateVBoxLayout(runtime(), "dd_cycle_gp");
+    const auto parent = factory::CreateVBoxLayout(runtime(), "dd_cycle_p2");
+    const auto child = factory::CreateLabel(runtime(), "C", "dd_cycle_c2");
 
-    hierarchy::AddChild(grandparent, parent);
-    hierarchy::AddChild(parent, child);
-    controls::SetDroppable(child, true);
+    hierarchy::AddChild(runtime(), grandparent, parent);
+    hierarchy::AddChild(runtime(), parent, child);
+    controls::SetDroppable(runtime(), child, true);
 
     TriggerDragDropped(grandparent, child);
 
@@ -328,10 +333,10 @@ TEST_F(DragDropTest, DragDroppedIsBlockedByIndirectCycle)
 
 TEST_F(DragDropTest, DragDroppedAllowsValidDropOnUnrelatedTarget)
 {
-    const auto source = factory::CreateLabel("SRC", "dd_valid_src");
-    const auto unrelated = factory::CreateVBoxLayout("dd_valid_tgt");
+    const auto source = factory::CreateLabel(runtime(), "SRC", "dd_valid_src");
+    const auto unrelated = factory::CreateVBoxLayout(runtime(), "dd_valid_tgt");
 
-    controls::SetDroppable(unrelated, true);
+    controls::SetDroppable(runtime(), unrelated, true);
 
     TriggerDragDropped(source, unrelated);
 
@@ -344,8 +349,8 @@ TEST_F(DragDropTest, DragDroppedAllowsValidDropOnUnrelatedTarget)
 
 TEST_F(DragDropTest, DroppableTagAloneEnablesDrop)
 {
-    const auto source = factory::CreateLabel("SRC", "dd_tag_src");
-    const auto target = factory::CreateVBoxLayout("dd_tag_tgt");
+    const auto source = factory::CreateLabel(runtime(), "SRC", "dd_tag_src");
+    const auto target = factory::CreateVBoxLayout(runtime(), "dd_tag_tgt");
 
     // 只打 DroppableTag，不用 SetDroppable
     ActiveRegistry().emplace<components::DroppableTag>(target);
@@ -361,15 +366,15 @@ TEST_F(DragDropTest, DroppableTagAloneEnablesDrop)
 
 TEST_F(DragDropTest, DragDroppedWithInvalidSourceIsNoOp)
 {
-    const auto target = factory::CreateVBoxLayout("dd_null_tgt");
-    controls::SetDroppable(target, true);
+    const auto target = factory::CreateVBoxLayout(runtime(), "dd_null_tgt");
+    controls::SetDroppable(runtime(), target, true);
 
     EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(static_cast<entt::entity>(entt::null), target));
 }
 
 TEST_F(DragDropTest, DragDroppedWithInvalidTargetIsNoOp)
 {
-    const auto source = factory::CreateLabel("SRC", "dd_null_src");
+    const auto source = factory::CreateLabel(runtime(), "SRC", "dd_null_src");
 
     EXPECT_NO_FATAL_FAILURE(TriggerDragDropped(source, static_cast<entt::entity>(entt::null)));
 }

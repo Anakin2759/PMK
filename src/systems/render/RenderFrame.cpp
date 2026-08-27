@@ -6,11 +6,12 @@
 
 #include "systems/RenderSystem.hpp"
 #include "RenderSystemImpl.hpp"
+#include "RenderDirty.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <ranges>
 #include <stack>
-#include <unordered_map>
 #include "common/GlobalContext.hpp"
 #include "common/EigenConversions.hpp"
 #include "common/components/Window.hpp"
@@ -45,27 +46,6 @@ namespace ui::systems
 
 namespace
 {
-
-struct ScalingSnapshot
-{
-    int pixelWidth = 0;
-    int pixelHeight = 0;
-    int logicalWidth = 0;
-    int logicalHeight = 0;
-    int rootWidth = 0;
-    int rootHeight = 0;
-    int batchCount = 0;
-    float dpiScale = 1.0F;
-    float clearAlpha = 1.0F;
-    int nativeClientWidth = 0;
-    int nativeClientHeight = 0;
-    int nativeWindowWidth = 0;
-    int nativeWindowHeight = 0;
-    int borderTop = 0;
-    int borderBottom = 0;
-
-    [[nodiscard]] bool operator==(const ScalingSnapshot& other) const = default;
-};
 
 [[nodiscard]] float ComputeRenderScale(int pixelWidth, int pixelHeight, int logicalWidth, int logicalHeight,
                                        float fallback)
@@ -125,7 +105,8 @@ struct ScalingSnapshot
 }
 
 // NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)
-void LogScalingSnapshotIfNeeded(Registry& registry, entt::entity windowEntity, const components::Window& windowComp,
+void LogScalingSnapshotIfNeeded(render_detail::WindowRenderState& windowState, utils::Logger& logger,
+                                Registry& registry, entt::entity windowEntity, const components::Window& windowComp,
                                 SDL_Window* sdlWindow, int logicalWidth, int logicalHeight, int pixelWidth,
                                 int pixelHeight, float dpiScale, const SDL_FColor& clearColor, int batchCount)
 {
@@ -134,11 +115,10 @@ void LogScalingSnapshotIfNeeded(Registry& registry, entt::entity windowEntity, c
         return;
     }
 
-    static std::unordered_map<uint32_t, ScalingSnapshot> snapshots;
     const auto entityKey = static_cast<uint32_t>(windowEntity);
     const auto* rootSize = registry.try_get<components::Size>(windowEntity);
     const auto nativeMetrics = platform::GetNativeWindowMetrics(sdlWindow);
-    ScalingSnapshot snapshot{.pixelWidth = pixelWidth,
+    render_detail::ScalingSnapshot snapshot{.pixelWidth = pixelWidth,
                              .pixelHeight = pixelHeight,
                              .logicalWidth = logicalWidth,
                              .logicalHeight = logicalHeight,
@@ -154,14 +134,13 @@ void LogScalingSnapshotIfNeeded(Registry& registry, entt::entity windowEntity, c
                              .borderTop = nativeMetrics.borderTop,
                              .borderBottom = nativeMetrics.borderBottom};
 
-    if (const auto foundSnapshot = snapshots.find(entityKey);
-        foundSnapshot != snapshots.end() && foundSnapshot->second == snapshot)
+    if (windowState.scalingSnapshot.has_value() && windowState.scalingSnapshot.value() == snapshot)
     {
         return;
     }
-    snapshots[entityKey] = snapshot;
+    windowState.scalingSnapshot = snapshot;
 
-    ui::UiRuntime::current().logger().info(
+    logger.info(
         "[Scaling][RenderFrame] entity={} windowId={} logical=({}, {}) pixel=({}, {}) rootSize=({}, {}) "
         "displayScale={:.3f} uiScale={:.3f} renderScale={:.3f} clear=({:.2f}, {:.2f}, {:.2f}, {:.2f}) "
         "batches={} nativeClient=({}, {}) nativeWindow=({}, {}) nativeBorderTB=({}, {})",
@@ -192,26 +171,18 @@ void RenderSystem::update()
 
     if (m_impl->m_firstUpdate)
     {
-        ui::UiRuntime::current().logger().info("[RenderSystem] update first call");
+        m_logger->info("[RenderSystem] update first call");
         m_impl->m_firstUpdate = false;
     }
 
     ensureInitialized();
 
-    if (m_impl->m_useFallback)
-    {
-        if (m_impl->m_backendRenderer == nullptr)
-        {
-            ui::UiRuntime::current().logger().warn("Fallback backend not ready");
-            return;
-        }
-    }
-    else
+    if (!m_impl->m_useFallback)
     {
         SDL_GPUDevice const* device = m_impl->m_deviceManager->getDevice();
         if (device == nullptr)
         {
-            ui::UiRuntime::current().logger().warn("GPU device not ready");
+            m_logger->warn("GPU device not ready");
             return;
         }
     }
@@ -226,11 +197,11 @@ void RenderSystem::update()
         SDL_Window* sdlWindow = SDL_GetWindowFromID(windowComp.windowID);
         if (sdlWindow == nullptr)
         {
-            ui::UiRuntime::current().logger().warn("Window entity has no SDL window");
+            m_logger->warn("Window entity has no SDL window");
             continue;
         }
 
-        window_sync::SyncWindowDisplayMetrics(windowComp, sdlWindow);
+        window_sync::SyncWindowDisplayMetrics(*m_logger, windowComp, sdlWindow);
 
         int width = static_cast<int>(windowComp.pixelSize.x());
         int height = static_cast<int>(windowComp.pixelSize.y());
@@ -249,12 +220,16 @@ void RenderSystem::update()
 
         const float dpiScale = ComputeRenderScale(width, height, logicalWidth, logicalHeight, windowComp.displayScale);
         const SDL_FColor clearColor = DetermineClearColor(*m_reg, windowEntity);
+        auto& windowState = m_impl->m_windowStates[windowComp.windowID];
+        windowState.windowID = windowComp.windowID;
+        windowState.textScaleKey = render_detail::MakeTextScaleKey(dpiScale);
+        windowState.capabilityDiagnostics.SetLogger(*m_logger);
 
         if (!m_impl->m_useFallback && !m_impl->m_deviceClaimState.AreResourcesReady())
         {
             if (auto claimResult = m_impl->m_deviceManager->claimWindow(sdlWindow); !claimResult.has_value())
             {
-                ui::UiRuntime::current().logger().warn("[RenderSystem] claimWindow failed: {}",
+                m_logger->warn("[RenderSystem] claimWindow failed: {}",
                                                        claimResult.error().ToString());
                 continue;
             }
@@ -270,19 +245,19 @@ void RenderSystem::update()
         {
             if (auto pipeResult = m_impl->m_pipelineCache->createPipeline(sdlWindow); !pipeResult.has_value())
             {
-                ui::UiRuntime::current().logger().warn("[RenderSystem] pipeline creation failed: {}",
+                m_logger->warn("[RenderSystem] pipeline creation failed: {}",
                                                        pipeResult.error().ToString());
             }
 
             if (m_impl->m_pipelineCache->getPipeline() == nullptr)
             {
-                ui::UiRuntime::current().logger().warn(
+                m_logger->warn(
                     "[RenderSystem] GPU pipeline unavailable; switching to fallback renderer. "
                     "Rebuild shaders with compile.bat to restore GPU rendering.");
                 m_impl->m_useFallback = true;
                 if (!tryInitializeFallback(sdlWindow))
                 {
-                    ui::UiRuntime::current().logger().error(
+                    m_logger->error(
                         "[RenderSystem] fallback initialization failed; skipping this frame");
                 }
                 continue;
@@ -291,18 +266,28 @@ void RenderSystem::update()
 
         if (!m_impl->m_useFallback && m_impl->m_deviceManager->getWhiteTexture() == nullptr)
         {
-            ui::UiRuntime::current().logger().error("[RenderSystem] DeviceManager white texture unavailable");
+            m_logger->error("[RenderSystem] DeviceManager white texture unavailable");
             continue;
         }
 
-        m_impl->m_screenWidth = static_cast<float>(logicalWidth);
-        m_impl->m_screenHeight = static_cast<float>(logicalHeight);
-
-        const bool fontOversampleChanged =
-            m_impl->m_fontManager != nullptr && m_impl->m_fontManager->setDpiScale(dpiScale);
-        if (fontOversampleChanged && m_impl->m_textTextureCache != nullptr)
+        const float screenWidth = static_cast<float>(logicalWidth);
+        const float screenHeight = static_cast<float>(logicalHeight);
+        if (m_impl->m_fontManager != nullptr)
         {
-            m_impl->m_textTextureCache->clear();
+            static_cast<void>(m_impl->m_fontManager->setDpiScale(dpiScale));
+        }
+
+        interface::IBackendRenderer* fallbackBackend = nullptr;
+        if (m_impl->m_useFallback)
+        {
+            auto backendResult = tryInitializeFallback(sdlWindow);
+            if (!backendResult.has_value())
+            {
+                m_logger->warn("[RenderSystem] fallback initialization failed: {}",
+                               backendResult.error().ToString());
+                continue;
+            }
+            fallbackBackend = backendResult.value();
         }
 
         m_impl->m_batchManager->clear();
@@ -311,16 +296,19 @@ void RenderSystem::update()
 
         if (m_reg->any_of<components::VisibleTag>(windowEntity))
         {
+            assert(m_impl->m_batchManager != nullptr && "RenderSystem must own BatchManager during frame collection");
+            assert(m_impl->m_fontManager != nullptr && "RenderSystem must own FontManager during frame collection");
             core::RenderContext rootContext;
-            rootContext.screenWidth = m_impl->m_screenWidth;
-            rootContext.screenHeight = m_impl->m_screenHeight;
+            rootContext.screenWidth = screenWidth;
+            rootContext.screenHeight = screenHeight;
             rootContext.dpiScale = dpiScale;
             rootContext.deviceManager = m_impl->m_deviceManager.get();
             rootContext.fontManager = m_impl->m_fontManager.get();
             rootContext.imageManager = m_impl->m_imageManager.get();
             rootContext.textTextureCache = m_impl->m_textTextureCache.get();
             rootContext.batchManager = m_impl->m_batchManager.get();
-            rootContext.backendRenderer = m_impl->m_useFallback ? m_impl->m_backendRenderer.get() : nullptr;
+            rootContext.backendRenderer = fallbackBackend;
+            rootContext.capabilityDiagnostics = &windowState.capabilityDiagnostics;
             rootContext.sdlWindow = sdlWindow;
             // GPU 路径仅借用 DeviceManager 唯一持有的白色纹理，不转移所有权。
             rootContext.whiteTexture =
@@ -343,56 +331,106 @@ void RenderSystem::update()
 
         if (m_impl->m_useFallback)
         {
-            if (!tryInitializeFallback(sdlWindow) || !m_impl->m_backendRenderer->beginFrame(clearColor))
+            if (fallbackBackend == nullptr || !fallbackBackend->beginFrame(clearColor))
             {
                 continue;
             }
 
+            bool frameSucceeded = true;
             for (auto& renderItem : m_impl->m_renderQueue)
             {
-                renderItem.renderer->collect(renderItem.entity, renderItem.context);
+                if (auto collectResult = renderItem.renderer->collectChecked(renderItem.entity, renderItem.context);
+                    !collectResult.has_value())
+                {
+                    frameSucceeded = false;
+                    m_logger->warn("[RenderSystem] fallback collect failed: {}", collectResult.error().ToString());
+                    break;
+                }
 
                 m_impl->m_batchManager->optimize();
                 const auto& fallbackBatches = m_impl->m_batchManager->getBatches();
                 for (const auto& batch : fallbackBatches)
                 {
-                    m_impl->m_backendRenderer->drawBatch(batch, m_impl->m_fallbackWhiteTextureTag);
+                    if (auto drawResult =
+                            fallbackBackend->drawBatch(batch, m_impl->m_fallbackWhiteTextureTag);
+                        !drawResult.has_value())
+                    {
+                        frameSucceeded = false;
+                        m_logger->warn("[RenderSystem] fallback draw failed: {}", drawResult.error().ToString());
+                        break;
+                    }
                 }
 
                 m_impl->m_stats.batchCount += static_cast<uint32_t>(fallbackBatches.size());
                 m_impl->m_stats.vertexCount += static_cast<uint32_t>(m_impl->m_batchManager->getTotalVertexCount());
                 m_impl->m_batchManager->clear();
+                if (!frameSucceeded)
+                {
+                    break;
+                }
             }
 
-            m_impl->m_backendRenderer->endFrame();
+            if (frameSucceeded)
+            {
+                auto presentResult = fallbackBackend->endFrame();
+                if (!render_detail::CommitRenderDirtyOnSuccess(*m_reg, windowEntity, presentResult))
+                {
+                    m_logger->warn("[RenderSystem] fallback present failed: {}", presentResult.error().ToString());
+                }
+            }
             continue;
         }
 
         // Execute collected render commands
+        bool collectSucceeded = true;
         for (auto& item : m_impl->m_renderQueue)
         {
-            item.renderer->collect(item.entity, item.context);
+            if (auto collectResult = item.renderer->collectChecked(item.entity, item.context);
+                !collectResult.has_value())
+            {
+                collectSucceeded = false;
+                m_logger->warn("[RenderSystem] render collect failed: {}", collectResult.error().ToString());
+                break;
+            }
+        }
+        if (!collectSucceeded)
+        {
+            continue;
         }
 
         m_impl->m_batchManager->optimize();
 
         const auto& batches = m_impl->m_batchManager->getBatches();
-        LogScalingSnapshotIfNeeded(*m_reg, windowEntity, windowComp, sdlWindow, logicalWidth, logicalHeight, width,
+        LogScalingSnapshotIfNeeded(windowState, *m_logger, *m_reg, windowEntity, windowComp, sdlWindow,
+                       logicalWidth, logicalHeight, width,
                                    height, dpiScale, clearColor, static_cast<int>(batches.size()));
         if (m_impl->m_useFallback)
         {
-            if (tryInitializeFallback(sdlWindow) && m_impl->m_backendRenderer->beginFrame(clearColor))
+            if (fallbackBackend != nullptr && fallbackBackend->beginFrame(clearColor))
             {
+                bool frameSucceeded = true;
                 for (const auto& batch : batches)
                 {
-                    m_impl->m_backendRenderer->drawBatch(batch, m_impl->m_fallbackWhiteTextureTag);
+                    if (!fallbackBackend->drawBatch(batch, m_impl->m_fallbackWhiteTextureTag))
+                    {
+                        frameSucceeded = false;
+                        break;
+                    }
                 }
-                m_impl->m_backendRenderer->endFrame();
+                if (frameSucceeded)
+                {
+                    [[maybe_unused]] const bool committed = render_detail::CommitRenderDirtyOnSuccess(
+                        *m_reg, windowEntity, fallbackBackend->endFrame());
+                }
             }
         }
         else
         {
-            m_impl->m_commandBuffer->execute(sdlWindow, width, height, dpiScale, clearColor, batches);
+            auto submitResult = m_impl->m_commandBuffer->execute(sdlWindow, width, height, dpiScale, clearColor, batches);
+            if (!render_detail::CommitRenderDirtyOnSuccess(*m_reg, windowEntity, submitResult))
+            {
+                m_logger->warn("[RenderSystem] GPU frame submission failed: {}", submitResult.error().ToString());
+            }
         }
 
         if (!batches.empty())
@@ -402,11 +440,6 @@ void RenderSystem::update()
         }
     }
 
-    auto dirtyView = m_reg->view<components::RenderDirtyTag>();
-    for (auto entity : dirtyView)
-    {
-        m_reg->remove<components::RenderDirtyTag>(entity);
-    }
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size)
@@ -467,7 +500,7 @@ void RenderSystem::collectRenderData(entt::entity entity, core::RenderContext& c
         const auto* scrollArea = m_reg->try_get<components::ScrollArea>(currentEntity);
         if (scrollArea != nullptr)
         {
-            const Rect viewportRect = ui::utils::GetScrollViewportRect(currentEntity);
+            const Rect viewportRect = ui::utils::GetScrollViewportRect(m_reg->runtime(), ui::detail::ToPublic(currentEntity));
             SDL_Rect scissorRect{};
             scissorRect.x = static_cast<int>(viewportRect.x());
             scissorRect.y = static_cast<int>(viewportRect.y());

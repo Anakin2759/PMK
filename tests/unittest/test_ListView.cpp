@@ -52,6 +52,11 @@ class ListViewTest : public ::testing::Test
         return m_runtime.registry();
     }
 
+    [[nodiscard]] UiRuntime& runtime() noexcept
+    {
+        return m_runtime;
+    }
+
    private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
@@ -59,7 +64,7 @@ class ListViewTest : public ::testing::Test
 
 TEST_F(ListViewTest, CreateListViewBuildsStructureWithSelectedItem)
 {
-    auto listView = factory::CreateListView({"A", "B", "C"}, 1, "lv");
+    auto listView = factory::CreateListView(runtime(), {"A", "B", "C"}, 1, "lv");
     ASSERT_NE(listView, ui::null_entity);
 
     EXPECT_TRUE(registry().any_of<components::ListAreaTag>(listView));
@@ -84,7 +89,7 @@ TEST_F(ListViewTest, CreateListViewBuildsStructureWithSelectedItem)
 
 TEST_F(ListViewTest, SingleSelectSwitchesSelectionAndFiresCallback)
 {
-    auto listView = factory::CreateListView({"A", "B", "C"}, -1, "lv");
+    auto listView = factory::CreateListView(runtime(), {"A", "B", "C"}, -1, "lv");
     auto* listArea = registry().try_get<components::ListArea>(listView);
     ASSERT_NE(listArea, nullptr);
 
@@ -116,7 +121,7 @@ TEST_F(ListViewTest, SingleSelectSwitchesSelectionAndFiresCallback)
 
 TEST_F(ListViewTest, MultiSelectTogglesIndices)
 {
-    auto listView = factory::CreateListView({"A", "B", "C"}, -1, "lv");
+    auto listView = factory::CreateListView(runtime(), {"A", "B", "C"}, -1, "lv");
     auto* listArea = registry().try_get<components::ListArea>(listView);
     ASSERT_NE(listArea, nullptr);
     listArea->multiSelect = policies::Selection::MULTI;
@@ -145,11 +150,11 @@ TEST_F(ListViewTest, MultiSelectTogglesIndices)
 
 TEST_F(ListViewTest, AddListItemAppendsToExistingList)
 {
-    auto listView = factory::CreateListView({"A"}, -1, "lv");
+    auto listView = factory::CreateListView(runtime(), {"A"}, -1, "lv");
     auto* listArea = registry().try_get<components::ListArea>(listView);
     ASSERT_NE(listArea, nullptr);
 
-    const auto newItem = factory::AddListItem(listView, "B", "lv_new");
+    const auto newItem = factory::AddListItem(runtime(), listView, "B", "lv_new");
     ASSERT_NE(newItem, ui::null_entity);
 
     EXPECT_EQ(listArea->items.size(), 2U);
@@ -167,7 +172,7 @@ TEST_F(ListViewTest, AddListItemAppendsToExistingList)
 
 TEST_F(ListViewTest, SelectedItemGetsHighlightBackground)
 {
-    auto listView = factory::CreateListView({"A", "B"}, 0, "lv");
+    auto listView = factory::CreateListView(runtime(), {"A", "B"}, 0, "lv");
     auto* listArea = registry().try_get<components::ListArea>(listView);
     ASSERT_NE(listArea, nullptr);
 

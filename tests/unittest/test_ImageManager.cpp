@@ -1,4 +1,5 @@
 #include "managers/ImageManager.hpp"
+#include "utils/Logger.hpp"
 
 #include <array>
 #include <cstdint>
@@ -33,7 +34,8 @@ TEST(ImageManagerPixelsTest, LoadsAndCachesTemporaryBmpWithoutGpuDevice)
         ASSERT_TRUE(output.good());
     }
 
-    managers::ImageManager imageManager{nullptr};
+    utils::Logger logger;
+    managers::ImageManager imageManager{nullptr, logger};
     const auto first = imageManager.loadPixels(imagePath.string());
     ASSERT_TRUE(first.has_value()) << first.error().ToString();
     ASSERT_NE(*first, nullptr);
@@ -44,6 +46,12 @@ TEST(ImageManagerPixelsTest, LoadsAndCachesTemporaryBmpWithoutGpuDevice)
     const auto second = imageManager.loadPixels(imagePath.string());
     ASSERT_TRUE(second.has_value()) << second.error().ToString();
     EXPECT_EQ(*second, *first);
+    EXPECT_EQ(imageManager.pixelCacheEntryCount(), 1U);
+    EXPECT_EQ(imageManager.pixelCacheByteSize(), 8U);
+
+    imageManager.clearPixels();
+    EXPECT_EQ(imageManager.pixelCacheEntryCount(), 0U);
+    EXPECT_EQ(imageManager.pixelCacheByteSize(), 0U);
 
     std::filesystem::remove(imagePath);
 }

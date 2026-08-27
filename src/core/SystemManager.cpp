@@ -17,7 +17,6 @@
 #include "systems/RenderSystem.hpp"
 #include "systems/TweenSystem.hpp"
 #include "systems/InteractionSystem.hpp"
-#include "systems/PlatformWindowSystem.hpp"
 #include "systems/TextInputSystem.hpp"
 #include "systems/HitTestSystem.hpp"
 #include "systems/LayoutSystem.hpp"
@@ -42,9 +41,6 @@ SystemManager::SystemManager(UiRuntime* runtime, bool registerBuiltIns) : m_runt
 void SystemManager::registerBuiltInSystems()
 {
     auto* runtime = m_runtime;
-    m_runtime->logger().info("[SystemManager] 正在注册 PlatformWindowSystem...");
-    m_systems.emplace_back(systems::PlatformWindowSystem{*runtime});
-
     m_runtime->logger().info("[SystemManager] 正在注册 InteractionSystem...");
     m_systems.emplace_back(systems::InteractionSystem{*runtime});
 

@@ -1,5 +1,9 @@
 # WP4-B GPU 生命周期问题日志
 
+> 文档状态：RECORD（问题记录，不是执行规划）
+> 最后复核：2026-08-27
+> 当前结论：文中的早期失败均有后续标准 CTest 或直接测试复跑记录并通过；历史“待复跑”文字仅保留为当时快照。
+
 ## 2026-07-30 | unit/integration
 - 工具：直接执行 `ui_unit_tests` Vulkan 定向压力测试
 - Preset/Target：build / ui_unit_tests / GpuWindowLifecycleStressTest.VulkanCompletesOneHundredRealWindowLifecycles
@@ -14,7 +18,7 @@
 - 初步定位：`tests/unittest/test_DeviceClaimState.cpp` / `RunGpuWindowLifecycleStress`
 - 处理动作：自动修复
 - 修复变更：改为核验当前生效的 `SDL_GPU_DRIVER` hint 与要求后端一致，不重复覆盖环境优先级 hint。
-- 复跑结果：待复跑
+- 复跑结果：历史快照；已由后续 integration rerun 记录验证通过
 - 关联条目：无
 
 ## 2026-07-30 | integration rerun
@@ -59,5 +63,5 @@
 - 初步定位：当前 VS Code 测试适配器发现配置；非测试代码或生命周期失败
 - 处理动作：环境前置缺失
 - 修复变更：无；改用项目已生成的 CTest 清单定向执行。
-- 复跑结果：待复跑
+- 复跑结果：历史快照；已由后续 integration rerun 记录验证通过
 - 关联条目：无

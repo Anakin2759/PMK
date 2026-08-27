@@ -37,6 +37,16 @@ namespace ui::core
 struct RenderContext;
 }
 
+namespace ui::interface
+{
+class IBackendRenderer;
+}
+
+namespace ui::utils
+{
+class Logger;
+}
+
 namespace ui::systems
 {
 
@@ -106,7 +116,7 @@ class RenderSystem final : public interface::EnableRegister<RenderSystem>
     void cleanup();
     void ensureInitialized();
     void ensureGpuResourcesInitialized();
-    ui::Result<void> tryInitializeFallback(SDL_Window* window);
+    ui::Result<interface::IBackendRenderer*> tryInitializeFallback(SDL_Window* window);
     void initializeRenderers();
 
     /**
@@ -118,6 +128,7 @@ class RenderSystem final : public interface::EnableRegister<RenderSystem>
 
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
+    utils::Logger* m_logger = nullptr;
     std::unique_ptr<RenderSystemImpl> m_impl;
 };
 

@@ -8,7 +8,6 @@
 #include "common/Events.hpp"
 #include "ui/ErrorCodes.hpp"
 #include "common/AppConfig.hpp"
-#include "core/UiRuntimeScope.hpp"
 #include "core/WindowEntityLookup.hpp"
 #include "utils/Logger.hpp"
 #include "utils/Registry.hpp"
@@ -49,6 +48,24 @@ namespace ui::factory
 
 namespace
 {
+ui::entity CreateBaseWidgetEntity(UiRuntime& runtime, std::string_view alias)
+{
+    auto& reg = runtime.registry();
+    const auto entity = detail::ToPublic(reg.create());
+
+    auto& baseInfo = reg.emplace<components::BaseInfo>(entity);
+    baseInfo.alias = std::string(alias);
+
+    reg.emplace<components::Position>(entity);
+    reg.emplace<components::Size>(entity);
+    reg.emplace<components::Alpha>(entity);
+    reg.emplace<components::VisibleTag>(entity);
+    reg.emplace<components::Hierarchy>(entity);
+
+    utils::MarkLayoutAndVisualChanged(runtime, entity);
+    return entity;
+}
+
 void WriteStderr(std::string_view text) noexcept
 {
     if (text.empty())
@@ -67,15 +84,14 @@ struct RuntimeServices
     Dispatcher& dispatcher;
 };
 
-RuntimeServices CurrentServices()
+RuntimeServices CurrentServices(UiRuntime& runtime)
 {
-    auto& runtime = UiRuntime::current();
     return {.registry = runtime.registry(), .dispatcher = runtime.dispatcher()};
 }
 
-Registry& CurrentRegistry()
+Registry& CurrentRegistry(UiRuntime& runtime)
 {
-    return CurrentServices().registry;
+    return CurrentServices(runtime).registry;
 }
 
 struct TitleBarDragState
@@ -85,14 +101,14 @@ struct TitleBarDragState
     bool dragAnchorValid = false;
 };
 
-SDL_Window* CreateSdlWindowOrRollback(ui::entity entity, const char* title, int width, int height,
+SDL_Window* CreateSdlWindowOrRollback(UiRuntime& runtime, ui::entity entity, const char* title, int width, int height,
                                       SDL_WindowFlags flags, std::string_view entityType)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     SDL_Window* sdlWindow = SDL_CreateWindow(title, width, height, flags);
     if (sdlWindow == nullptr)
     {
-        UiRuntime::current().logger().error("[Factory] Failed to create SDL window for {} entity {}: {}", entityType,
+        runtime.logger().error("[Factory] Failed to create SDL window for {} entity {}: {}", entityType,
                                             static_cast<uint32_t>(entity), SDL_GetError());
         reg.destroy(entity);
         return nullptr;
@@ -116,14 +132,14 @@ SDL_Window* CreateSdlWindowOrRollback(ui::entity entity, const char* title, int 
             }
             else
             {
-                UiRuntime::current().logger().warn("[Factory] Failed to create surface for app icon: {}",
+                runtime.logger().warn("[Factory] Failed to create surface for app icon: {}",
                                                    SDL_GetError());
             }
             stbi_image_free(pixels);
         }
         else
         {
-            UiRuntime::current().logger().warn("[Factory] Failed to load app icon '{}': {}", iconPath,
+            runtime.logger().warn("[Factory] Failed to load app icon '{}': {}", iconPath,
                                                stbi_failure_reason());
         }
     }
@@ -141,29 +157,29 @@ SDL_WindowFlags DefaultWindowFlags()
     return flags;
 }
 
-bool AssignWindowIdOrRollback(ui::entity entity, components::Window& window, SDL_Window* sdlWindow,
+bool AssignWindowIdOrRollback(UiRuntime& runtime, ui::entity entity, components::Window& window, SDL_Window* sdlWindow,
                               std::string_view entityType)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     window.windowID = SDL_GetWindowID(sdlWindow);
     if (window.windowID == 0)
     {
-        UiRuntime::current().logger().error("[Factory] Failed to fetch SDL window ID for {} entity {}: {}", entityType,
+        runtime.logger().error("[Factory] Failed to fetch SDL window ID for {} entity {}: {}", entityType,
                                             static_cast<uint32_t>(entity), SDL_GetError());
         SDL_DestroyWindow(sdlWindow);
         reg.destroy(entity);
         return false;
     }
 
-    window_lookup::RememberWindowEntity(detail::ToInternal(entity));
+    window_lookup::RememberWindowEntity(reg, detail::ToInternal(entity));
 
     return true;
 }
 
-ui::entity CreateTitleBarContainer(std::string_view alias, float titleBarHeight)
+ui::entity CreateTitleBarContainer(UiRuntime& runtime, std::string_view alias, float titleBarHeight)
 {
-    auto& reg = CurrentRegistry();
-    auto titleBar = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto titleBar = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::TitleBarTag>(titleBar);
 
     auto& layout = reg.emplace<components::LayoutInfo>(titleBar);
@@ -186,15 +202,16 @@ ui::entity CreateTitleBarContainer(std::string_view alias, float titleBarHeight)
     return titleBar;
 }
 
-void ConfigureTitleBarDragging(ui::entity titleBar, ui::entity windowEntity, uint32_t windowId)
+void ConfigureTitleBarDragging(UiRuntime& runtime, ui::entity titleBar, ui::entity windowEntity, uint32_t windowId)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     auto& draggable = reg.get<components::Draggable>(titleBar);
     auto dragState = std::make_shared<TitleBarDragState>();
 
-    draggable.onDragStart = [windowEntity, windowId, dragState]()
+    UiRuntime* const runtimePtr = &runtime;
+    draggable.onDragStart = [runtimePtr, windowEntity, windowId, dragState]()
     {
-        auto& reg = CurrentRegistry();
+        auto& reg = runtimePtr->registry();
         SDL_Window* sdlWindow = SDL_GetWindowFromID(windowId);
         auto* position = reg.try_get<components::Position>(windowEntity);
         if (sdlWindow == nullptr || position == nullptr)
@@ -217,9 +234,9 @@ void ConfigureTitleBarDragging(ui::entity titleBar, ui::entity windowEntity, uin
         dragState->dragAnchorValid = true;
     };
 
-    draggable.onDragMove = [windowEntity, windowId, dragState]([[maybe_unused]] Vec2 delta)
+    draggable.onDragMove = [runtimePtr, windowEntity, windowId, dragState]([[maybe_unused]] Vec2 delta)
     {
-        auto& reg = CurrentRegistry();
+        auto& reg = runtimePtr->registry();
         SDL_Window* sdlWindow = SDL_GetWindowFromID(windowId);
         if (sdlWindow == nullptr)
             return;
@@ -263,11 +280,18 @@ void ConfigureTitleBarDragging(ui::entity titleBar, ui::entity windowEntity, uin
     draggable.onDragEnd = [dragState]() { dragState->dragAnchorValid = false; };
 }
 
-ui::entity CreateWindowControlButton(const std::string& buttonAlias, uint32_t iconCodepoint, float buttonSize,
+ui::entity CreateWindowControlButton(UiRuntime& runtime, const std::string& buttonAlias, uint32_t iconCodepoint, float buttonSize,
                                      float iconSize, float iconSpacing)
 {
-    auto& reg = CurrentRegistry();
-    auto button = CreateButton("", buttonAlias);
+    auto& reg = CurrentRegistry(runtime);
+    auto button = CreateBaseWidgetEntity(runtime, buttonAlias);
+    reg.emplace<components::ButtonTag>(button);
+    reg.emplace<components::FocusableTag>(button);
+    reg.emplace<components::Clickable>(button);
+    auto& text = reg.emplace<components::Text>(button);
+    text.alignment = policies::Alignment::CENTER;
+    text.fontSize = 0.0F;
+    reg.get<components::Size>(button).sizePolicy = policies::Size::AUTO;
     auto& buttonSizeComp = reg.get<components::Size>(button);
     buttonSizeComp.size = {scale::Metric(buttonSize), scale::Metric(buttonSize)};
     buttonSizeComp.sizePolicy = policies::Size::FIXED;
@@ -287,9 +311,8 @@ ui::entity CreateWindowControlButton(const std::string& buttonAlias, uint32_t ic
     return button;
 }
 
-void AppendChild(ui::entity parent, ui::entity child)
+void AppendChild(Registry& reg, ui::entity parent, ui::entity child)
 {
-    auto& reg = CurrentRegistry();
     auto& parentHierarchy = reg.get<components::Hierarchy>(parent);
     auto& childHierarchy = reg.get<components::Hierarchy>(child);
     childHierarchy.parent = detail::ToInternal(parent);
@@ -297,9 +320,8 @@ void AppendChild(ui::entity parent, ui::entity child)
     parentHierarchy.children.push_back(detail::ToInternal(child));
 }
 
-void AttachTitleBarToWindow(ui::entity titleBar, ui::entity windowEntity)
+void AttachTitleBarToWindow(Registry& reg, ui::entity titleBar, ui::entity windowEntity)
 {
-    auto& reg = CurrentRegistry();
     auto& windowHierarchy = reg.get<components::Hierarchy>(windowEntity);
     auto& titleBarHierarchy = reg.get<components::Hierarchy>(titleBar);
     titleBarHierarchy.parent = detail::ToInternal(windowEntity);
@@ -307,9 +329,9 @@ void AttachTitleBarToWindow(ui::entity titleBar, ui::entity windowEntity)
     windowHierarchy.children.insert(windowHierarchy.children.begin(), detail::ToInternal(titleBar));
 }
 
-void MarkAsRoot(ui::entity entity)
+void MarkAsRoot(Registry& reg, ui::entity entity)
 {
-    CurrentRegistry().emplace_or_replace<components::RootTag>(entity);
+    reg.emplace_or_replace<components::RootTag>(entity);
 }
 }  // namespace
 
@@ -333,29 +355,9 @@ ui::Result<std::unique_ptr<Application>> CreateApplication(std::span<char*> argv
     }
 }
 
-ui::entity CreateBaseWidget(std::string_view alias)
-{
-    auto& reg = CurrentRegistry();
-    auto entity = detail::ToPublic(reg.create());
-
-    auto& baseInfo = reg.emplace<components::BaseInfo>(entity);
-    baseInfo.alias = std::string(alias);
-
-    reg.emplace<components::Position>(entity);
-    reg.emplace<components::Size>(entity);
-    reg.emplace<components::Alpha>(entity);
-    reg.emplace<components::VisibleTag>(entity);
-    reg.emplace<components::Hierarchy>(entity);
-
-    utils::MarkLayoutAndVisualChanged(entity);
-
-    return entity;
-}
-
 ui::Result<ui::EntityHandle> CreateBaseWidget(UiRuntime& runtime, std::string_view alias)
 {
-    UiRuntimeScope const scope(runtime);
-    const ui::entity entity = CreateBaseWidget(alias);
+    const ui::entity entity = CreateBaseWidgetEntity(runtime, alias);
     if (entity == ui::null_entity)
     {
         return ui::Err(UiErrc::INVALID_ENTITY, std::string(alias));
@@ -363,9 +365,9 @@ ui::Result<ui::EntityHandle> CreateBaseWidget(UiRuntime& runtime, std::string_vi
     return ui::MakeEntityHandle(runtime.token(), entity);
 }
 
-void CreateFadeInAnimation(ui::entity entity, float duration)
+void CreateFadeInAnimation(UiRuntime& runtime, ui::entity entity, float duration)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     if (!reg.valid(entity))
         return;
     auto& alpha = reg.get_or_emplace<components::Alpha>(entity);
@@ -375,13 +377,14 @@ void CreateFadeInAnimation(ui::entity entity, float duration)
     options.easing = policies::Easing::EASE_OUT_QUAD;
     options.mode = policies::Play::ONCE;
     options.autoCleanup = true;
-    animation::StartAlphaAnimation(entity, 0.0F, 1.0F, options);
+    animation::StartAlphaAnimation(runtime, entity, 0.0F, 1.0F, options);
 }
 
-ui::entity CreateButton(const std::string& content, std::string_view alias)
+ui::Result<ui::EntityHandle> CreateButton(UiRuntime& runtime, const std::string& content, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    TRY(auto handle, CreateBaseWidget(runtime, alias));
+    auto& reg = CurrentRegistry(runtime);
+    const ui::entity entity = handle.raw;
     reg.emplace<components::ButtonTag>(entity);
     reg.emplace<components::FocusableTag>(entity);
     reg.emplace<components::Clickable>(entity);
@@ -390,24 +393,13 @@ ui::entity CreateButton(const std::string& content, std::string_view alias)
     text.alignment = policies::Alignment::CENTER;
     text.fontSize = 0.0F;
     reg.get<components::Size>(entity).sizePolicy = policies::Size::AUTO;
-    return entity;
+    return ui::Ok(handle);
 }
 
-ui::Result<ui::EntityHandle> CreateButton(UiRuntime& runtime, const std::string& content, std::string_view alias)
+ui::entity CreateLabel(UiRuntime& runtime, const std::string& content, std::string_view alias)
 {
-    UiRuntimeScope const scope(runtime);
-    const ui::entity entity = CreateButton(content, alias);
-    if (entity == ui::null_entity)
-    {
-        return ui::Err(UiErrc::INVALID_ENTITY, std::string(alias));
-    }
-    return ui::MakeEntityHandle(runtime.token(), entity);
-}
-
-ui::entity CreateLabel(const std::string& content, std::string_view alias)
-{
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::LabelTag>(entity);
     auto& text = reg.emplace<components::Text>(entity);
     text.content = content;
@@ -415,10 +407,10 @@ ui::entity CreateLabel(const std::string& content, std::string_view alias)
     return entity;
 }
 
-ui::entity CreateTextEdit(const std::string& placeholder, bool multiline, std::string_view alias)
+ui::entity CreateTextEdit(UiRuntime& runtime, const std::string& placeholder, bool multiline, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
 
     auto& textEdit = reg.emplace<components::TextEdit>(entity);
     textEdit.placeholder = placeholder;
@@ -442,10 +434,11 @@ ui::entity CreateTextEdit(const std::string& placeholder, bool multiline, std::s
     return entity;
 }
 
-ui::entity CreateImage(void* textureId, float defaultWidth, float defaultHeight, std::string_view alias)
+ui::entity CreateImage(UiRuntime& runtime, void* textureId, float defaultWidth, float defaultHeight,
+                       std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ImageTag>(entity);
     auto& image = reg.emplace<components::Image>(entity);
     image.textureId = textureId;
@@ -454,10 +447,10 @@ ui::entity CreateImage(void* textureId, float defaultWidth, float defaultHeight,
     return entity;
 }
 
-ui::entity CreateArrow(const Vec2& start, const Vec2& end, std::string_view alias)
+ui::entity CreateArrow(UiRuntime& runtime, const Vec2& start, const Vec2& end, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ArrowTag>(entity);
     auto& arrow = reg.emplace<components::Arrow>(entity);
     arrow.startPoint = scale::Metric(start);
@@ -467,9 +460,9 @@ ui::entity CreateArrow(const Vec2& start, const Vec2& end, std::string_view alia
     return entity;
 }
 
-ui::entity CreateSpacer(int stretchFactor, std::string_view alias)
+ui::entity CreateSpacer(UiRuntime& runtime, int stretchFactor, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     auto entity = detail::ToPublic(reg.create());
     auto& baseInfo = reg.emplace<components::BaseInfo>(entity);
     baseInfo.alias = alias;
@@ -484,27 +477,27 @@ ui::entity CreateSpacer(int stretchFactor, std::string_view alias)
     auto& spacer = reg.emplace<components::Spacer>(entity);
     spacer.stretchFactor = static_cast<uint8_t>(std::max(1, stretchFactor));
 
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(runtime, entity);
     return entity;
 }
 
-ui::entity CreateSpacer(float width, float height, std::string_view alias)
+ui::entity CreateSpacer(UiRuntime& runtime, float width, float height, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     auto& size = reg.get<components::Size>(entity);
     size.size = {scale::Metric(width), scale::Metric(height)};
     size.sizePolicy = policies::Size::FIXED;
     return entity;
 }
 
-ui::entity CreateDialog(std::string_view title, std::string_view alias)
+ui::entity CreateDialog(UiRuntime& runtime, std::string_view title, std::string_view alias)
 {
-    const auto services = CurrentServices();
+    const auto services = CurrentServices(runtime);
     auto& reg = services.registry;
     auto& disp = services.dispatcher;
-    auto entity = CreateBaseWidget(alias);
-    MarkAsRoot(entity);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
+    MarkAsRoot(reg, entity);
     reg.emplace<components::DialogTag>(entity);
     auto& size = reg.get<components::Size>(entity);
     size.sizePolicy = policies::Size::FIXED;
@@ -513,14 +506,14 @@ ui::entity CreateDialog(std::string_view title, std::string_view alias)
     dialog.flags |= policies::WindowFlag::NO_TITLE_BAR;
     constexpr int DEFAULT_DIALOG_WIDTH = 400;
     constexpr int DEFAULT_DIALOG_HEIGHT = 300;
-    SDL_Window* sdlWindow = CreateSdlWindowOrRollback(entity, dialog.title.c_str(), DEFAULT_DIALOG_WIDTH,
+    SDL_Window* sdlWindow = CreateSdlWindowOrRollback(runtime, entity, dialog.title.c_str(), DEFAULT_DIALOG_WIDTH,
                                                       DEFAULT_DIALOG_HEIGHT, DefaultWindowFlags(), "dialog");
     if (sdlWindow == nullptr)
     {
         return ui::null_entity;
     }
 
-    if (!AssignWindowIdOrRollback(entity, dialog, sdlWindow, "dialog"))
+    if (!AssignWindowIdOrRollback(runtime, entity, dialog, sdlWindow, "dialog"))
     {
         return ui::null_entity;
     }
@@ -532,8 +525,8 @@ ui::entity CreateDialog(std::string_view title, std::string_view alias)
     dialogLayout.direction = policies::LayoutDirection::VERTICAL;
     dialogLayout.alignment = policies::Alignment::CENTER;
     reg.emplace<components::Padding>(entity);
-    utils::MarkLayoutAndVisualChanged(entity);
-    UiRuntime::current().logger().info("[Factory] Triggering WindowGraphicsContextSetEvent for dialog entity {}",
+    utils::MarkLayoutAndVisualChanged(runtime, entity);
+    runtime.logger().info("[Factory] Triggering WindowGraphicsContextSetEvent for dialog entity {}",
                                        static_cast<uint32_t>(entity));
     disp.trigger<events::WindowGraphicsContextSetEvent>({detail::ToInternal(entity)});
 
@@ -542,10 +535,10 @@ ui::entity CreateDialog(std::string_view title, std::string_view alias)
     return entity;
 }
 
-ui::entity CreateScrollArea(std::string_view alias)
+ui::entity CreateScrollArea(UiRuntime& runtime, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ScrollArea>(entity);
     auto& layout = reg.emplace<components::LayoutInfo>(entity);
     layout.direction = policies::LayoutDirection::VERTICAL;
@@ -555,13 +548,14 @@ ui::entity CreateScrollArea(std::string_view alias)
     return entity;
 }
 
-ui::entity CreateWindow(std::string_view title, std::string_view alias)
+ui::Result<ui::WindowHandle> CreateWindow(UiRuntime& runtime, std::string_view title, std::string_view alias)
 {
-    const auto services = CurrentServices();
+    const auto services = CurrentServices(runtime);
     auto& reg = services.registry;
     auto& disp = services.dispatcher;
-    auto entity = CreateBaseWidget(alias);
-    MarkAsRoot(entity);
+    TRY(auto handle, CreateBaseWidget(runtime, alias));
+    const ui::entity entity = handle.raw;
+    MarkAsRoot(reg, entity);
     reg.emplace<components::WindowTag>(entity);
     auto& window = reg.emplace<components::Window>(entity);
     window.title = std::string(title);
@@ -572,52 +566,38 @@ ui::entity CreateWindow(std::string_view title, std::string_view alias)
     layoutInfo.direction = policies::LayoutDirection::VERTICAL;
     layoutInfo.alignment = policies::Alignment::CENTER;
     reg.emplace<components::Padding>(entity);
-    ui::utils::MarkLayoutAndVisualChanged(entity);
+    ui::utils::MarkLayoutAndVisualChanged(runtime, entity);
     constexpr int DEFAULT_WINDOW_WIDTH = 800;
     constexpr int DEFAULT_WINDOW_HEIGHT = 600;
-    SDL_Window* sdlWindow = CreateSdlWindowOrRollback(entity, window.title.c_str(), DEFAULT_WINDOW_WIDTH,
+    SDL_Window* sdlWindow = CreateSdlWindowOrRollback(runtime, entity, window.title.c_str(), DEFAULT_WINDOW_WIDTH,
                                                       DEFAULT_WINDOW_HEIGHT, DefaultWindowFlags(), "window");
     if (sdlWindow == nullptr)
     {
-        return ui::null_entity;
+        return ui::Err(UiErrc::DEVICE_UNAVAILABLE, SDL_GetError());
     }
 
-    if (!AssignWindowIdOrRollback(entity, window, sdlWindow, "window"))
+    if (!AssignWindowIdOrRollback(runtime, entity, window, sdlWindow, "window"))
     {
-        return ui::null_entity;
+        return ui::Err(UiErrc::DEVICE_UNAVAILABLE, SDL_GetError());
     }
 
     platform::InstallDarkClientAreaBackground(sdlWindow);
 
-    UiRuntime::current().logger().info("[Factory] Triggering WindowGraphicsContextSetEvent for window entity {}",
+    runtime.logger().info("[Factory] Triggering WindowGraphicsContextSetEvent for window entity {}",
                                        static_cast<uint32_t>(entity));
     disp.trigger<events::WindowGraphicsContextSetEvent>({detail::ToInternal(entity)});
     reg.remove<components::VisibleTag>(entity);
 
-    return entity;
+    return ui::MakeWindowHandle(runtime.token(), entity, window.windowID);
 }
 
-ui::Result<ui::WindowHandle> CreateWindow(UiRuntime& runtime, std::string_view title, std::string_view alias)
+ui::entity CreateTitleBar(UiRuntime& runtime, ui::entity windowEntity, std::string_view alias)
 {
-    UiRuntimeScope const scope(runtime);
-    const ui::entity entity = CreateWindow(title, alias);
-    if (entity == ui::null_entity)
-    {
-        return ui::Err(UiErrc::INVALID_ENTITY, std::string(alias));
-    }
-
-    const auto* window = runtime.registry().try_get<components::Window>(entity);
-    const std::uint32_t windowId = window != nullptr ? window->windowID : 0U;
-    return ui::MakeWindowHandle(runtime.token(), entity, windowId);
-}
-
-ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias)
-{
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     auto* windowComp = reg.try_get<components::Window>(windowEntity);
     if (windowComp == nullptr)
     {
-        UiRuntime::current().logger().warn("[Factory] CreateTitleBar: entity {} has no Window component",
+        runtime.logger().warn("[Factory] CreateTitleBar: entity {} has no Window component",
                                            static_cast<uint32_t>(windowEntity));
         return ui::null_entity;
     }
@@ -631,19 +611,19 @@ ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias)
     constexpr uint32_t ICON_MINIMIZE = 0xE931;
     constexpr uint32_t ICON_MAXIMIZE = 0xE930;
 
-    auto titleBar = CreateTitleBarContainer(alias, TITLE_BAR_HEIGHT);
+    auto titleBar = CreateTitleBarContainer(runtime, alias, TITLE_BAR_HEIGHT);
     uint32_t const windowID = windowComp->windowID;
-    ConfigureTitleBarDragging(titleBar, windowEntity, windowID);
+    ConfigureTitleBarDragging(runtime, titleBar, windowEntity, windowID);
 
-    auto titleLabel = CreateLabel(windowComp->title, std::string(alias) + "_title");
+    auto titleLabel = CreateLabel(runtime, windowComp->title, std::string(alias) + "_title");
     auto& titleText = reg.get<components::Text>(titleLabel);
     titleText.fontSize = scale::Metric(13.0F);
     titleText.alignment = policies::Alignment::LEFT | policies::Alignment::VCENTER;
 
-    auto spacer = CreateSpacer(1, std::string(alias) + "_spacer");
+    auto spacer = CreateSpacer(runtime, 1, std::string(alias) + "_spacer");
 
     auto minimizeBtn =
-        CreateWindowControlButton(std::string(alias) + "_minimize", ICON_MINIMIZE, BTN_SIZE, ICON_SIZE, ICON_SPACING);
+        CreateWindowControlButton(runtime, std::string(alias) + "_minimize", ICON_MINIMIZE, BTN_SIZE, ICON_SIZE, ICON_SPACING);
     reg.get<components::Clickable>(minimizeBtn).onClick = [windowID]()
     {
         SDL_Window* sdlWin = SDL_GetWindowFromID(windowID);
@@ -652,7 +632,7 @@ ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias)
     };
 
     auto maximizeBtn =
-        CreateWindowControlButton(std::string(alias) + "_maximize", ICON_MAXIMIZE, BTN_SIZE, ICON_SIZE, ICON_SPACING);
+        CreateWindowControlButton(runtime, std::string(alias) + "_maximize", ICON_MAXIMIZE, BTN_SIZE, ICON_SIZE, ICON_SPACING);
     reg.get<components::Clickable>(maximizeBtn).onClick = [windowID]()
     {
         SDL_Window* sdlWin = SDL_GetWindowFromID(windowID);
@@ -669,7 +649,7 @@ ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias)
     };
 
     auto closeBtn =
-        CreateWindowControlButton(std::string(alias) + "_close", ICON_CLOSE, BTN_SIZE, ICON_SIZE, ICON_SPACING);
+        CreateWindowControlButton(runtime, std::string(alias) + "_close", ICON_CLOSE, BTN_SIZE, ICON_SIZE, ICON_SPACING);
     Registry* const regPtr = &reg;
     auto& closeBtnHover = reg.emplace<components::Hoverable>(closeBtn);
     closeBtnHover.onHover = [regPtr, closeBtn]()
@@ -686,17 +666,17 @@ ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias)
         if (closeBg != nullptr)
             closeBg->color = {0.0F, 0.0F, 0.0F, 0.0F};
     };
-    reg.get<components::Clickable>(closeBtn).onClick = [windowEntity]() { utils::CloseWindow(windowEntity); };
+    reg.get<components::Clickable>(closeBtn).onClick = [&runtime, windowEntity]() { utils::CloseWindow(runtime, windowEntity); };
 
-    AppendChild(titleBar, titleLabel);
-    AppendChild(titleBar, spacer);
-    AppendChild(titleBar, minimizeBtn);
-    AppendChild(titleBar, maximizeBtn);
-    AppendChild(titleBar, closeBtn);
-    AttachTitleBarToWindow(titleBar, windowEntity);
+    AppendChild(reg, titleBar, titleLabel);
+    AppendChild(reg, titleBar, spacer);
+    AppendChild(reg, titleBar, minimizeBtn);
+    AppendChild(reg, titleBar, maximizeBtn);
+    AppendChild(reg, titleBar, closeBtn);
+    AttachTitleBarToWindow(reg, titleBar, windowEntity);
 
-    utils::MarkLayoutAndVisualChanged(titleBar);
-    utils::MarkLayoutAndVisualChanged(windowEntity);
+    utils::MarkLayoutAndVisualChanged(runtime, titleBar);
+    utils::MarkLayoutAndVisualChanged(runtime, windowEntity);
 
     auto& padding = reg.emplace<components::Padding>(titleBar);
     padding.values = {0.0F, scale::Metric(BTN_SPACING), 0.0F, scale::Metric(8.0F)};
@@ -707,10 +687,10 @@ ui::entity CreateTitleBar(ui::entity windowEntity, std::string_view alias)
     return titleBar;
 }
 
-ui::entity CreateVBoxLayout(std::string_view alias)
+ui::entity CreateVBoxLayout(UiRuntime& runtime, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     auto& layout = reg.emplace<components::LayoutInfo>(entity);
     layout.direction = policies::LayoutDirection::VERTICAL;
     layout.alignment = policies::Alignment::TOP_LEFT;
@@ -720,10 +700,10 @@ ui::entity CreateVBoxLayout(std::string_view alias)
     return entity;
 }
 
-ui::entity CreateHBoxLayout(std::string_view alias)
+ui::entity CreateHBoxLayout(UiRuntime& runtime, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     auto& layout = reg.emplace<components::LayoutInfo>(entity);
     layout.direction = policies::LayoutDirection::HORIZONTAL;
     layout.alignment = policies::Alignment::LEFT | policies::Alignment::VCENTER;
@@ -733,10 +713,11 @@ ui::entity CreateHBoxLayout(std::string_view alias)
     return entity;
 }
 
-ui::entity CreateLineEdit(std::string_view initialText, std::string_view placeholder, std::string_view alias)
+ui::entity CreateLineEdit(UiRuntime& runtime, std::string_view initialText, std::string_view placeholder,
+                          std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateTextEdit(std::string(placeholder), false, alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateTextEdit(runtime, std::string(placeholder), false, alias);
     auto& edit = reg.get<components::TextEdit>(entity);
     edit.buffer = std::string(initialText);
     edit.cursorPosition = edit.buffer.size();  // Place cursor at end
@@ -745,10 +726,11 @@ ui::entity CreateLineEdit(std::string_view initialText, std::string_view placeho
     return entity;
 }
 
-ui::entity CreateTextBrowser(std::string_view initialText, std::string_view placeholder, std::string_view alias)
+ui::entity CreateTextBrowser(UiRuntime& runtime, std::string_view initialText, std::string_view placeholder,
+                             std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateTextEdit(std::string(placeholder), true, alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateTextEdit(runtime, std::string(placeholder), true, alias);
     auto& edit = reg.get<components::TextEdit>(entity);
     edit.buffer = std::string(initialText);
     edit.cursorPosition = 0;  // Start at beginning for read-only
@@ -770,10 +752,10 @@ ui::entity CreateTextBrowser(std::string_view initialText, std::string_view plac
     return entity;
 }
 
-ui::entity CreateCheckBox(const std::string& label, bool checked, std::string_view alias)
+ui::entity CreateCheckBox(UiRuntime& runtime, const std::string& label, bool checked, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::CheckBoxTag>(entity);
     reg.emplace<components::FocusableTag>(entity);
     auto& checkBox = reg.emplace<components::CheckBox>(entity);
@@ -800,15 +782,15 @@ ui::entity CreateCheckBox(const std::string& label, bool checked, std::string_vi
         {
             checkBoxComp->onChanged(checkBoxComp->checked);
         }
-        ui::utils::MarkVisualChanged(entity);
+        ui::utils::MarkVisualChanged(reg.runtime(), entity);
     };
     return entity;
 }
 
-ui::entity CreateSwitch(bool checked, std::string_view alias)
+ui::entity CreateSwitch(UiRuntime& runtime, bool checked, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::SwitchTag>(entity);
     reg.emplace<components::FocusableTag>(entity);
     auto& switchComp = reg.emplace<components::Switch>(entity);
@@ -817,9 +799,10 @@ ui::entity CreateSwitch(bool checked, std::string_view alias)
     size.size = {scale::Metric(40.0F), scale::Metric(22.0F)};
     size.sizePolicy = policies::Size::FIXED;
     auto& clickable = reg.emplace<components::Clickable>(entity);
-    clickable.onClick = [entity]()
+    Registry* const regPtr = &reg;
+    clickable.onClick = [regPtr, entity]()
     {
-        auto& reg = CurrentRegistry();
+        auto& reg = *regPtr;
         auto* switchComp = reg.try_get<components::Switch>(entity);
         if (switchComp == nullptr)
             return;
@@ -828,15 +811,16 @@ ui::entity CreateSwitch(bool checked, std::string_view alias)
         {
             switchComp->onChanged(switchComp->checked);
         }
-        ui::utils::MarkVisualChanged(entity);
+        ui::utils::MarkVisualChanged(reg.runtime(), entity);
     };
     return entity;
 }
 
-ui::entity CreateRadioGroup(const std::vector<std::string>& options, int selectedIndex, std::string_view alias)
+ui::entity CreateRadioGroup(UiRuntime& runtime, const std::vector<std::string>& options, int selectedIndex,
+                            std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::RadioGroupTag>(entity);
     auto& group = reg.emplace<components::RadioGroup>(entity);
     group.selectedIndex = selectedIndex;
@@ -851,7 +835,7 @@ ui::entity CreateRadioGroup(const std::vector<std::string>& options, int selecte
     {
         const std::string& label = options[static_cast<std::size_t>(index)];
         const std::string optionAlias = std::string(alias) + "_option_" + std::to_string(index);
-        const auto option = CreateBaseWidget(optionAlias);
+        const auto option = CreateBaseWidgetEntity(runtime, optionAlias);
         reg.emplace<components::RadioButtonTag>(option);
         reg.emplace<components::FocusableTag>(option);
         auto& radioButton = reg.emplace<components::RadioButton>(option);
@@ -901,7 +885,7 @@ ui::entity CreateRadioGroup(const std::vector<std::string>& options, int selecte
                     {
                         newlyChecked = member;
                     }
-                    ui::utils::MarkVisualChanged(member);
+                    ui::utils::MarkVisualChanged(reg.runtime(), detail::ToPublic(member));
                 }
             }
             group->selectedIndex = radioButton->optionIndex;
@@ -920,7 +904,7 @@ ui::entity CreateRadioGroup(const std::vector<std::string>& options, int selecte
                 group->onChanged(group->selectedIndex);
             }
         };
-        hierarchy::AddChild(entity, option);
+        hierarchy::AddChild(runtime, entity, option);
     }
     return entity;
 }
@@ -953,7 +937,7 @@ void ApplyTabVisualState(Registry& reg, entt::entity header, bool selected)
     {
         tabItem->selected = selected;
     }
-    ui::utils::MarkVisualChanged(header);
+    ui::utils::MarkVisualChanged(reg.runtime(), detail::ToPublic(header));
 }
 
 void SelectTab(Registry& reg, entt::entity tabViewEntity, int index)
@@ -987,7 +971,7 @@ void SelectTab(Registry& reg, entt::entity tabViewEntity, int index)
             {
                 reg.remove<components::VisibleTag>(tabView->contentPanels[i]);
             }
-            ui::utils::MarkVisualChanged(tabView->contentPanels[i]);
+            ui::utils::MarkVisualChanged(reg.runtime(), detail::ToPublic(tabView->contentPanels[i]));
         }
     }
 
@@ -999,10 +983,10 @@ void SelectTab(Registry& reg, entt::entity tabViewEntity, int index)
 
 }  // namespace
 
-ui::entity CreateTabView(const std::vector<std::string>& tabTitles, std::string_view alias)
+ui::entity CreateTabView(UiRuntime& runtime, const std::vector<std::string>& tabTitles, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::TabViewTag>(entity);
     auto& tabView = reg.emplace<components::TabView>(entity);
     auto& layout = reg.emplace<components::LayoutInfo>(entity);
@@ -1012,7 +996,7 @@ ui::entity CreateTabView(const std::vector<std::string>& tabTitles, std::string_
     size.sizePolicy = policies::Size::AUTO;
 
     // TabBar（水平）
-    const auto tabBar = CreateBaseWidget(std::string(alias) + "_tabbar");
+    const auto tabBar = CreateBaseWidgetEntity(runtime, std::string(alias) + "_tabbar");
     reg.emplace<components::LayoutInfo>(tabBar).direction = policies::LayoutDirection::HORIZONTAL;
     reg.get<components::LayoutInfo>(tabBar).alignment = policies::Alignment::LEFT | policies::Alignment::VCENTER;
     reg.get<components::Size>(tabBar).sizePolicy = policies::Size::AUTO;
@@ -1023,7 +1007,7 @@ ui::entity CreateTabView(const std::vector<std::string>& tabTitles, std::string_
         const std::string& title = tabTitles[static_cast<std::size_t>(index)];
 
         // Tab 头
-        const auto header = CreateBaseWidget(std::string(alias) + "_tab_" + std::to_string(index));
+        const auto header = CreateBaseWidgetEntity(runtime, std::string(alias) + "_tab_" + std::to_string(index));
         reg.emplace<components::TabItemTag>(header);
         reg.emplace<components::FocusableTag>(header);
         auto& tabItem = reg.emplace<components::TabItem>(header);
@@ -1055,10 +1039,10 @@ ui::entity CreateTabView(const std::vector<std::string>& tabTitles, std::string_
         };
 
         tabView.tabHeaders.push_back(detail::ToInternal(header));
-        hierarchy::AddChild(tabBar, header);
+        hierarchy::AddChild(runtime, tabBar, header);
 
         // 内容面板
-        const auto panel = CreateBaseWidget(std::string(alias) + "_panel_" + std::to_string(index));
+        const auto panel = CreateBaseWidgetEntity(runtime, std::string(alias) + "_panel_" + std::to_string(index));
         reg.emplace<components::LayoutInfo>(panel).direction = policies::LayoutDirection::VERTICAL;
         reg.get<components::LayoutInfo>(panel).alignment = policies::Alignment::TOP_LEFT;
         reg.get<components::Size>(panel).sizePolicy = policies::Size::FILL_PARENT;
@@ -1067,10 +1051,10 @@ ui::entity CreateTabView(const std::vector<std::string>& tabTitles, std::string_
             reg.remove<components::VisibleTag>(panel);
         }
         tabView.contentPanels.push_back(detail::ToInternal(panel));
-        hierarchy::AddChild(entity, panel);
+        hierarchy::AddChild(runtime, entity, panel);
     }
 
-    hierarchy::AddChild(entity, tabBar);
+    hierarchy::AddChild(runtime, entity, tabBar);
 
     // 初始化 Tab 头选中态（index=0 选中）
     if (!tabView.tabHeaders.empty())
@@ -1081,9 +1065,9 @@ ui::entity CreateTabView(const std::vector<std::string>& tabTitles, std::string_
     return entity;
 }
 
-ui::entity GetTabContent(ui::entity tabViewEntity, int index)
+ui::entity GetTabContent(UiRuntime& runtime, ui::entity tabViewEntity, int index)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     auto* tabView = reg.try_get<components::TabView>(tabViewEntity);
     if (tabView == nullptr || index < 0 || index >= static_cast<int>(tabView->contentPanels.size()))
         return ui::null_entity;
@@ -1139,7 +1123,7 @@ void SelectSingleItem(Registry& reg, entt::entity listViewEntity, entt::entity n
             {
                 background->enabled = policies::Feature::DISABLED;
             }
-            ui::utils::MarkVisualChanged(detail::ToPublic(item));
+            ui::utils::MarkVisualChanged(reg.runtime(), detail::ToPublic(item));
         }
     }
 
@@ -1167,7 +1151,7 @@ void ToggleMultiSelectItem(Registry& reg, entt::entity listViewEntity, entt::ent
         if (auto* background = reg.try_get<components::Background>(item); background != nullptr)
         {
             background->enabled = policies::Feature::DISABLED;
-            ui::utils::MarkVisualChanged(detail::ToPublic(item));
+            ui::utils::MarkVisualChanged(reg.runtime(), detail::ToPublic(item));
         }
     }
     else
@@ -1177,7 +1161,7 @@ void ToggleMultiSelectItem(Registry& reg, entt::entity listViewEntity, entt::ent
         {
             background->color = listArea->selectedBackground;
             background->enabled = policies::Feature::ENABLED;
-            ui::utils::MarkVisualChanged(detail::ToPublic(item));
+            ui::utils::MarkVisualChanged(reg.runtime(), detail::ToPublic(item));
         }
     }
 
@@ -1189,10 +1173,11 @@ void ToggleMultiSelectItem(Registry& reg, entt::entity listViewEntity, entt::ent
 
 }  // namespace
 
-ui::entity CreateListView(const std::vector<std::string>& items, int selectedIndex, std::string_view alias)
+ui::entity CreateListView(UiRuntime& runtime, const std::vector<std::string>& items, int selectedIndex,
+                          std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ListAreaTag>(entity);
     auto& listArea = reg.emplace<components::ListArea>(entity);
     // 注意：texts 与 items 由 AddListItem 单点维护（push_back 同步），此处不再预填，避免双写。
@@ -1206,8 +1191,8 @@ ui::entity CreateListView(const std::vector<std::string>& items, int selectedInd
     size.sizePolicy = policies::Size::FIXED;
 
     // 滚动容器：item 全部挂到其下，LayoutSystem 自动回写 contentSize（滚动免费）
-    const auto scrollArea = CreateScrollArea(std::string(alias) + "_scroll");
-    hierarchy::AddChild(entity, scrollArea);
+    const auto scrollArea = CreateScrollArea(runtime, std::string(alias) + "_scroll");
+    hierarchy::AddChild(runtime, entity, scrollArea);
 
     // 初始选中
     const int initialIndex = std::clamp(selectedIndex, -1, static_cast<int>(items.size()) - 1);
@@ -1215,7 +1200,7 @@ ui::entity CreateListView(const std::vector<std::string>& items, int selectedInd
     const int itemCount = static_cast<int>(items.size());
     for (int index = 0; index < itemCount; ++index)
     {
-        const ui::entity itemEntity = AddListItem(entity, items[static_cast<std::size_t>(index)],
+        const ui::entity itemEntity = AddListItem(runtime, entity, items[static_cast<std::size_t>(index)],
                                                  std::string(alias) + "_item_" + std::to_string(index));
         if (index == initialIndex)
         {
@@ -1243,20 +1228,20 @@ ui::entity CreateListView(const std::vector<std::string>& items, int selectedInd
         }
     }
 
-    ui::utils::MarkLayoutAndVisualChanged(entity);
+    ui::utils::MarkLayoutAndVisualChanged(runtime, entity);
     return entity;
 }
 
-ui::entity AddListItem(ui::entity listViewEntity, const std::string& text, std::string_view alias)
+ui::entity AddListItem(UiRuntime& runtime, ui::entity listViewEntity, const std::string& text, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     auto* listArea = reg.try_get<components::ListArea>(listViewEntity);
     if (listArea == nullptr)
     {
         return ui::null_entity;
     }
 
-    const auto item = CreateBaseWidget(alias);
+    const auto item = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ListAreaItemTag>(item);
     reg.emplace<components::ListAreaItem>(item, detail::ToInternal(listViewEntity),
                                           static_cast<int>(listArea->items.size()));
@@ -1300,7 +1285,7 @@ ui::entity AddListItem(ui::entity listViewEntity, const std::string& text, std::
         {
             background->color = listArea->hoverBackground;
             background->enabled = policies::Feature::ENABLED;
-            ui::utils::MarkVisualChanged(detail::ToPublic(itemInternal));
+            ui::utils::MarkVisualChanged(reg.runtime(), detail::ToPublic(itemInternal));
         }
     };
     reg.get<components::Hoverable>(item).onUnhover = [regPtr, itemInternal]()
@@ -1325,7 +1310,7 @@ ui::entity AddListItem(ui::entity listViewEntity, const std::string& text, std::
         {
             background->enabled = policies::Feature::DISABLED;
         }
-        ui::utils::MarkVisualChanged(detail::ToPublic(itemInternal));
+        ui::utils::MarkVisualChanged(reg.runtime(), detail::ToPublic(itemInternal));
     };
 
     // 点击选择
@@ -1352,14 +1337,14 @@ ui::entity AddListItem(ui::entity listViewEntity, const std::string& text, std::
     const auto* scrollHier = reg.try_get<components::Hierarchy>(detail::ToInternal(listViewEntity));
     if (scrollHier != nullptr && !scrollHier->children.empty())
     {
-        hierarchy::AddChild(detail::ToPublic(scrollHier->children.front()), item);
+        hierarchy::AddChild(runtime, detail::ToPublic(scrollHier->children.front()), item);
     }
     else
     {
-        hierarchy::AddChild(listViewEntity, item);
+        hierarchy::AddChild(runtime, listViewEntity, item);
     }
 
-    ui::utils::MarkLayoutAndVisualChanged(listViewEntity);
+    ui::utils::MarkLayoutAndVisualChanged(runtime, listViewEntity);
     return item;
 }
 
@@ -1383,10 +1368,9 @@ entt::entity FindWindowRoot(Registry& reg, entt::entity entity)
 
 }  // namespace
 
-void CloseDropDownPopup(ui::entity ddEntity)
+void CloseDropDownPopup(UiRuntime& runtime, ui::entity ddEntity)
 {
-    auto& runtime = UiRuntime::current();
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     auto* dropDown = reg.try_get<components::DropDown>(ddEntity);
     if (dropDown == nullptr)
         return;
@@ -1403,7 +1387,7 @@ void CloseDropDownPopup(ui::entity ddEntity)
     // → 本函数，重入时 popupEntity 已为 null 会提前返回，避免无限递归。
     dropDown->popupEntity = entt::null;
     dropDown->open = false;
-    ui::utils::MarkVisualChanged(ddEntity);
+    ui::utils::MarkVisualChanged(runtime, ddEntity);
 
     // 通知 OverlaySystem 出栈并恢复焦点（幂等：已出栈时静默忽略）
     runtime.dispatcher().trigger<events::OverlayCloseRequest>(events::OverlayCloseRequest{popupEntityInternal});
@@ -1420,7 +1404,7 @@ void CloseDropDownPopup(ui::entity ddEntity)
             const auto* popupHier = reg.try_get<components::Hierarchy>(popupToDestroy);
             if (popupHier != nullptr && popupHier->parent != entt::null)
             {
-                hierarchy::RemoveChild(detail::ToPublic(popupHier->parent), popupToDestroy);
+                hierarchy::RemoveChild(reg.runtime(), detail::ToPublic(popupHier->parent), popupToDestroy);
             }
 
             std::vector<ui::entity> toDestroy;
@@ -1451,11 +1435,6 @@ void CloseDropDownPopup(ui::entity ddEntity)
         true);
 }
 
-void CloseDropDownPopup(entt::entity ddEntity)
-{
-    CloseDropDownPopup(detail::ToPublic(ddEntity));
-}
-
 namespace
 {
 
@@ -1468,22 +1447,21 @@ constexpr float kTooltipPaddingLeft = 8.0F;
 constexpr float kTooltipFontSize = 12.0F;
 constexpr float kTooltipRadius = 4.0F;
 
-void ShowTooltipPopup(ui::entity target)
+void ShowTooltipPopup(UiRuntime& runtime, ui::entity target)
 {
-    auto& reg = CurrentRegistry();
-    auto& runtime = UiRuntime::current();
+    auto& reg = CurrentRegistry(runtime);
     auto* tooltip = reg.try_get<components::Tooltip>(target);
     if (tooltip == nullptr || !tooltip->hovered || tooltip->text.empty())
         return;
     if (tooltip->popupEntity != entt::null && reg.valid(tooltip->popupEntity))
         return;
 
-    const Rect targetRect = ui::utils::GetEntityRect(target);
+    const Rect targetRect = ui::utils::GetEntityRect(runtime, target);
     const entt::entity windowRoot = FindWindowRoot(reg, detail::ToInternal(target));
     if (windowRoot == entt::null)
         return;
 
-    const auto popup = CreateBaseWidget("__tooltip__");
+    const auto popup = CreateBaseWidgetEntity(runtime, "__tooltip__");
     auto& popupPos = reg.get<components::Position>(popup);
     popupPos.value = {targetRect.x(), targetRect.y() + targetRect.height() + kTooltipOffsetY};
     popupPos.positionPolicy = policies::Position::ABSOLUTE_POS;
@@ -1503,19 +1481,18 @@ void ShowTooltipPopup(ui::entity target)
     auto& padding = reg.get_or_emplace<components::Padding>(popup);
     padding.values = {kTooltipPaddingTop, kTooltipPaddingRight, kTooltipPaddingBottom, kTooltipPaddingLeft};
 
-    hierarchy::AddChild(detail::ToPublic(windowRoot), popup);
+    hierarchy::AddChild(runtime, detail::ToPublic(windowRoot), popup);
     tooltip->popupEntity = detail::ToInternal(popup);
 
     runtime.dispatcher().trigger<events::OverlayOpenRequest>(
         events::OverlayOpenRequest{detail::ToInternal(popup), detail::ToInternal(target)});
 
-    ui::utils::MarkLayoutAndVisualChanged(detail::ToPublic(windowRoot));
+    ui::utils::MarkLayoutAndVisualChanged(runtime, detail::ToPublic(windowRoot));
 }
 
-void HideTooltipPopup(ui::entity target)
+void HideTooltipPopup(UiRuntime& runtime, ui::entity target)
 {
-    auto& reg = CurrentRegistry();
-    auto& runtime = UiRuntime::current();
+    auto& reg = CurrentRegistry(runtime);
     auto* tooltip = reg.try_get<components::Tooltip>(target);
     if (tooltip == nullptr)
         return;
@@ -1536,7 +1513,7 @@ void HideTooltipPopup(ui::entity target)
         const auto* popupHierarchy = reg.try_get<components::Hierarchy>(popup);
         if (popupHierarchy != nullptr && popupHierarchy->parent != entt::null)
         {
-            hierarchy::RemoveChild(detail::ToPublic(popupHierarchy->parent), detail::ToPublic(popup));
+            hierarchy::RemoveChild(runtime, detail::ToPublic(popupHierarchy->parent), detail::ToPublic(popup));
         }
         reg.destroy(popup);
     }
@@ -1544,9 +1521,9 @@ void HideTooltipPopup(ui::entity target)
 
 }  // namespace
 
-ui::entity SetTooltip(ui::entity target, const std::string& text, int delayMs)
+ui::entity SetTooltip(UiRuntime& runtime, ui::entity target, const std::string& text, int delayMs)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     auto& tooltip = reg.get_or_emplace<components::Tooltip>(target);
     tooltip.text = text;
     tooltip.delayMs = delayMs;
@@ -1554,7 +1531,8 @@ ui::entity SetTooltip(ui::entity target, const std::string& text, int delayMs)
 
     auto& hoverable = reg.get_or_emplace<components::Hoverable>(target);
     Registry* const regPtr = &reg;
-    hoverable.onHover = [regPtr, target]()
+    UiRuntime* const runtimePtr = &runtime;
+    hoverable.onHover = [runtimePtr, regPtr, target]()
     {
         auto& reg = *regPtr;
         auto* tooltip = reg.try_get<components::Tooltip>(target);
@@ -1564,18 +1542,17 @@ ui::entity SetTooltip(ui::entity target, const std::string& text, int delayMs)
             return;
 
         tooltip->hovered = true;
-        auto& runtime = UiRuntime::current();
-        tooltip->pendingTask = systems::TimerSystem{runtime}.addTask(
-            static_cast<uint32_t>(tooltip->delayMs), [target]() { ShowTooltipPopup(target); }, true);
+        tooltip->pendingTask = systems::TimerSystem{*runtimePtr}.addTask(
+            static_cast<uint32_t>(tooltip->delayMs), [runtimePtr, target]() { ShowTooltipPopup(*runtimePtr, target); }, true);
     };
-    hoverable.onUnhover = [regPtr, target]()
+    hoverable.onUnhover = [runtimePtr, regPtr, target]()
     {
         auto& reg = *regPtr;
         if (auto* tooltip = reg.try_get<components::Tooltip>(target); tooltip != nullptr)
         {
             tooltip->hovered = false;
         }
-        HideTooltipPopup(target);
+        HideTooltipPopup(*runtimePtr, target);
     };
 
     return target;
@@ -1583,10 +1560,10 @@ ui::entity SetTooltip(ui::entity target, const std::string& text, int delayMs)
 
 namespace
 {
-void OpenDropDownPopup(ui::entity ddEntity)
+void OpenDropDownPopup(UiRuntime& runtime, ui::entity ddEntity)
 {
-    auto& reg = CurrentRegistry();
-    auto& disp = UiRuntime::current().dispatcher();
+    auto& reg = CurrentRegistry(runtime);
+    auto& disp = runtime.dispatcher();
     auto* dropDown = reg.try_get<components::DropDown>(ddEntity);
     if (dropDown == nullptr || dropDown->options.empty())
         return;
@@ -1596,14 +1573,14 @@ void OpenDropDownPopup(ui::entity ddEntity)
         return;
     const ui::entity publicWindowRoot = detail::ToPublic(windowRoot);
     // 计算下拉菜单弹出位置和大小
-    const Rect ddRect = ui::utils::GetEntityRect(ddEntity);
+    const Rect ddRect = ui::utils::GetEntityRect(runtime, ddEntity);
 
     constexpr float ITEM_H = 26.0F;
     constexpr float ITEM_PAD = 6.0F;
     const float popupW = ddRect.width();
     const float popupH = ITEM_H * static_cast<float>(dropDown->options.size());
 
-    const auto popup = CreateBaseWidget("__dd_popup__");
+    const auto popup = CreateBaseWidgetEntity(runtime, "__dd_popup__");
     auto& popupPos = reg.get<components::Position>(popup);
     popupPos.value = {ddRect.x(), ddRect.y() + ddRect.height()};
     popupPos.positionPolicy = policies::Position::ABSOLUTE_POS;
@@ -1627,7 +1604,7 @@ void OpenDropDownPopup(ui::entity ddEntity)
     {
         const std::string& optText = dropDown->options.at(static_cast<std::size_t>(idx));
 
-        const auto optBtn = CreateBaseWidget("__dd_option__");
+        const auto optBtn = CreateBaseWidgetEntity(runtime, "__dd_option__");
         reg.emplace<components::Clickable>(optBtn);
         auto& popupItem = reg.emplace<components::DropDownPopupItem>(optBtn);
         popupItem.owner = detail::ToInternal(ddEntity);
@@ -1662,24 +1639,25 @@ void OpenDropDownPopup(ui::entity ddEntity)
             {
                 ddComp->onChanged(idx);
             }
-            ui::utils::MarkVisualChanged(ddEntity);
-            CloseDropDownPopup(ddEntity);
+            ui::utils::MarkVisualChanged(reg.runtime(), ddEntity);
+            CloseDropDownPopup(reg.runtime(), ddEntity);
         };
-        hierarchy::AddChild(popup, optBtn);
+        hierarchy::AddChild(runtime, popup, optBtn);
     }
 
-    hierarchy::AddChild(publicWindowRoot, popup);
+    hierarchy::AddChild(runtime, publicWindowRoot, popup);
     dropDown->popupEntity = detail::ToInternal(popup);
     dropDown->open = true;
-    ui::utils::MarkLayoutAndVisualChanged(publicWindowRoot);
+    ui::utils::MarkLayoutAndVisualChanged(runtime, publicWindowRoot);
 }
 
 }  // namespace
 
-ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedIndex, std::string_view alias)
+ui::entity CreateDropDown(UiRuntime& runtime, const std::vector<std::string>& options, int selectedIndex,
+                          std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::DropDownTag>(entity);
     reg.emplace<components::FocusableTag>(entity);
     auto& dropDown = reg.emplace<components::DropDown>(entity);
@@ -1691,18 +1669,18 @@ ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedI
     auto& padding = reg.get_or_emplace<components::Padding>(entity);
     padding.values = {0.0F, scale::Metric(20.0F), 0.0F, scale::Metric(6.0F)};
     auto& clickable = reg.emplace<components::Clickable>(entity);
-    clickable.onClick = [entity]()
+    clickable.onClick = [&runtime, entity]()
     {
-        auto* ddComp = CurrentRegistry().try_get<components::DropDown>(entity);
+        auto* ddComp = runtime.registry().try_get<components::DropDown>(entity);
         if (ddComp == nullptr)
             return;
         if (ddComp->open)
         {
-            CloseDropDownPopup(entity);
+            CloseDropDownPopup(runtime, entity);
         }
         else
         {
-            OpenDropDownPopup(entity);
+            OpenDropDownPopup(runtime, entity);
         }
     };
     auto& size = reg.get<components::Size>(entity);
@@ -1711,39 +1689,40 @@ ui::entity CreateDropDown(const std::vector<std::string>& options, int selectedI
     return entity;
 }
 
-ui::entity CreateSlider(std::string_view alias)
+ui::entity CreateSlider(UiRuntime& runtime, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::SliderInfo>(entity);
     auto& size = reg.get<components::Size>(entity);
     size.size = {scale::Metric(200.0F), scale::Metric(28.0F)};
     size.sizePolicy = policies::Size::FIXED;
     reg.emplace<components::LayoutInfo>(entity);
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(runtime, entity);
     reg.emplace<components::FocusableTag>(entity);
     reg.emplace<components::SliderTag>(entity);
     return entity;
 }
 
-ui::entity CreateProgressBar(std::string_view alias)
+ui::entity CreateProgressBar(UiRuntime& runtime, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ProgressBar>(entity);
     auto& size = reg.get<components::Size>(entity);
     size.size = {scale::Metric(200.0F), scale::Metric(14.0F)};
     size.sizePolicy = policies::Size::FIXED;
     reg.emplace<components::LayoutInfo>(entity);
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(runtime, entity);
     reg.emplace<components::ProgressBarTag>(entity);
     return entity;
 }
 
-ui::entity CreateImageFromPath(std::string_view path, float defaultWidth, float defaultHeight, std::string_view alias)
+ui::entity CreateImageFromPath(UiRuntime& runtime, std::string_view path, float defaultWidth, float defaultHeight,
+                               std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ImageTag>(entity);
     reg.emplace<components::Image>(entity);
     reg.emplace<components::ImageSource>(entity, std::string(path));
@@ -1754,28 +1733,28 @@ ui::entity CreateImageFromPath(std::string_view path, float defaultWidth, float 
         size.sizePolicy = policies::Size::FIXED;
     }
     reg.emplace<components::LayoutInfo>(entity);
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(runtime, entity);
     return entity;
 }
 
-ui::entity CreateCanvas(float width, float height, std::string_view alias)
+ui::entity CreateCanvas(UiRuntime& runtime, float width, float height, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::CanvasTag>(entity);
     reg.emplace<components::CanvasDrawList>(entity);
     auto& size = reg.get<components::Size>(entity);
     size.size = {scale::Metric(width), scale::Metric(height)};
     size.sizePolicy = policies::Size::FIXED;
     reg.emplace<components::LayoutInfo>(entity);
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(runtime, entity);
     return entity;
 }
 
-ui::entity CreateTable(int columns, std::string_view alias)
+ui::entity CreateTable(UiRuntime& runtime, int columns, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::TableTag>(entity);
     auto& info = reg.emplace<components::TableInfo>(entity);
     info.columnCount = columns;
@@ -1792,7 +1771,7 @@ ui::entity CreateTable(int columns, std::string_view alias)
     padding.values.x() = info.headerHeight;
 
     reg.emplace<components::LayoutInfo>(entity);
-    utils::MarkLayoutAndVisualChanged(entity);
+    utils::MarkLayoutAndVisualChanged(runtime, entity);
     return entity;
 }
 
@@ -1814,10 +1793,10 @@ constexpr Color kContextMenuItemText{0.90F, 0.91F, 0.94F, 1.0F};
 
 }  // namespace
 
-ui::entity CreateContextMenu(std::string_view alias)
+ui::entity CreateContextMenu(UiRuntime& runtime, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ContextMenuTag>(entity);
     reg.emplace<components::ContextMenu>(entity);
 
@@ -1842,10 +1821,10 @@ ui::entity CreateContextMenu(std::string_view alias)
     return entity;
 }
 
-ui::entity AddContextMenuItem(ui::entity menu, const std::string& text, ui::Callback<> onClick)
+ui::entity AddContextMenuItem(UiRuntime& runtime, ui::entity menu, const std::string& text, ui::Callback<> onClick)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget("__context_menu_item__");
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, "__context_menu_item__");
 
     reg.emplace<components::Clickable>(entity);
     reg.emplace<components::Hoverable>(entity);
@@ -1872,7 +1851,7 @@ ui::entity AddContextMenuItem(ui::entity menu, const std::string& text, ui::Call
             bg->color = kContextMenuItemHover;
             bg->enabled = policies::Feature::ENABLED;
         }
-        ui::utils::MarkVisualChanged(entity);
+        ui::utils::MarkVisualChanged(reg.runtime(), entity);
     };
     reg.get<components::Hoverable>(entity).onUnhover = [regPtr, entity]()
     {
@@ -1881,17 +1860,18 @@ ui::entity AddContextMenuItem(ui::entity menu, const std::string& text, ui::Call
         {
             bg->enabled = policies::Feature::DISABLED;
         }
-        ui::utils::MarkVisualChanged(entity);
+        ui::utils::MarkVisualChanged(reg.runtime(), entity);
     };
 
-    reg.get<components::Clickable>(entity).onClick = [regPtr, menu, onClick = std::move(onClick)]() mutable
+    UiRuntime* const runtimePtr = &runtime;
+    reg.get<components::Clickable>(entity).onClick = [runtimePtr, regPtr, menu, onClick = std::move(onClick)]() mutable
     {
         auto& reg = *regPtr;
         // 先关闭菜单（即使无回调也收起）
         auto* menuComp = reg.try_get<components::ContextMenu>(menu);
         if (menuComp != nullptr && menuComp->open)
         {
-            CloseContextMenu(menu);
+            CloseContextMenu(*runtimePtr, menu);
         }
         // 执行用户回调
         if (onClick)
@@ -1900,15 +1880,14 @@ ui::entity AddContextMenuItem(ui::entity menu, const std::string& text, ui::Call
         }
     };
 
-    hierarchy::AddChild(menu, entity);
-    ui::utils::MarkLayoutAndVisualChanged(menu);
+    hierarchy::AddChild(runtime, menu, entity);
+    ui::utils::MarkLayoutAndVisualChanged(runtime, menu);
     return entity;
 }
 
-void ShowContextMenu(ui::entity menu, const Vec2& position, ui::entity owner)
+void ShowContextMenu(UiRuntime& runtime, ui::entity menu, const Vec2& position, ui::entity owner)
 {
-    auto& reg = CurrentRegistry();
-    auto& runtime = UiRuntime::current();
+    auto& reg = CurrentRegistry(runtime);
     auto* menuComp = reg.try_get<components::ContextMenu>(menu);
     if (menuComp == nullptr)
         return;
@@ -1916,7 +1895,7 @@ void ShowContextMenu(ui::entity menu, const Vec2& position, ui::entity owner)
     // 已打开则先关闭
     if (menuComp->open)
     {
-        CloseContextMenu(menu);
+        CloseContextMenu(runtime, menu);
     }
 
     // 定位所属窗口：优先用 owner（触发者）向上找窗口根；菜单尚未挂到窗口时自动挂载
@@ -1930,7 +1909,7 @@ void ShowContextMenu(ui::entity menu, const Vec2& position, ui::entity owner)
     const auto* menuHier = reg.try_get<components::Hierarchy>(menu);
     if (menuHier == nullptr || menuHier->parent == entt::null)
     {
-        hierarchy::AddChild(detail::ToPublic(windowRoot), menu);
+        hierarchy::AddChild(runtime, detail::ToPublic(windowRoot), menu);
     }
 
     // 定位并显示
@@ -1938,7 +1917,7 @@ void ShowContextMenu(ui::entity menu, const Vec2& position, ui::entity owner)
     pos.value = {position.x(), position.y()};
     pos.positionPolicy = policies::Position::ABSOLUTE_POS;
     reg.emplace_or_replace<components::VisibleTag>(menu);
-    ui::utils::MarkLayoutAndVisualChanged(detail::ToPublic(windowRoot));
+    ui::utils::MarkLayoutAndVisualChanged(runtime, detail::ToPublic(windowRoot));
 
     // 入浮层栈
     runtime.dispatcher().trigger<events::OverlayOpenRequest>(
@@ -1948,9 +1927,9 @@ void ShowContextMenu(ui::entity menu, const Vec2& position, ui::entity owner)
     menuComp->owner = detail::ToInternal(owner);
 }
 
-void CloseContextMenu(ui::entity menu)
+void CloseContextMenu(UiRuntime& runtime, ui::entity menu)
 {
-    auto& reg = CurrentRegistry();
+    auto& reg = CurrentRegistry(runtime);
     auto* menuComp = reg.try_get<components::ContextMenu>(menu);
     if (menuComp == nullptr)
         return;
@@ -1960,9 +1939,9 @@ void CloseContextMenu(ui::entity menu)
     menuComp->open = false;
     menuComp->owner = entt::null;
     reg.remove<components::VisibleTag>(menu);
-    ui::utils::MarkVisualChanged(menu);
+    ui::utils::MarkVisualChanged(runtime, menu);
 
-    UiRuntime::current().dispatcher().trigger<events::OverlayCloseRequest>(
+    runtime.dispatcher().trigger<events::OverlayCloseRequest>(
         events::OverlayCloseRequest{detail::ToInternal(menu)});
 }
 
@@ -1982,24 +1961,24 @@ constexpr Color kModalDialogBackground{0.13F, 0.13F, 0.16F, 1.0F};
 /// 遮罩覆盖到父窗口尺寸；内容容器居中。
 void LayoutModalOverlay(Registry& reg, entt::entity overlayRoot, entt::entity parentWindow)
 {
-    const Rect windowRect = ui::utils::GetEntityRect(detail::ToPublic(parentWindow));
+    const Rect windowRect = ui::utils::GetEntityRect(reg.runtime(), detail::ToPublic(parentWindow));
     auto& maskSize = reg.get<components::Size>(overlayRoot);
     maskSize.size = {scale::Metric(windowRect.width()), scale::Metric(windowRect.height())};
     maskSize.sizePolicy = policies::Size::FIXED;
-    ui::utils::MarkLayoutAndVisualChanged(detail::ToPublic(parentWindow));
+    ui::utils::MarkLayoutAndVisualChanged(reg.runtime(), detail::ToPublic(parentWindow));
 }
 
 }  // namespace
 
-ui::entity CreateModalDialog(ui::entity parentWindow, std::string_view alias)
+ui::entity CreateModalDialog(UiRuntime& runtime, ui::entity parentWindow, std::string_view alias)
 {
-    auto& reg = CurrentRegistry();
-    auto entity = CreateBaseWidget(alias);
+    auto& reg = CurrentRegistry(runtime);
+    auto entity = CreateBaseWidgetEntity(runtime, alias);
     reg.emplace<components::ModalDialogTag>(entity);
     auto& dialog = reg.emplace<components::ModalDialog>(entity);
 
     // 遮罩容器：半透明黑，覆盖父窗口客户区，点击遮罩关闭
-    const auto overlayRoot = CreateBaseWidget("__modal_mask__");
+    const auto overlayRoot = CreateBaseWidgetEntity(runtime, "__modal_mask__");
     reg.emplace<components::Clickable>(overlayRoot);
     auto& maskBackground = reg.emplace<components::Background>(overlayRoot);
     maskBackground.color = kModalMaskColor;
@@ -2011,18 +1990,19 @@ ui::entity CreateModalDialog(ui::entity parentWindow, std::string_view alias)
 
     // 遮罩拦截点击 → 关闭对话框
     Registry* const regPtr = &reg;
-    reg.get<components::Clickable>(overlayRoot).onClick = [regPtr, entity]()
+    UiRuntime* const runtimePtr = &runtime;
+    reg.get<components::Clickable>(overlayRoot).onClick = [runtimePtr, regPtr, entity]()
     {
         auto& reg = *regPtr;
         auto* dialogComp = reg.try_get<components::ModalDialog>(entity);
         if (dialogComp != nullptr && dialogComp->open)
         {
-            CloseModalDialog(entity);
+            CloseModalDialog(*runtimePtr, entity);
         }
     };
 
     // 内容容器：居中、圆角背景
-    const auto contentRoot = CreateBaseWidget("__modal_content__");
+    const auto contentRoot = CreateBaseWidgetEntity(runtime, "__modal_content__");
     auto& contentLayout = reg.emplace<components::LayoutInfo>(contentRoot);
     contentLayout.direction = policies::LayoutDirection::VERTICAL;
     contentLayout.alignment = policies::Alignment::TOP_LEFT;
@@ -2041,8 +2021,8 @@ ui::entity CreateModalDialog(ui::entity parentWindow, std::string_view alias)
     auto& contentPadding = reg.get_or_emplace<components::Padding>(contentRoot);
     contentPadding.values = {kModalDialogPadding, kModalDialogPadding, kModalDialogPadding, kModalDialogPadding};
 
-    hierarchy::AddChild(overlayRoot, contentRoot);
-    hierarchy::AddChild(entity, overlayRoot);
+    hierarchy::AddChild(runtime, overlayRoot, contentRoot);
+    hierarchy::AddChild(runtime, entity, overlayRoot);
     dialog.popupEntity = detail::ToInternal(overlayRoot);
     reg.remove<components::VisibleTag>(entity);
 
@@ -2054,10 +2034,9 @@ ui::entity CreateModalDialog(ui::entity parentWindow, std::string_view alias)
     return entity;
 }
 
-void ShowModalDialog(ui::entity dialog)
+void ShowModalDialog(UiRuntime& runtime, ui::entity dialog)
 {
-    auto& reg = CurrentRegistry();
-    auto& runtime = UiRuntime::current();
+    auto& reg = CurrentRegistry(runtime);
     auto* dialogComp = reg.try_get<components::ModalDialog>(dialog);
     if (dialogComp == nullptr)
         return;
@@ -2078,7 +2057,7 @@ void ShowModalDialog(ui::entity dialog)
     LayoutModalOverlay(reg, overlayRoot, hierarchyComp->parent);
 
     reg.emplace_or_replace<components::VisibleTag>(dialog);
-    ui::utils::MarkLayoutAndVisualChanged(detail::ToPublic(windowRoot));
+    ui::utils::MarkLayoutAndVisualChanged(runtime, detail::ToPublic(windowRoot));
 
     runtime.dispatcher().trigger<events::OverlayOpenRequest>(
         events::OverlayOpenRequest{detail::ToInternal(dialog), hierarchyComp->parent});
@@ -2086,10 +2065,9 @@ void ShowModalDialog(ui::entity dialog)
     dialogComp->open = true;
 }
 
-void CloseModalDialog(ui::entity dialog)
+void CloseModalDialog(UiRuntime& runtime, ui::entity dialog)
 {
-    auto& reg = CurrentRegistry();
-    auto& runtime = UiRuntime::current();
+    auto& reg = CurrentRegistry(runtime);
     auto* dialogComp = reg.try_get<components::ModalDialog>(dialog);
     if (dialogComp == nullptr)
         return;
@@ -2098,7 +2076,7 @@ void CloseModalDialog(ui::entity dialog)
 
     dialogComp->open = false;
     reg.remove<components::VisibleTag>(dialog);
-    ui::utils::MarkVisualChanged(dialog);
+    ui::utils::MarkVisualChanged(runtime, dialog);
 
     runtime.dispatcher().trigger<events::OverlayCloseRequest>(
         events::OverlayCloseRequest{detail::ToInternal(dialog)});

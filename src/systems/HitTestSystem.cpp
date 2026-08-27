@@ -54,9 +54,9 @@ bool HitTestSystem::isPointInRect(const Vec2& point, const Vec2& pos, const Vec2
            point.y() < (pos.y() + size.y());
 }
 
-Vec2 HitTestSystem::getAbsolutePosition(entt::entity entity)
+Vec2 HitTestSystem::getAbsolutePosition(entt::entity entity) const
 {
-    return ui::utils::GetAbsolutePosition(entity);
+    return ui::utils::GetAbsolutePosition(m_reg->runtime(), ui::detail::ToPublic(entity));
 }
 
 entt::entity HitTestSystem::findRootWindow(entt::entity entity) const

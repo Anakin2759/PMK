@@ -22,7 +22,6 @@
 #include <string>
 
 #include "PlatformWindow.hpp"
-#include "UiRuntime.hpp"
 #include "common/AppConfig.hpp"
 #include "ui/Policies.hpp"
 #include "common/Tags.hpp"
@@ -31,11 +30,12 @@
 #include "common/components/Visual.hpp"
 #include "common/components/Window.hpp"
 #include "utils/Logger.hpp"
+#include "utils/Registry.hpp"
 
 namespace ui::window_sync
 {
 
-inline bool SyncWindowDisplayMetrics(components::Window& windowComp, SDL_Window* sdlWindow)
+inline bool SyncWindowDisplayMetrics(utils::Logger& logger, components::Window& windowComp, SDL_Window* sdlWindow)
 {
     if (sdlWindow == nullptr)
         return false;
@@ -96,7 +96,7 @@ inline bool SyncWindowDisplayMetrics(components::Window& windowComp, SDL_Window*
             logicalWidth > 0 ? static_cast<float>(pixelWidth) / static_cast<float>(logicalWidth) : 0.0F;
         const float derivedScaleY =
             logicalHeight > 0 ? static_cast<float>(pixelHeight) / static_cast<float>(logicalHeight) : 0.0F;
-        ui::UiRuntime::current().logger().info(
+        logger.info(
             "[Scaling][WindowSync] windowId={} logical=({}, {}) pixel=({}, {}) displayScale={:.3f} "
             "uiScale={:.3f} derivedScale=({:.3f}, {:.3f})",
             windowComp.windowID, logicalWidth, logicalHeight, pixelWidth, pixelHeight, displayScale, uiScale,
@@ -106,11 +106,11 @@ inline bool SyncWindowDisplayMetrics(components::Window& windowComp, SDL_Window*
     return changed;
 }
 
-inline void SyncWindowTitle(entt::entity entity, const components::Window& windowComp, SDL_Window* sdlWindow)
+inline void SyncWindowTitle(Registry& registry, entt::entity entity, const components::Window& windowComp,
+                            SDL_Window* sdlWindow)
 {
     std::string newTitle;
 
-    const auto& registry = ui::UiRuntime::current().registry();
     const auto* titleComp = registry.try_get<components::Title>(entity);
     if (titleComp != nullptr && !titleComp->text.empty())
     {
@@ -131,9 +131,8 @@ inline void SyncWindowTitle(entt::entity entity, const components::Window& windo
     }
 }
 
-inline void SyncWindowPosition(entt::entity entity, SDL_Window* sdlWindow)
+inline void SyncWindowPosition(Registry& registry, entt::entity entity, SDL_Window* sdlWindow)
 {
-    auto& registry = ui::UiRuntime::current().registry();
     auto* posComp = registry.try_get<components::Position>(entity);
     if (posComp == nullptr)
         return;
@@ -171,9 +170,8 @@ inline bool TryGetWindowSizeTarget(const components::Size& sizeComp, int& width,
     return width > 0 && height > 0;
 }
 
-inline void SyncWindowSize(entt::entity entity, SDL_Window* sdlWindow)
+inline void SyncWindowSize(Registry& registry, entt::entity entity, SDL_Window* sdlWindow)
 {
-    auto& registry = ui::UiRuntime::current().registry();
     auto* sizeComp = registry.try_get<components::Size>(entity);
     if (sizeComp == nullptr)
         return;
@@ -220,9 +218,9 @@ inline void SyncWindowSize(entt::entity entity, SDL_Window* sdlWindow)
     }
 }
 
-inline void SyncWindowSizeConstraints(entt::entity entity, const components::Window& windowComp, SDL_Window* sdlWindow)
+inline void SyncWindowSizeConstraints(const Registry& registry, entt::entity entity,
+                                      const components::Window& windowComp, SDL_Window* sdlWindow)
 {
-    const auto& registry = ui::UiRuntime::current().registry();
     const auto* sizeComp = registry.try_get<components::Size>(entity);
 
     int currentMinW = 0;
@@ -283,9 +281,8 @@ inline void SyncWindowResizable(const components::Window& windowComp, SDL_Window
     }
 }
 
-inline void SyncWindowOpacity(entt::entity entity, SDL_Window* sdlWindow)
+inline void SyncWindowOpacity(Registry& registry, entt::entity entity, SDL_Window* sdlWindow)
 {
-    const auto& registry = ui::UiRuntime::current().registry();
     const auto* alphaComp = registry.try_get<components::Alpha>(entity);
     if (alphaComp == nullptr)
         return;
@@ -298,9 +295,8 @@ inline void SyncWindowOpacity(entt::entity entity, SDL_Window* sdlWindow)
     }
 }
 
-inline void SyncWindowVisibility(entt::entity entity, SDL_Window* sdlWindow)
+inline void SyncWindowVisibility(const Registry& registry, entt::entity entity, SDL_Window* sdlWindow)
 {
-    const auto& registry = ui::UiRuntime::current().registry();
     const bool shouldBeVisible = registry.any_of<components::VisibleTag>(entity);
     const SDL_WindowFlags flags = SDL_GetWindowFlags(sdlWindow);
     const bool currentlyVisible = (flags & SDL_WINDOW_HIDDEN) == 0;
@@ -315,9 +311,9 @@ inline void SyncWindowVisibility(entt::entity entity, SDL_Window* sdlWindow)
     }
 }
 
-inline void SyncWindowModal(entt::entity entity, const components::Window& windowComp, SDL_Window* sdlWindow)
+inline void SyncWindowModal(const Registry& registry, entt::entity entity, const components::Window& windowComp,
+                            SDL_Window* sdlWindow)
 {
-    const auto& registry = ui::UiRuntime::current().registry();
     if (!registry.any_of<components::DialogTag>(entity))
         return;
 
@@ -335,22 +331,23 @@ inline void SyncWindowModal(entt::entity entity, const components::Window& windo
     }
 }
 
-inline void SyncWindowProperties(entt::entity entity, components::Window& windowComp, SDL_Window* sdlWindow)
+inline void SyncWindowProperties(Registry& registry, utils::Logger& logger, entt::entity entity,
+                                 components::Window& windowComp, SDL_Window* sdlWindow)
 {
     if (sdlWindow == nullptr)
         return;
 
-    SyncWindowDisplayMetrics(windowComp, sdlWindow);
-    SyncWindowTitle(entity, windowComp, sdlWindow);
-    SyncWindowPosition(entity, sdlWindow);
-    SyncWindowSizeConstraints(entity, windowComp, sdlWindow);
-    SyncWindowSize(entity, sdlWindow);
+    SyncWindowDisplayMetrics(logger, windowComp, sdlWindow);
+    SyncWindowTitle(registry, entity, windowComp, sdlWindow);
+    SyncWindowPosition(registry, entity, sdlWindow);
+    SyncWindowSizeConstraints(registry, entity, windowComp, sdlWindow);
+    SyncWindowSize(registry, entity, sdlWindow);
     SyncWindowResizable(windowComp, sdlWindow);
     SyncWindowFrameless(windowComp, sdlWindow);
-    SyncWindowOpacity(entity, sdlWindow);
-    SyncWindowVisibility(entity, sdlWindow);
-    SyncWindowModal(entity, windowComp, sdlWindow);
-    SyncWindowDisplayMetrics(windowComp, sdlWindow);
+    SyncWindowOpacity(registry, entity, sdlWindow);
+    SyncWindowVisibility(registry, entity, sdlWindow);
+    SyncWindowModal(registry, entity, windowComp, sdlWindow);
+    SyncWindowDisplayMetrics(logger, windowComp, sdlWindow);
 }
 
 }  // namespace ui::window_sync

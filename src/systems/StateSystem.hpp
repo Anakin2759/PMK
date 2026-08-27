@@ -36,7 +36,8 @@ class StateSystem : public ui::interface::EnableRegister<StateSystem>
 {
    public:
     StateSystem() = default;
-    explicit StateSystem(UiRuntime& runtime) : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher())
+    explicit StateSystem(UiRuntime& runtime)
+        : m_reg(&runtime.registry()), m_disp(&runtime.dispatcher()), m_logger(&runtime.logger())
     {
     }
 
@@ -49,6 +50,11 @@ class StateSystem : public ui::interface::EnableRegister<StateSystem>
 
     void registerHandlersImpl();
     void unregisterHandlersImpl();
+
+    [[nodiscard]] ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::LOGIC;
+    }
 
    private:
     struct SliderStateHelpers
@@ -72,7 +78,8 @@ class StateSystem : public ui::interface::EnableRegister<StateSystem>
                                    globalcontext::StateContext& state);
         static ScrollbarHitType checkHit(StateSystem& system, entt::entity entity, const Vec2& mousePos,
                                          bool& outIsVertical);
-        static void calculateGeometry(entt::entity entity, bool isVertical, float& outTrackLen, float& outThumbSize);
+        static void calculateGeometry(Registry& reg, entt::entity entity, bool isVertical, float& outTrackLen,
+                          float& outThumbSize);
         static void handleTrackClick(StateSystem& system, entt::entity entity, const Vec2& mousePos, bool isVertical);
     };
 
@@ -268,6 +275,7 @@ class StateSystem : public ui::interface::EnableRegister<StateSystem>
     entt::entity m_dragSliderEntity = entt::null;
     Registry* m_reg = nullptr;
     Dispatcher* m_disp = nullptr;
+    utils::Logger* m_logger = nullptr;
 
     /**
      */

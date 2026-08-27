@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "src/core/UiRuntime.hpp"
-#include "src/core/UiRuntimeScope.hpp"
 
 #include <ui.hpp>
 
@@ -24,7 +23,6 @@ class ThemeSystemTest : public ::testing::Test
    protected:
     void SetUp() override
     {
-        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
         m_themeSystem = std::make_unique<systems::ThemeSystem>(m_runtime);
         m_themeSystem->registerHandlers();
     }
@@ -33,20 +31,34 @@ class ThemeSystemTest : public ::testing::Test
     {
         m_themeSystem->unregisterHandlers();
         m_themeSystem.reset();
-        m_scope.reset();
     }
 
-    static void triggerThemeUpdate()
+    UiRuntime& runtime()
     {
-        UiRuntime::current().dispatcher().trigger(events::UpdateEvent{});
+        return m_runtime;
     }
 
-    static Registry& registry()
+    void triggerThemeUpdate()
     {
-        return UiRuntime::current().registry();
+        m_runtime.dispatcher().trigger(events::UpdateEvent{});
     }
 
-    static std::vector<entt::entity> popupChildren(ui::entity popupEntity)
+    Registry& registry()
+    {
+        return m_runtime.registry();
+    }
+
+    const theme::ThemePalette& currentTheme()
+    {
+        return theme::CurrentTheme(m_runtime);
+    }
+
+    void setTheme(const theme::ThemePalette& palette)
+    {
+        theme::SetTheme(m_runtime, palette);
+    }
+
+    std::vector<entt::entity> popupChildren(ui::entity popupEntity)
     {
         const auto* hierarchy = registry().try_get<components::Hierarchy>(popupEntity);
         if (hierarchy == nullptr)
@@ -59,7 +71,6 @@ class ThemeSystemTest : public ::testing::Test
 
    private:
     UiRuntime m_runtime;
-    std::unique_ptr<UiRuntimeScope> m_scope;
     std::unique_ptr<systems::ThemeSystem> m_themeSystem;
 };
 

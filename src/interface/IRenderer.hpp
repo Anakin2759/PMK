@@ -16,6 +16,7 @@
 #pragma once
 #include <entt/entt.hpp>
 #include "core/RenderContext.hpp"
+#include "ui/Result.hpp"
 
 namespace ui::core
 {
@@ -49,6 +50,18 @@ class IRenderer
      * @param context 渲染上下文
      */
     virtual void collect(entt::entity entity, RenderContext& context) = 0;
+
+    /**
+     * @brief 收集渲染数据并报告可重试失败。
+     *
+     * 默认适配尚未产生错误的旧 renderer；涉及资源上传或 backend 绘制的 renderer
+     * 应覆盖此入口。帧管线只在所有 collectChecked 均成功后提交并清理 dirty。
+     */
+    [[nodiscard]] virtual ui::Result<void> collectChecked(entt::entity entity, RenderContext& context)
+    {
+        collect(entity, context);
+        return ui::Ok();
+    }
 
     /**
      * @brief 获取渲染器的优先级（用于排序）

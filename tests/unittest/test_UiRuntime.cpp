@@ -78,5 +78,21 @@ TEST(UiRuntimeTest, DestroyingActiveRuntimeClearsStaleCurrent)
     EXPECT_EQ(UiRuntime::tryCurrent(), nullptr);
 }
 
+TEST(UiRuntimeTest, DestroyingPreviousRuntimeWhileNestedScopeIsActiveDoesNotRestoreDanglingPointer)
+{
+    auto firstRuntime = std::make_unique<UiRuntime>();
+    UiRuntime secondRuntime;
+    {
+        UiRuntimeScope firstScope(*firstRuntime);
+        {
+            UiRuntimeScope secondScope(secondRuntime);
+            firstRuntime.reset();
+            EXPECT_EQ(UiRuntime::tryCurrent(), &secondRuntime);
+        }
+        EXPECT_EQ(UiRuntime::tryCurrent(), nullptr);
+    }
+    EXPECT_EQ(UiRuntime::tryCurrent(), nullptr);
+}
+
 }  // namespace
 }  // namespace ui::tests

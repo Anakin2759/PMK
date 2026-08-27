@@ -100,18 +100,18 @@ struct TextBlendState
 class FontManager
 {
    public:
-    FontManager()
+    explicit FontManager(utils::Logger& logger) : m_logger(&logger)
     {
         FT_Library lib = nullptr;
         FT_Error error = FT_Init_FreeType(&lib);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().error("[FontManager] Failed to initialize FreeType: error {}", error);
+            m_logger->error("[FontManager] Failed to initialize FreeType: error {}", error);
         }
         else
         {
             m_ftLibrary.reset(lib);
-            ui::UiRuntime::current().logger().info("[FontManager] FreeType initialized successfully");
+            m_logger->info("[FontManager] FreeType initialized successfully");
         }
     }
 
@@ -134,13 +134,13 @@ class FontManager
     {
         if (m_ftLibrary == nullptr)
         {
-            ui::UiRuntime::current().logger().error("[FontManager] FreeType not initialized");
+            m_logger->error("[FontManager] FreeType not initialized");
             return Err(UiErrc::DEVICE_UNAVAILABLE);
         }
 
         if (fontData == nullptr || dataSize == 0)
         {
-            ui::UiRuntime::current().logger().error("[FontManager] Invalid font data");
+            m_logger->error("[FontManager] Invalid font data");
             return Err(UiErrc::INVALID_ARGUMENT);
         }
 
@@ -153,7 +153,7 @@ class FontManager
             FT_New_Memory_Face(m_ftLibrary.get(), m_fontData.data(), static_cast<FT_Long>(dataSize), 0, &face);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().error("[FontManager] Failed to load font face: error {}", error);
+            m_logger->error("[FontManager] Failed to load font face: error {}", error);
             return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_New_Memory_Face error {}", error));
         }
         m_ftFace.reset(face);
@@ -164,7 +164,7 @@ class FontManager
         if (error != 0)
         {
             m_ftFace.reset();
-            ui::UiRuntime::current().logger().error("[FontManager] Failed to set pixel size: error {}", error);
+            m_logger->error("[FontManager] Failed to set pixel size: error {}", error);
             return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_Set_Pixel_Sizes error {}", error));
         }
 
@@ -174,8 +174,7 @@ class FontManager
         // 创建 HarfBuzz font
         createHarfBuzzFont();
 
-        ui::UiRuntime::current().logger().info("[FontManager] Font loaded: {} at {}px", m_ftFace->family_name,
-                                               fontSize);
+        m_logger->info("[FontManager] Font loaded: {} at {}px", m_ftFace->family_name, fontSize);
         return Ok();
     }
 
@@ -189,7 +188,8 @@ class FontManager
 
     /**
      * @brief 更新当前 DPI 缩放比例
-     * @return true 当过采样比例发生变化时返回 true
+    * @return true 当过采样比例发生变化时返回 true
+    * @note 字形缓存键已包含实际光栅尺寸，不同缩放分区可以安全共存。
      */
     bool setDpiScale(float scale) noexcept
     {
@@ -206,9 +206,8 @@ class FontManager
             return false;
         }
 
-        clearCache();
-        ui::UiRuntime::current().logger().info("[FontManager] DPI scale updated: {:.2f}, oversample: {:.2f}",
-                                               m_dpiScale, getOversampleScale());
+        m_logger->info("[FontManager] DPI scale updated: {:.2f}, oversample: {:.2f}", m_dpiScale,
+                       getOversampleScale());
         return true;
     }
 
@@ -380,8 +379,7 @@ class FontManager
         FT_Error error = FT_Load_Glyph(m_ftFace.get(), glyphIndex, FT_LOAD_DEFAULT | FT_LOAD_TARGET_NORMAL);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Failed to load glyph for codepoint {}: error {}",
-                                                   codepoint, error);
+            m_logger->warn("[FontManager] Failed to load glyph for codepoint {}: error {}", codepoint, error);
             return info;
         }
 
@@ -389,8 +387,7 @@ class FontManager
         error = FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Failed to render glyph for codepoint {}: error {}",
-                                                   codepoint, error);
+            m_logger->warn("[FontManager] Failed to render glyph for codepoint {}: error {}", codepoint, error);
             return info;
         }
 
@@ -616,8 +613,7 @@ class FontManager
         FT_Error error = FT_Load_Glyph(m_ftFace.get(), glyphId, FT_LOAD_DEFAULT | FT_LOAD_TARGET_NORMAL);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Failed to load glyph index {}: error {}", glyphId,
-                                                   error);
+            m_logger->warn("[FontManager] Failed to load glyph index {}: error {}", glyphId, error);
             return info;
         }
 
@@ -625,8 +621,7 @@ class FontManager
         error = FT_Render_Glyph(m_ftFace->glyph, FT_RENDER_MODE_NORMAL);
         if (error != 0)
         {
-            ui::UiRuntime::current().logger().warn("[FontManager] Failed to render glyph index {}: error {}", glyphId,
-                                                   error);
+            m_logger->warn("[FontManager] Failed to render glyph index {}: error {}", glyphId, error);
             return info;
         }
 
@@ -653,7 +648,7 @@ class FontManager
     void clearCache()
     {
         m_glyphCache.clear();
-        ui::UiRuntime::current().logger().info("[FontManager] Glyph cache cleared");
+        m_logger->info("[FontManager] Glyph cache cleared");
     }
 
     /**
@@ -722,8 +717,7 @@ class FontManager
 
         if (m_ftFace == nullptr)
         {
-            ui::UiRuntime::current().logger().warn(
-                "[FontManager] Cannot create HarfBuzz font: FreeType face not loaded");
+            m_logger->warn("[FontManager] Cannot create HarfBuzz font: FreeType face not loaded");
             return;
         }
 
@@ -731,11 +725,11 @@ class FontManager
         m_hbFont.reset(hb_ft_font_create(m_ftFace.get(), nullptr));
         if (m_hbFont == nullptr)
         {
-            ui::UiRuntime::current().logger().error("[FontManager] Failed to create HarfBuzz font");
+            m_logger->error("[FontManager] Failed to create HarfBuzz font");
             return;
         }
 
-        ui::UiRuntime::current().logger().info("[FontManager] HarfBuzz font created successfully");
+        m_logger->info("[FontManager] HarfBuzz font created successfully");
     }
 
     /**
@@ -962,6 +956,7 @@ class FontManager
         }
     }
 
+    utils::Logger* m_logger;
     bool m_loaded = false;
     float m_fontSize = 16.0F;
 

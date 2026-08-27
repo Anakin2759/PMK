@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cmath>
+#include "common/CustomizationPoints.hpp"
 #include "interface/IRenderer.hpp"
 #include "utils/Registry.hpp"
 #include "common/components/Data.hpp"
@@ -149,6 +150,8 @@ class CanvasRenderer : public core::IRenderer
     static void renderFilledCircle(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                                    core::RenderContext& context)
     {
+        reportNonSupportedCapability(context, interface::BackendCapability::FILLED_CIRCLE, "canvas filled circle",
+                                     "rendered with segmented software geometry");
         const float centerX = origin.x() + cmd.p1.x();
         const float centerY = origin.y() + cmd.p1.y();
         const float radius = cmd.p2.x();
@@ -173,6 +176,8 @@ class CanvasRenderer : public core::IRenderer
     static void renderCircleOutline(const components::CanvasDrawCommand& cmd, const Eigen::Vector2f& origin,
                                     core::RenderContext& context)
     {
+        reportNonSupportedCapability(context, interface::BackendCapability::CIRCLE_OUTLINE, "canvas circle outline",
+                                     "rendered with segmented software geometry");
         const float centerX = origin.x() + cmd.p1.x();
         const float centerY = origin.y() + cmd.p1.y();
         const float radius = cmd.p2.x();
@@ -248,6 +253,32 @@ class CanvasRenderer : public core::IRenderer
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConst);
     }
 
+    static void beginSegmentBatch(float totalWidth, float totalHeight, core::RenderContext& context)
+    {
+        const auto capsuleStatus = capabilityStatus(context, interface::BackendCapability::CAPSULE);
+        if (capsuleStatus != interface::BackendCapabilityStatus::UNSUPPORTED)
+        {
+            reportCapabilityIfNeeded(context, interface::BackendCapability::CAPSULE, capsuleStatus, "canvas line",
+                                     "rendered with backend capsule support");
+            beginCapsuleBatch(totalWidth, totalHeight, context);
+            return;
+        }
+
+        reportCapabilityIfNeeded(context, interface::BackendCapability::CAPSULE, capsuleStatus, "canvas line",
+                                 "rounded caps omitted; transformed quad rendered");
+        reportNonSupportedCapability(context, interface::BackendCapability::TRANSFORMED_SOLID_QUAD,
+                                     "canvas transformed line", "rendered with software geometry");
+
+        render::UiPushConstants pushConst{};
+        pushConst.screen_size[0] = context.screenWidth;
+        pushConst.screen_size[1] = context.screenHeight;
+        pushConst.rect_size[0] = totalWidth;
+        pushConst.rect_size[1] = totalHeight;
+        pushConst.draw_mode = 0.0F;
+        pushConst.opacity = context.alpha;
+        context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConst);
+    }
+
     static void renderSegment(float startX, float startY, float endX, float endY, float lineWidth,
                               const Eigen::Vector4f& col, core::RenderContext& context)
     {
@@ -285,9 +316,33 @@ class CanvasRenderer : public core::IRenderer
         const Eigen::Vector2f uvBotRight{1.0F, 1.0F};
         const Eigen::Vector2f uvBotLeft{0.0F, 1.0F};
 
-        beginCapsuleBatch(totalW, totalH, context);
+        beginSegmentBatch(totalW, totalH, context);
         context.batchManager->addOrientedQuad(vertTopLeft, vertTopRight, vertBotRight, vertBotLeft, uvTopLeft,
                                               uvTopRight, uvBotRight, uvBotLeft, col);
+    }
+
+    [[nodiscard]] static interface::BackendCapabilityStatus capabilityStatus(
+        const core::RenderContext& context, interface::BackendCapability capability)
+    {
+        return context.backendRenderer != nullptr
+                   ? ui::cpo::backend_capability_level(*context.backendRenderer, capability)
+                   : interface::BackendCapabilityStatus::SUPPORTED;
+    }
+
+    static void reportCapabilityIfNeeded(core::RenderContext& context, interface::BackendCapability capability,
+                                         interface::BackendCapabilityStatus status, std::string_view feature,
+                                         std::string_view fallbackAction)
+    {
+        if (status != interface::BackendCapabilityStatus::SUPPORTED && context.capabilityDiagnostics != nullptr)
+        {
+            context.capabilityDiagnostics->report(capability, status, feature, fallbackAction);
+        }
+    }
+
+    static void reportNonSupportedCapability(core::RenderContext& context, interface::BackendCapability capability,
+                                             std::string_view feature, std::string_view fallbackAction)
+    {
+        reportCapabilityIfNeeded(context, capability, capabilityStatus(context, capability), feature, fallbackAction);
     }
 
     static void tessellateCubic(Vec2 ptA, Vec2 ptB, Vec2 ptC, Vec2 ptD, std::vector<Vec2>& out)

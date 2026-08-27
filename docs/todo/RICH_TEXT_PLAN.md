@@ -1,5 +1,9 @@
 # VMP-ui 富文本处理架构规划
 
+> 状态：PLANNED  
+> 最后复核：2026-08-25  
+> 责任范围：RichText 解析、布局、缓存和渲染
+
 > **日期**：2026-05-27  
 > **输入来源**：需求文档、`src/` 源码阅读（Data.hpp / Policies.hpp / FontManager.hpp / TextTextureCache.hpp / TextRenderer.hpp / TextRenderHelper.hpp / TextUtils.hpp / FontAtlasManager.hpp）  
 > **作用范围**：`src/` 文本子系统扩展，不修改现有公共 API 签名  

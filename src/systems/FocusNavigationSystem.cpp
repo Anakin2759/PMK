@@ -173,7 +173,7 @@ void FocusNavigationSystem::navigateSpatial(int32_t key)
     const entt::entity scope = findFocusScope(state.focusedEntity);
     const std::vector<entt::entity> focusables = collectFocusables(scope);
 
-    const Rect currentRect = ui::utils::GetEntityRect(state.focusedEntity);
+    const Rect currentRect = ui::utils::GetEntityRect(m_reg->runtime(), ui::detail::ToPublic(state.focusedEntity));
     const float currentCenterX = CenterX(currentRect);
     const float currentCenterY = CenterY(currentRect);
 
@@ -187,7 +187,7 @@ void FocusNavigationSystem::navigateSpatial(int32_t key)
             continue;
         }
 
-        const Rect candidateRect = ui::utils::GetEntityRect(candidate);
+        const Rect candidateRect = ui::utils::GetEntityRect(m_reg->runtime(), ui::detail::ToPublic(candidate));
         const float deltaX = CenterX(candidateRect) - currentCenterX;
         const float deltaY = CenterY(candidateRect) - currentCenterY;
 

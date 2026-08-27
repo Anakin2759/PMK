@@ -6,6 +6,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <new>
 #include <optional>
@@ -64,6 +65,20 @@ class MpscQueue final
         requires std::constructible_from<T, Args...>
     [[nodiscard]] bool TryEmplace(Args&&... args)
     {
+        return TryEmplaceBeforePublish([]() noexcept {}, std::forward<Args>(args)...);
+    }
+
+    /**
+     * @brief 原地构造元素，并在槽位发布给消费者前执行提交回调。
+     *
+     * 回调必须 noexcept；它用于同步与队列发布不可分割的外部记账。回调返回后，
+     * release store 才会令槽位对消费者可见。
+     */
+    template <typename BeforePublish, typename... Args>
+        requires std::constructible_from<T, Args...> && std::invocable<BeforePublish&> &&
+                 std::is_nothrow_invocable_v<BeforePublish&>
+    [[nodiscard]] bool TryEmplaceBeforePublish(BeforePublish&& beforePublish, Args&&... args)
+    {
         Cell* cell = nullptr;
         std::size_t position = enqueue_pos_.load(std::memory_order_relaxed);
 
@@ -92,6 +107,7 @@ class MpscQueue final
         }
 
         std::construct_at(cell->StoragePtr(), std::forward<Args>(args)...);
+        std::invoke(std::forward<BeforePublish>(beforePublish));
         cell->sequence.store(position + 1, std::memory_order_release);
         return true;
     }

@@ -18,6 +18,9 @@
 #include <SDL3/SDL_gpu.h>
 #include <vector>
 #include <optional>
+#include <string_view>
+
+#include "interface/IBackendRenderer.hpp"
 
 namespace ui::managers
 {
@@ -36,6 +39,19 @@ class IBackendRenderer;
 
 namespace ui::core
 {
+
+class IRenderCapabilityDiagnostics
+{
+    public:
+    IRenderCapabilityDiagnostics() = default;
+     virtual ~IRenderCapabilityDiagnostics() = default;
+    IRenderCapabilityDiagnostics(const IRenderCapabilityDiagnostics&) = delete;
+    IRenderCapabilityDiagnostics& operator=(const IRenderCapabilityDiagnostics&) = delete;
+    IRenderCapabilityDiagnostics(IRenderCapabilityDiagnostics&&) = delete;
+    IRenderCapabilityDiagnostics& operator=(IRenderCapabilityDiagnostics&&) = delete;
+     virtual void report(interface::BackendCapability capability, interface::BackendCapabilityStatus status,
+                                std::string_view feature, std::string_view fallbackAction) = 0;
+};
 
 /**
  *
@@ -61,6 +77,7 @@ struct RenderContext
     managers::TextTextureCache* textTextureCache = nullptr;
     managers::BatchManager* batchManager = nullptr;
     interface::IBackendRenderer* backendRenderer = nullptr;
+    IRenderCapabilityDiagnostics* capabilityDiagnostics = nullptr;
 
     SDL_Window* sdlWindow = nullptr;
 

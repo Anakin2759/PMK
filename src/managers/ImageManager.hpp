@@ -24,6 +24,11 @@
 #include "common/GPUWrappers.hpp"
 #include "ui/Result.hpp"
 
+namespace ui::utils
+{
+class Logger;
+}
+
 namespace ui::managers
 {
 
@@ -50,7 +55,8 @@ class ImageManager
         int height = 0;
     };
 
-    explicit ImageManager(DeviceManager* deviceManager) : m_deviceManager(deviceManager)
+    explicit ImageManager(DeviceManager* deviceManager, utils::Logger& logger)
+        : m_deviceManager(deviceManager), m_logger(&logger)
     {
     }
     ~ImageManager() noexcept;
@@ -76,6 +82,28 @@ class ImageManager
      */
     [[nodiscard]] ui::Result<const PixelBuffer*> loadPixels(const std::string& path);
 
+    /// 释放所有 CPU RGBA 像素缓存。
+    void clearPixels() noexcept;
+
+    [[nodiscard]] std::size_t pixelCacheEntryCount() const noexcept
+    {
+        return m_pixelCache.size();
+    }
+
+    [[nodiscard]] std::size_t pixelCacheByteSize() const noexcept
+    {
+        std::size_t bytes = 0;
+        for (const auto& [path, pixels] : m_pixelCache)
+        {
+            static_cast<void>(path);
+            if (pixels != nullptr)
+            {
+                bytes += pixels->rgba.size();
+            }
+        }
+        return bytes;
+    }
+
     /**
      * @brief 主动释放所有已缓存纹理（析构会自动调用，正常路径下无需手动调用）。
      */
@@ -85,7 +113,7 @@ class ImageManager
     /**
     * @brief 按扩展名通过 SDL_LoadBMP 或 stb_image 解码为 RGBA8。
      */
-    [[nodiscard]] static ui::Result<PixelBuffer> decodePixels(const std::string& path);
+    [[nodiscard]] static ui::Result<PixelBuffer> decodePixels(utils::Logger& logger, const std::string& path);
 
     /**
      * @brief 在指定设备代际创建纹理并提交 RGBA 像素上传
@@ -93,10 +121,11 @@ class ImageManager
      * @note 成功仅表示非阻塞提交已被 SDL 接受，不表示 GPU 已执行完成。
      */
     [[nodiscard]] static wrappers::UniqueGPUTexture uploadToGpu(
-        const detail::GpuDeviceGenerationHandle& generation, const std::uint8_t* pixels, std::uint32_t width,
-        std::uint32_t height);
+        utils::Logger& logger, const detail::GpuDeviceGenerationHandle& generation, const std::uint8_t* pixels,
+        std::uint32_t width, std::uint32_t height);
 
     DeviceManager* m_deviceManager = nullptr;
+    utils::Logger* m_logger = nullptr;
     // 路径 -> CPU RGBA8 像素；不随 GPU 设备代际变化而失效。
     std::unordered_map<std::string, std::unique_ptr<PixelBuffer>> m_pixelCache;
     // 路径 -> 已上传的 GPU 纹理 owner；公开调用方仅借用 `.get()`。

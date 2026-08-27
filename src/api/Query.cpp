@@ -5,19 +5,19 @@
 namespace ui::query
 {
 
-bool IsValid(entity ent) noexcept
+bool IsValid(UiRuntime& runtime, entity ent) noexcept
 {
-    return bridge::IsValid(detail::ToInternal(ent));
+    return bridge::IsValid(runtime.registry(), detail::ToInternal(ent));
 }
 
-Result<entity> FindByAlias(std::string_view alias)
+Result<entity> FindByAlias(UiRuntime& runtime, std::string_view alias)
 {
-    return detail::ToPublic(bridge::FindByAlias(alias));
+    return detail::ToPublic(bridge::FindByAlias(runtime.registry(), alias));
 }
 
-std::string GetAlias(entity ent)
+std::string GetAlias(UiRuntime& runtime, entity ent)
 {
-    return bridge::GetAlias(detail::ToInternal(ent));
+    return bridge::GetAlias(runtime.registry(), detail::ToInternal(ent));
 }
 
 }  // namespace ui::query

@@ -35,6 +35,10 @@ class Registry
 
    public:
     Registry() = default;
+    [[nodiscard]] UiRuntime& runtime() noexcept
+    {
+        return *m_runtime;
+    }
     // -------------------------------------------------------------------------
     // Instance methods — dependency-injected systems use these via Registry&
     // -------------------------------------------------------------------------
@@ -303,6 +307,7 @@ class Registry
     }
 
    private:
+    UiRuntime* m_runtime = nullptr;
     entt::registry m_registry;
 };
 }  // namespace ui

@@ -8,84 +8,84 @@
 namespace ui::text
 {
 
-void SetText(ui::entity entity, const std::string& content)
+void SetText(UiRuntime& runtime, ui::entity entity, const std::string& content)
 {
-    detail::text::SetText(detail::ToInternal(entity), content);
+    detail::text::SetText(runtime.registry(), detail::ToInternal(entity), content);
 }
 
-void SetButtonEnabled(ui::entity entity, bool enabled)
+void SetButtonEnabled(UiRuntime& runtime, ui::entity entity, bool enabled)
 {
-    detail::text::SetButtonEnabled(detail::ToInternal(entity), enabled);
+    detail::text::SetButtonEnabled(runtime.registry(), detail::ToInternal(entity), enabled);
 }
 
-void SetTextContent(ui::entity entity, const std::string& content)
+void SetTextContent(UiRuntime& runtime, ui::entity entity, const std::string& content)
 {
-    detail::text::SetTextContent(detail::ToInternal(entity), content);
+    detail::text::SetTextContent(runtime.registry(), detail::ToInternal(entity), content);
 }
 
-void SetTextWordWrap(ui::entity entity, policies::TextWrap mode)
+void SetTextWordWrap(UiRuntime& runtime, ui::entity entity, policies::TextWrap mode)
 {
-    detail::text::SetTextWordWrap(detail::ToInternal(entity), mode);
+    detail::text::SetTextWordWrap(runtime.registry(), detail::ToInternal(entity), mode);
 }
 
-void SetTextAlignment(ui::entity entity, policies::Alignment alignment)
+void SetTextAlignment(UiRuntime& runtime, ui::entity entity, policies::Alignment alignment)
 {
-    detail::text::SetTextAlignment(detail::ToInternal(entity), alignment);
+    detail::text::SetTextAlignment(runtime.registry(), detail::ToInternal(entity), alignment);
 }
 
-void SetTextColor(ui::entity entity, const Color& color)
+void SetTextColor(UiRuntime& runtime, ui::entity entity, const Color& color)
 {
-    detail::text::SetTextColor(detail::ToInternal(entity), color);
+    detail::text::SetTextColor(runtime.registry(), detail::ToInternal(entity), color);
 }
 
-std::string GetTextEditContent(ui::entity entity)
+std::string GetTextEditContent(UiRuntime& runtime, ui::entity entity)
 {
-    return detail::text::GetTextEditContent(detail::ToInternal(entity));
+    return detail::text::GetTextEditContent(runtime.registry(), detail::ToInternal(entity));
 }
 
-void SetTextEditContent(ui::entity entity, const std::string& content)
+void SetTextEditContent(UiRuntime& runtime, ui::entity entity, const std::string& content)
 {
-    detail::text::SetTextEditContent(detail::ToInternal(entity), content);
+    detail::text::SetTextEditContent(runtime.registry(), detail::ToInternal(entity), content);
 }
 
-void SetPasswordMode(ui::entity entity, policies::TextFlag enabled)
+void SetPasswordMode(UiRuntime& runtime, ui::entity entity, policies::TextFlag enabled)
 {
-    detail::text::SetPasswordMode(detail::ToInternal(entity), enabled);
+    detail::text::SetPasswordMode(runtime.registry(), detail::ToInternal(entity), enabled);
 }
 
-void SetClickCallback(ui::entity entity, Callback<> callback)
+void SetClickCallback(UiRuntime& runtime, ui::entity entity, Callback<> callback)
 {
-    detail::text::SetClickCallback(detail::ToInternal(entity), std::move(callback));
+    detail::text::SetClickCallback(runtime.registry(), detail::ToInternal(entity), std::move(callback));
 }
 
-void SetOnSubmit(ui::entity entity, Callback<> callback)
+void SetOnSubmit(UiRuntime& runtime, ui::entity entity, Callback<> callback)
 {
-    detail::text::SetOnSubmit(detail::ToInternal(entity), std::move(callback));
+    detail::text::SetOnSubmit(runtime.registry(), detail::ToInternal(entity), std::move(callback));
 }
 
-void SetOnTextChanged(ui::entity entity, Callback<const std::string&> callback)
+void SetOnTextChanged(UiRuntime& runtime, ui::entity entity, Callback<const std::string&> callback)
 {
-    detail::text::SetOnTextChanged(detail::ToInternal(entity), std::move(callback));
+    detail::text::SetOnTextChanged(runtime.registry(), detail::ToInternal(entity), std::move(callback));
 }
 
-void SetLineHeight(ui::entity entity, float height)
+void SetLineHeight(UiRuntime& runtime, ui::entity entity, float height)
 {
-    detail::text::SetLineHeight(detail::ToInternal(entity), height);
+    detail::text::SetLineHeight(runtime.registry(), detail::ToInternal(entity), height);
 }
 
-void SetCharacterSpacing(ui::entity entity, float spacing)
+void SetCharacterSpacing(UiRuntime& runtime, ui::entity entity, float spacing)
 {
-    detail::text::SetCharacterSpacing(detail::ToInternal(entity), spacing);
+    detail::text::SetCharacterSpacing(runtime.registry(), detail::ToInternal(entity), spacing);
 }
 
-void SetTextWrapWidth(ui::entity entity, float width)
+void SetTextWrapWidth(UiRuntime& runtime, ui::entity entity, float width)
 {
-    detail::text::SetTextWrapWidth(detail::ToInternal(entity), width);
+    detail::text::SetTextWrapWidth(runtime.registry(), detail::ToInternal(entity), width);
 }
 
-void SetFontSize(ui::entity entity, float size)
+void SetFontSize(UiRuntime& runtime, ui::entity entity, float size)
 {
-    detail::text::SetFontSize(detail::ToInternal(entity), size);
+    detail::text::SetFontSize(runtime.registry(), detail::ToInternal(entity), size);
 }
 
 }  // namespace ui::text

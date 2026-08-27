@@ -27,6 +27,7 @@
 
 #include <entt/entt.hpp>
 
+#include "common/BufferedEvents.hpp"
 #include "traits/EventTraits.hpp"
 namespace ui
 {
@@ -54,6 +55,8 @@ class Dispatcher
     template <traits::Events Event>
     void enqueue(Event&& event = {})
     {
+        static_assert(events::IS_INTERNAL_BUFFERED_EVENT<Event>,
+                      "Dispatcher::enqueue<Event>: register Event in InternalBufferedEvents first");
         dispatcher_.enqueue(std::forward<Event>(event));
     }
 

@@ -15,6 +15,7 @@
 
 #pragma once
 #include "interface/IRenderer.hpp"
+#include "common/CustomizationPoints.hpp"
 #include "ui/api/Theme.hpp"
 #include "utils/Registry.hpp"
 
@@ -115,13 +116,30 @@ class ShapeRenderer : public core::IRenderer
         pushConstants.radius[2] = background->borderRadius.z();
         pushConstants.radius[3] = background->borderRadius.w();
 
+        const float radiusSum = background->borderRadius.x() + background->borderRadius.y() +
+                                background->borderRadius.z() + background->borderRadius.w();
+        if (radiusSum > 0.0F)
+        {
+            reportNonSupportedCapability(context, interface::BackendCapability::ROUNDED_RECT, "rounded rectangle",
+                                         "rendered with segmented software geometry");
+        }
+
         // 处理阴影
         const auto* shadow = m_reg->try_get<components::Shadow>(entity);
         if (shadow != nullptr && shadow->enabled == policies::Feature::ENABLED)
         {
-            pushConstants.shadow_soft = shadow->softness;
-            pushConstants.shadow_offset_x = shadow->offset.x();
-            pushConstants.shadow_offset_y = shadow->offset.y();
+            const auto status = capabilityStatus(context, interface::BackendCapability::SHADOW);
+            if (status == interface::BackendCapabilityStatus::SUPPORTED)
+            {
+                pushConstants.shadow_soft = shadow->softness;
+                pushConstants.shadow_offset_x = shadow->offset.x();
+                pushConstants.shadow_offset_y = shadow->offset.y();
+            }
+            else
+            {
+                reportCapability(context, interface::BackendCapability::SHADOW, status, "shape shadow",
+                                 "shadow omitted; background preserved");
+            }
         }
 
         // 开始批次
@@ -166,6 +184,13 @@ class ShapeRenderer : public core::IRenderer
         // 渲染边框线条
         if (thickness > 0.0F)
         {
+            const auto status = capabilityStatus(context, interface::BackendCapability::BORDER);
+            if (status == interface::BackendCapabilityStatus::UNSUPPORTED)
+            {
+                reportCapability(context, interface::BackendCapability::BORDER, status, "shape border",
+                                 "border omitted; background preserved");
+                return;
+            }
             renderRoundedBorder(entity, context, color, thickness);
         }
     }
@@ -201,6 +226,34 @@ class ShapeRenderer : public core::IRenderer
 
         context.batchManager->beginBatch(context.whiteTexture, context.currentScissor, pushConstants);
         context.batchManager->addRect(context.position, context.size, color);
+    }
+
+    [[nodiscard]] static interface::BackendCapabilityStatus capabilityStatus(
+        const core::RenderContext& context, interface::BackendCapability capability)
+    {
+        return context.backendRenderer != nullptr
+                   ? ui::cpo::backend_capability_level(*context.backendRenderer, capability)
+                   : interface::BackendCapabilityStatus::SUPPORTED;
+    }
+
+    static void reportCapability(core::RenderContext& context, interface::BackendCapability capability,
+                                 interface::BackendCapabilityStatus status, std::string_view feature,
+                                 std::string_view fallbackAction)
+    {
+        if (context.capabilityDiagnostics != nullptr)
+        {
+            context.capabilityDiagnostics->report(capability, status, feature, fallbackAction);
+        }
+    }
+
+    static void reportNonSupportedCapability(core::RenderContext& context, interface::BackendCapability capability,
+                                             std::string_view feature, std::string_view fallbackAction)
+    {
+        const auto status = capabilityStatus(context, capability);
+        if (status != interface::BackendCapabilityStatus::SUPPORTED)
+        {
+            reportCapability(context, capability, status, feature, fallbackAction);
+        }
     }
 
     Registry* m_reg = nullptr;

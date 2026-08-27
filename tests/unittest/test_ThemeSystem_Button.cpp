@@ -5,7 +5,9 @@ namespace ui::tests
 
 TEST_F(ThemeSystemTest, AppliesDefaultButtonThemeOnUpdate)
 {
-    const auto button = factory::CreateButton("Theme", "theme_button");
+    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
 
     triggerThemeUpdate();
 
@@ -18,20 +20,22 @@ TEST_F(ThemeSystemTest, AppliesDefaultButtonThemeOnUpdate)
     ASSERT_NE(text, nullptr);
     EXPECT_EQ(background->enabled, policies::Feature::ENABLED);
     EXPECT_EQ(border->enabled, policies::Feature::ENABLED);
-    EXPECT_FLOAT_EQ(background->color.red, theme::CurrentTheme().primaryButtonBackground.red);
-    EXPECT_FLOAT_EQ(background->color.green, theme::CurrentTheme().primaryButtonBackground.green);
-    EXPECT_FLOAT_EQ(background->color.blue, theme::CurrentTheme().primaryButtonBackground.blue);
-    EXPECT_FLOAT_EQ(text->color.red, theme::CurrentTheme().primaryButtonText.red);
-    EXPECT_FLOAT_EQ(text->color.green, theme::CurrentTheme().primaryButtonText.green);
-    EXPECT_FLOAT_EQ(text->color.blue, theme::CurrentTheme().primaryButtonText.blue);
+    EXPECT_FLOAT_EQ(background->color.red, currentTheme().primaryButtonBackground.red);
+    EXPECT_FLOAT_EQ(background->color.green, currentTheme().primaryButtonBackground.green);
+    EXPECT_FLOAT_EQ(background->color.blue, currentTheme().primaryButtonBackground.blue);
+    EXPECT_FLOAT_EQ(text->color.red, currentTheme().primaryButtonText.red);
+    EXPECT_FLOAT_EQ(text->color.green, currentTheme().primaryButtonText.green);
+    EXPECT_FLOAT_EQ(text->color.blue, currentTheme().primaryButtonText.blue);
     EXPECT_TRUE(registry().all_of<components::ThemedTag>(button));
 }
 
 TEST_F(ThemeSystemTest, ExplicitStyleIsNotOverriddenOnFirstApply)
 {
-    const auto button = factory::CreateButton("Theme", "theme_button_explicit");
-    visibility::SetBackgroundColor(button, Color::Red());
-    text::SetTextColor(button, Color::Yellow());
+    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_explicit");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
+    visibility::SetBackgroundColor(runtime(), button, Color::Red());
+    text::SetTextColor(runtime(), button, Color::Yellow());
 
     triggerThemeUpdate();
 
@@ -48,14 +52,16 @@ TEST_F(ThemeSystemTest, ExplicitStyleIsNotOverriddenOnFirstApply)
 
 TEST_F(ThemeSystemTest, SetThemeReappliesThemeOwnedValues)
 {
-    const auto button = factory::CreateButton("Theme", "theme_button_reapply");
+    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_reapply");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
 
     triggerThemeUpdate();
 
     auto newTheme = theme::DefaultDarkTheme();
     newTheme.primaryButtonBackground = Color::Green();
     newTheme.primaryButtonText = Color::Black();
-    theme::SetTheme(newTheme);
+    setTheme(newTheme);
 
     triggerThemeUpdate();
 
@@ -72,14 +78,16 @@ TEST_F(ThemeSystemTest, SetThemeReappliesThemeOwnedValues)
 
 TEST_F(ThemeSystemTest, SetThemeDoesNotOverwriteExplicitOverrideAfterFirstApply)
 {
-    const auto button = factory::CreateButton("Theme", "theme_button_override");
+    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_override");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
 
     triggerThemeUpdate();
-    visibility::SetBackgroundColor(button, Color::Red());
+    visibility::SetBackgroundColor(runtime(), button, Color::Red());
 
     auto newTheme = theme::DefaultDarkTheme();
     newTheme.primaryButtonBackground = Color::Green();
-    theme::SetTheme(newTheme);
+    setTheme(newTheme);
 
     triggerThemeUpdate();
 
@@ -91,52 +99,56 @@ TEST_F(ThemeSystemTest, SetThemeDoesNotOverwriteExplicitOverrideAfterFirstApply)
 
 TEST_F(ThemeSystemTest, ButtonHoverAndActiveUseThemeStateColors)
 {
-    const auto button = factory::CreateButton("Theme", "theme_button_states");
+    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_states");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
 
     triggerThemeUpdate();
     EXPECT_FLOAT_EQ(registry().get<components::Background>(button).color.red,
-                    theme::CurrentTheme().primaryButtonBackground.red);
+                    currentTheme().primaryButtonBackground.red);
 
     registry().emplace_or_replace<components::HoveredTag>(button);
     triggerThemeUpdate();
     {
         const auto& background = registry().get<components::Background>(button);
-        EXPECT_FLOAT_EQ(background.color.red, theme::CurrentTheme().primaryButtonBackgroundHover.red);
-        EXPECT_FLOAT_EQ(background.color.green, theme::CurrentTheme().primaryButtonBackgroundHover.green);
-        EXPECT_FLOAT_EQ(background.color.blue, theme::CurrentTheme().primaryButtonBackgroundHover.blue);
+        EXPECT_FLOAT_EQ(background.color.red, currentTheme().primaryButtonBackgroundHover.red);
+        EXPECT_FLOAT_EQ(background.color.green, currentTheme().primaryButtonBackgroundHover.green);
+        EXPECT_FLOAT_EQ(background.color.blue, currentTheme().primaryButtonBackgroundHover.blue);
     }
 
     registry().emplace_or_replace<components::ActiveTag>(button);
     triggerThemeUpdate();
     {
         const auto& background = registry().get<components::Background>(button);
-        EXPECT_FLOAT_EQ(background.color.red, theme::CurrentTheme().primaryButtonBackgroundActive.red);
-        EXPECT_FLOAT_EQ(background.color.green, theme::CurrentTheme().primaryButtonBackgroundActive.green);
-        EXPECT_FLOAT_EQ(background.color.blue, theme::CurrentTheme().primaryButtonBackgroundActive.blue);
+        EXPECT_FLOAT_EQ(background.color.red, currentTheme().primaryButtonBackgroundActive.red);
+        EXPECT_FLOAT_EQ(background.color.green, currentTheme().primaryButtonBackgroundActive.green);
+        EXPECT_FLOAT_EQ(background.color.blue, currentTheme().primaryButtonBackgroundActive.blue);
     }
 
     registry().remove<components::ActiveTag>(button);
     triggerThemeUpdate();
     {
         const auto& background = registry().get<components::Background>(button);
-        EXPECT_FLOAT_EQ(background.color.red, theme::CurrentTheme().primaryButtonBackgroundHover.red);
-        EXPECT_FLOAT_EQ(background.color.green, theme::CurrentTheme().primaryButtonBackgroundHover.green);
-        EXPECT_FLOAT_EQ(background.color.blue, theme::CurrentTheme().primaryButtonBackgroundHover.blue);
+        EXPECT_FLOAT_EQ(background.color.red, currentTheme().primaryButtonBackgroundHover.red);
+        EXPECT_FLOAT_EQ(background.color.green, currentTheme().primaryButtonBackgroundHover.green);
+        EXPECT_FLOAT_EQ(background.color.blue, currentTheme().primaryButtonBackgroundHover.blue);
     }
 
     registry().remove<components::HoveredTag>(button);
     triggerThemeUpdate();
     {
         const auto& background = registry().get<components::Background>(button);
-        EXPECT_FLOAT_EQ(background.color.red, theme::CurrentTheme().primaryButtonBackground.red);
-        EXPECT_FLOAT_EQ(background.color.green, theme::CurrentTheme().primaryButtonBackground.green);
-        EXPECT_FLOAT_EQ(background.color.blue, theme::CurrentTheme().primaryButtonBackground.blue);
+        EXPECT_FLOAT_EQ(background.color.red, currentTheme().primaryButtonBackground.red);
+        EXPECT_FLOAT_EQ(background.color.green, currentTheme().primaryButtonBackground.green);
+        EXPECT_FLOAT_EQ(background.color.blue, currentTheme().primaryButtonBackground.blue);
     }
 }
 
 TEST_F(ThemeSystemTest, ButtonDisabledUsesDisabledThemeColors)
 {
-    const auto button = factory::CreateButton("Theme", "theme_button_disabled");
+    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_disabled");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
 
     triggerThemeUpdate();
     registry().emplace_or_replace<components::DisabledTag>(button);
@@ -146,9 +158,9 @@ TEST_F(ThemeSystemTest, ButtonDisabledUsesDisabledThemeColors)
     const auto& border = registry().get<components::Border>(button);
     const auto& text = registry().get<components::Text>(button);
 
-    EXPECT_FLOAT_EQ(background.color.red, theme::CurrentTheme().primaryButtonBackgroundDisabled.red);
-    EXPECT_FLOAT_EQ(border.color.red, theme::CurrentTheme().disabledBorder.red);
-    EXPECT_FLOAT_EQ(text.color.red, theme::CurrentTheme().textDisabled.red);
+    EXPECT_FLOAT_EQ(background.color.red, currentTheme().primaryButtonBackgroundDisabled.red);
+    EXPECT_FLOAT_EQ(border.color.red, currentTheme().disabledBorder.red);
+    EXPECT_FLOAT_EQ(text.color.red, currentTheme().textDisabled.red);
 }
 
 }  // namespace ui::tests

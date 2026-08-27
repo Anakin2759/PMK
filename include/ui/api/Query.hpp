@@ -20,9 +20,14 @@
 #include "ui/Result.hpp"
 #include "ui/api/Entity.hpp"
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::query
 {
-[[nodiscard]] bool IsValid(entity ent) noexcept;
-[[nodiscard]] Result<entity> FindByAlias(std::string_view alias);
-[[nodiscard]] std::string GetAlias(entity ent);
+[[nodiscard]] bool IsValid(UiRuntime& runtime, entity ent) noexcept;
+[[nodiscard]] Result<entity> FindByAlias(UiRuntime& runtime, std::string_view alias);
+[[nodiscard]] std::string GetAlias(UiRuntime& runtime, entity ent);
 }  // namespace ui::query

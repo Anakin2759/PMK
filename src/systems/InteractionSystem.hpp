@@ -126,6 +126,14 @@ class InteractionSystem : public ui::interface::EnableRegister<InteractionSystem
                 enqueueCloseWindowRequest(event.window.windowID);
                 break;
 
+            case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+            case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+            case SDL_EVENT_WINDOW_RESIZED:
+            case SDL_EVENT_WINDOW_MOVED:
+            case SDL_EVENT_WINDOW_EXPOSED:
+                enqueuePlatformWindowEvent(event.window);
+                break;
+
             case SDL_EVENT_MOUSE_MOTION:
                 enqueueRawPointerMove(event.motion);
                 break;
@@ -156,6 +164,38 @@ class InteractionSystem : public ui::interface::EnableRegister<InteractionSystem
 
             default:
                 break;
+        }
+    }
+
+    void enqueuePlatformWindowEvent(const SDL_WindowEvent& windowEvent)
+    {
+        if (windowEvent.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED ||
+            windowEvent.type == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED || windowEvent.type == SDL_EVENT_WINDOW_RESIZED)
+        {
+            auto source = ui::events::WindowMetricChangeSource::DISPLAY_SCALE_CHANGED;
+            if (windowEvent.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+            {
+                source = ui::events::WindowMetricChangeSource::PIXEL_SIZE_CHANGED;
+            }
+            else if (windowEvent.type == SDL_EVENT_WINDOW_RESIZED)
+            {
+                source = ui::events::WindowMetricChangeSource::RESIZED;
+            }
+            m_disp->enqueue<ui::events::WindowPixelSizeChanged>(
+                ui::events::WindowPixelSizeChanged{windowEvent.windowID, windowEvent.data1, windowEvent.data2, source});
+            return;
+        }
+
+        if (windowEvent.type == SDL_EVENT_WINDOW_MOVED)
+        {
+            m_disp->enqueue<ui::events::WindowMoved>(
+                ui::events::WindowMoved{windowEvent.windowID, windowEvent.data1, windowEvent.data2});
+            return;
+        }
+
+        if (windowEvent.type == SDL_EVENT_WINDOW_EXPOSED)
+        {
+            m_disp->enqueue<ui::events::WindowExposed>(ui::events::WindowExposed{windowEvent.windowID});
         }
     }
     /**

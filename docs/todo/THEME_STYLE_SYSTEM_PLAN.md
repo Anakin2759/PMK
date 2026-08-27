@@ -1,6 +1,11 @@
 # ThemeSystem 最小实现规划
 
-> 日期：2026-05-28
+> 状态：DONE（最小 ThemeSystem 范围）  
+> 最后复核：2026-08-27  
+> 责任范围：ThemeSystem、控件默认样式、状态样式和 RenderDirty 传播
+
+> 原始日期：2026-05-28
+> 当前说明：最小 ThemeSystem 已在 `src/systems/ThemeSystem.*` 实现，并由 `tests/unittest/test_ThemeSystem_*.cpp` 验证；CSS 选择器、继承、层叠等完整 Style 能力不属于本规划。
 > 目标：为 VMP-ui 落地一个最小可用的 ThemeSystem，不追求完整 CSS/选择器能力，只解决“控件默认样式分散、缺少统一主题入口”的问题，并补最小交互态视觉反馈。
 
 ## 1. 本次实现范围

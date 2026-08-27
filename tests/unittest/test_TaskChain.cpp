@@ -3,7 +3,6 @@
 #include <entt/entt.hpp>
 
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -49,11 +48,6 @@ struct SummingTask
     }
 };
 
-struct QueuedParentEvent
-{
-    using is_event_tag = void;
-};
-
 struct NewlyCreatedEvent
 {
     using is_event_tag = void;
@@ -62,12 +56,45 @@ struct NewlyCreatedEvent
 struct PoolCreationListener
 {
     Dispatcher* dispatcher;
-    bool* called;
+    int* parentCallCount;
 
-    void OnParent(QueuedParentEvent&)
+    void OnParent([[maybe_unused]] events::QuitRequested& event) const
     {
         dispatcher->trigger<NewlyCreatedEvent>();
-        *called = true;
+        ++(*parentCallCount);
+    }
+};
+
+struct NewlyCreatedEventListener
+{
+    int* callCount;
+
+    void OnEvent([[maybe_unused]] NewlyCreatedEvent& event) const
+    {
+        ++(*callCount);
+    }
+};
+
+struct BufferedChainListener
+{
+    Dispatcher* dispatcher;
+    std::vector<int>* order;
+
+    void OnRaw(events::RawPointerMove& event) const
+    {
+        order->push_back(1);
+        dispatcher->enqueue(events::HitPointerMove{.raw = event, .hitEntity = entt::null});
+    }
+
+    void OnHit([[maybe_unused]] events::HitPointerMove& event) const
+    {
+        order->push_back(2);
+        dispatcher->enqueue(events::HoverEvent{.entity = entt::null});
+    }
+
+    void OnHover([[maybe_unused]] events::HoverEvent& event) const
+    {
+        order->push_back(3);
     }
 };
 
@@ -87,7 +114,6 @@ class TaskChainTest : public ::testing::Test
 
     void TearDown() override
     {
-        UiRuntime::current().dispatcher().update();
         m_scope.reset();
     }
 
@@ -133,15 +159,52 @@ TEST_F(TaskChainTest, WrapArgsBindsArgumentsBeforeExecutingTask)
 TEST_F(TaskChainTest, TypedUpdateAllowsHandlerToCreateAnotherEventPool)
 {
     auto& dispatcher = UiRuntime::current().dispatcher();
-    bool called = false;
-    PoolCreationListener listener{.dispatcher = &dispatcher, .called = &called};
-    dispatcher.sink<QueuedParentEvent>().connect<&PoolCreationListener::OnParent>(listener);
-    dispatcher.enqueue<QueuedParentEvent>();
+    int parentCallCount = 0;
+    int createdEventCallCount = 0;
+    PoolCreationListener listener{.dispatcher = &dispatcher, .parentCallCount = &parentCallCount};
+    NewlyCreatedEventListener createdEventListener{.callCount = &createdEventCallCount};
+    dispatcher.sink<events::QuitRequested>().connect<&PoolCreationListener::OnParent>(listener);
+    dispatcher.sink<NewlyCreatedEvent>().connect<&NewlyCreatedEventListener::OnEvent>(createdEventListener);
+    dispatcher.enqueue<events::QuitRequested>();
 
-    dispatcher.update<QueuedParentEvent>();
+    dispatcher.update<events::QuitRequested>();
 
-    EXPECT_TRUE(called);
-    dispatcher.sink<QueuedParentEvent>().disconnect<&PoolCreationListener::OnParent>(listener);
+    EXPECT_EQ(parentCallCount, 1);
+    EXPECT_EQ(createdEventCallCount, 1);
+    dispatcher.sink<events::QuitRequested>().disconnect<&PoolCreationListener::OnParent>(listener);
+    dispatcher.sink<NewlyCreatedEvent>().disconnect<&NewlyCreatedEventListener::OnEvent>(createdEventListener);
+}
+
+TEST_F(TaskChainTest, BufferedEventCatalogDefinesMembershipAndCount)
+{
+    static_assert(events::INTERNAL_BUFFERED_EVENT_COUNT == 13);
+    static_assert(events::IS_INTERNAL_BUFFERED_EVENT<events::QuitRequested>);
+    static_assert(events::IS_INTERNAL_BUFFERED_EVENT<events::RawPointerMove>);
+    static_assert(events::IS_INTERNAL_BUFFERED_EVENT<events::HitPointerMove>);
+    static_assert(events::IS_INTERNAL_BUFFERED_EVENT<events::HoverEvent>);
+    static_assert(!events::IS_INTERNAL_BUFFERED_EVENT<events::UpdateLayout>);
+    static_assert(!events::IS_INTERNAL_BUFFERED_EVENT<events::UpdateRendering>);
+    static_assert(!events::IS_INTERNAL_BUFFERED_EVENT<events::UpdateEvent>);
+    SUCCEED();
+}
+
+TEST_F(TaskChainTest, BufferedCatalogDispatchesRawHitAndHoverInOneFrame)
+{
+    auto& dispatcher = UiRuntime::current().dispatcher();
+    std::vector<int> order;
+    BufferedChainListener listener{.dispatcher = &dispatcher, .order = &order};
+    dispatcher.sink<events::RawPointerMove>().connect<&BufferedChainListener::OnRaw>(listener);
+    dispatcher.sink<events::HitPointerMove>().connect<&BufferedChainListener::OnHit>(listener);
+    dispatcher.sink<events::HoverEvent>().connect<&BufferedChainListener::OnHover>(listener);
+
+    dispatcher.enqueue(events::RawPointerMove{
+        .position = {}, .delta = {}, .windowID = 1});
+    tasks::detail::DispatchInternalQueued(dispatcher);
+
+    EXPECT_EQ(order, (std::vector<int>{1, 2, 3}));
+    dispatcher.sink<events::RawPointerMove>().disconnect<&BufferedChainListener::OnRaw>(listener);
+    dispatcher.sink<events::HitPointerMove>().disconnect<&BufferedChainListener::OnHit>(listener);
+    dispatcher.sink<events::HoverEvent>().disconnect<&BufferedChainListener::OnHover>(listener);
 }
 
 }  // namespace

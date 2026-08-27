@@ -25,6 +25,7 @@
 #include "common/RenderTypes.hpp"
 #include "common/GPUWrappers.hpp"
 #include "common/GpuFailureInjection.hpp"
+#include "common/Result.hpp"
 #include "core/UiRuntime.hpp"
 #include "utils/Logger.hpp"
 
@@ -42,8 +43,8 @@ namespace ui::managers
 class CommandBuffer
 {
    public:
-    CommandBuffer(DeviceManager& deviceManager, PipelineCache& pipelineCache)
-        : m_deviceManager(deviceManager), m_pipelineCache(pipelineCache)
+    CommandBuffer(DeviceManager& deviceManager, PipelineCache& pipelineCache, utils::Logger& logger)
+        : m_deviceManager(deviceManager), m_pipelineCache(pipelineCache), m_logger(&logger)
     {
     }
 
@@ -64,14 +65,15 @@ class CommandBuffer
      */
     // NOLINTNEXTLINE(readability-function-cognitive-complexity, bugprone-easily-swappable-parameters) --
     // 失败回滚必须保持帧阶段串行可见。
-    void execute(SDL_Window* window, int width, int height, float dpiScale, const SDL_FColor& clearColor,
-                 const std::pmr::vector<render::RenderBatch>& batches)
+    [[nodiscard]] ui::Result<void> execute(SDL_Window* window, int width, int height, float dpiScale,
+                                           const SDL_FColor& clearColor,
+                                           const std::pmr::vector<render::RenderBatch>& batches)
     {
         SDL_GPUDevice* device = m_deviceManager.getDevice();
         const auto generation = m_deviceManager.getGeneration();
         if (device == nullptr || !generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
         {
-            return;
+            return ui::Err(ui::UiErrc::DEVICE_UNAVAILABLE);
         }
         if (m_generationId != 0 && m_generationId != generation.Id())
         {
@@ -90,15 +92,15 @@ class CommandBuffer
         // 确保缓冲区足够大
         if (hasGeometry && !resizeBuffers(generation, currentFrame, totalVertexSize, totalIndexSize))
         {
-            ui::UiRuntime::current().logger().error("Failed to resize buffers.");
-            return;
+            m_logger->error("Failed to resize buffers.");
+            return ui::Err(ui::UiErrc::ASSET_UPLOAD_FAILED, "failed to resize GPU buffers");
         }
 
         if (hasGeometry && !uploadToTransferBuffer(device, batches, totalVertexSize))
         {
-            ui::UiRuntime::current().logger().error("Failed to map transfer buffer.");
+            m_logger->error("Failed to map transfer buffer.");
             rollbackBufferResize(currentFrame);
-            return;
+            return ui::Err(ui::UiErrc::BUFFER_MAP_FAILED, "failed to map transfer buffer");
         }
 
         SDL_GPUCommandBuffer* cmdBuf = nullptr;
@@ -109,7 +111,7 @@ class CommandBuffer
         if (cmdBuf == nullptr)
         {
             rollbackBufferResize(currentFrame);
-            return;
+            return ui::Err(ui::UiErrc::DEVICE_UNAVAILABLE, "failed to acquire GPU command buffer");
         }
 
         SDL_GPUTexture* swapchainTexture = nullptr;
@@ -120,13 +122,13 @@ class CommandBuffer
             SDL_WaitAndAcquireGPUSwapchainTexture(cmdBuf, window, &swapchainTexture, &swapchainWidth, &swapchainHeight);
         if (!acquiredSwapchain)
         {
-            ui::UiRuntime::current().logger().warn("Swapchain texture not ready yet.");
+            m_logger->warn("Swapchain texture not ready yet.");
             if (!SDL_CancelGPUCommandBuffer(cmdBuf))
             {
-                ui::UiRuntime::current().logger().error("Failed to cancel command buffer: {}", SDL_GetError());
+                m_logger->error("Failed to cancel command buffer: {}", SDL_GetError());
             }
             rollbackBufferResize(currentFrame);
-            return;
+            return ui::Err(ui::UiErrc::SWAPCHAIN_UNAVAILABLE, SDL_GetError());
         }
 
         if (swapchainTexture == nullptr)
@@ -135,29 +137,27 @@ class CommandBuffer
             {
                 if (!SDL_CancelGPUCommandBuffer(cmdBuf))
                 {
-                    ui::UiRuntime::current().logger().error("Failed to cancel command buffer: {}", SDL_GetError());
+                    m_logger->error("Failed to cancel command buffer: {}", SDL_GetError());
                 }
                 rollbackBufferResize(currentFrame);
-                return;
+                return ui::Err(ui::UiErrc::DEVICE_UNAVAILABLE, "injected GPU submit failure");
             }
             if (!SDL_SubmitGPUCommandBuffer(cmdBuf))
             {
-                ui::UiRuntime::current().logger().error("Failed to submit command buffer: {}", SDL_GetError());
+                m_logger->error("Failed to submit command buffer: {}", SDL_GetError());
                 rollbackBufferResize(currentFrame);
+                return ui::Err(ui::UiErrc::DEVICE_UNAVAILABLE, SDL_GetError());
             }
-            else
-            {
-                commitBufferResize();
-            }
-            return;
+            commitBufferResize();
+            return ui::Ok();
         }
 
         const int renderWidth = swapchainWidth > 0 ? static_cast<int>(swapchainWidth) : width;
         const int renderHeight = swapchainHeight > 0 ? static_cast<int>(swapchainHeight) : height;
         if (renderWidth != width || renderHeight != height)
         {
-            ui::UiRuntime::current().logger().info("[Scaling][CommandBuffer] requested=({}, {}) swapchain=({}, {})",
-                                                   width, height, renderWidth, renderHeight);
+            m_logger->info("[Scaling][CommandBuffer] requested=({}, {}) swapchain=({}, {})", width, height, renderWidth,
+                           renderHeight);
         }
 
         if (hasGeometry)
@@ -166,10 +166,10 @@ class CommandBuffer
             {
                 if (!SDL_CancelGPUCommandBuffer(cmdBuf))
                 {
-                    ui::UiRuntime::current().logger().error("Failed to cancel command buffer: {}", SDL_GetError());
+                    m_logger->error("Failed to cancel command buffer: {}", SDL_GetError());
                 }
                 rollbackBufferResize(currentFrame);
-                return;
+                return ui::Err(ui::UiErrc::ASSET_UPLOAD_FAILED, "failed to record GPU copy pass");
             }
         }
 
@@ -178,10 +178,10 @@ class CommandBuffer
         {
             if (!SDL_CancelGPUCommandBuffer(cmdBuf))
             {
-                ui::UiRuntime::current().logger().error("Failed to cancel command buffer: {}", SDL_GetError());
+                m_logger->error("Failed to cancel command buffer: {}", SDL_GetError());
             }
             rollbackBufferResize(currentFrame);
-            return;
+            return ui::Err(ui::UiErrc::PIPELINE_UNAVAILABLE, "failed to record GPU render pass");
         }
 
         // 提交命令缓冲区
@@ -189,21 +189,22 @@ class CommandBuffer
         {
             if (!SDL_CancelGPUCommandBuffer(cmdBuf))
             {
-                ui::UiRuntime::current().logger().error("Failed to cancel command buffer: {}", SDL_GetError());
+                m_logger->error("Failed to cancel command buffer: {}", SDL_GetError());
             }
             rollbackBufferResize(currentFrame);
-            return;
+            return ui::Err(ui::UiErrc::DEVICE_UNAVAILABLE, "injected GPU submit failure");
         }
         if (!SDL_SubmitGPUCommandBuffer(cmdBuf))
         {
-            ui::UiRuntime::current().logger().error("Failed to submit command buffer: {}", SDL_GetError());
+            m_logger->error("Failed to submit command buffer: {}", SDL_GetError());
             rollbackBufferResize(currentFrame);
-            return;
+            return ui::Err(ui::UiErrc::DEVICE_UNAVAILABLE, SDL_GetError());
         }
 
         commitBufferResize();
         // 切换到下一帧
         m_frameIndex++;
+        return ui::Ok();
     }
 
     /**
@@ -560,6 +561,7 @@ class CommandBuffer
 
     DeviceManager& m_deviceManager;
     PipelineCache& m_pipelineCache;
+    utils::Logger* m_logger;
 
     // 帧资源池
     std::array<FrameResource, MAX_FRAMES_IN_FLIGHT> m_frameResources;

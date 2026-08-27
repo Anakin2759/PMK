@@ -11,11 +11,16 @@
 #include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
 
+namespace ui
+{
+class UiRuntime;
+}
+
 namespace ui::image
 {
-void SetImagePath(ui::entity entity, std::string_view path);
-void SetImageTint(ui::entity entity, Color color);
-void SetImageUV(ui::entity entity, Vec2 uvMin, Vec2 uvMax);
+void SetImagePath(UiRuntime& runtime, ui::entity entity, std::string_view path);
+void SetImageTint(UiRuntime& runtime, ui::entity entity, Color color);
+void SetImageUV(UiRuntime& runtime, ui::entity entity, Vec2 uvMin, Vec2 uvMax);
 }  // namespace ui::image
 
 namespace ui::actions::image

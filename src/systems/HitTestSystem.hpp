@@ -42,6 +42,11 @@ class HitTestSystem : public ui::interface::EnableRegister<HitTestSystem>
 
     void unregisterHandlersImpl();
 
+    [[nodiscard]] ui::interface::SystemPhase getPhase()
+    {
+        return ui::interface::SystemPhase::LOGIC;
+    }
+
     /**
      * @param point 鼠标绝对位置
      * @param pos 实体绝对位置
@@ -54,7 +59,7 @@ class HitTestSystem : public ui::interface::EnableRegister<HitTestSystem>
      * @brief 计算实体的绝对位置（考虑父节点层级）
      * @param entity 当前实体
      */
-    static Vec2 getAbsolutePosition(entt::entity entity);
+    Vec2 getAbsolutePosition(entt::entity entity) const;
 
     /**
      * @return 根窗口实体，如果不在任何窗口内则返回 entt::null

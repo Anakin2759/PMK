@@ -72,43 +72,12 @@ ALLOWED_API_CPP_RUNTIME_CURRENT_COUNTS = Counter({})
 ALLOWED_API_CPP_ENTT_ENTITY_COUNTS = Counter(
     {
         # 2026-08-16: P2-1 ListView (CreateListView/AddListItem) 新增 8 处后移除死代码 ApplyListItemVisualState（21 -> 29 -> 28）
-        ("src/api/Factory.cpp", "entt::entity"): 28,
+        ("src/api/Factory.cpp", "entt::entity"): 27,
         ("src/api/Utils.cpp", "entt::entity"): 6,
     }
 )
 
-ALLOWED_RUNTIME_CURRENT_COUNTS = Counter(
-    {
-        ("src/api/Factory.cpp", "UiRuntime::current()"): 17,
-        ("src/api/Image.cpp", "UiRuntime::current()"): 1,
-        ("src/api/Log.cpp", "UiRuntime::current()"): 6,
-        ("src/api/Utils.cpp", "UiRuntime::current()"): 3,
-        ("src/core/WindowEntityLookup.hpp", "UiRuntime::current()"): 6,
-        ("src/core/WindowSync.hpp", "UiRuntime::current()"): 8,
-        # 2026-08-16: P2-4 动画完整化（Pause/Resume/Finish/Cancel/SetAnimationCallbacks）新增 4 处（103 -> 107）
-        # 2026-08-17: 动画 helper 拆到 HelperAnimation.cpp（非 inline 摊薄模板实例化，降低编译内存）
-        #             Helper.hpp 107 -> 95；HelperAnimation.cpp 新增 12
-        ("src/helper/Helper.hpp", "UiRuntime::current()"): 95,
-        ("src/helper/HelperAnimation.cpp", "UiRuntime::current()"): 12,
-        ("src/managers/CommandBuffer.hpp", "UiRuntime::current()"): 11,
-        ("src/managers/DeviceManager.hpp", "UiRuntime::current()"): 21,
-        ("src/managers/FontAtlasManager.hpp", "UiRuntime::current()"): 5,
-        ("src/managers/FontManager.hpp", "UiRuntime::current()"): 16,
-        ("src/managers/IconManager.cpp", "UiRuntime::current()"): 37,
-        ("src/managers/IconManager.hpp", "UiRuntime::current()"): 2,
-        ("src/managers/ImageManager.cpp", "UiRuntime::current()"): 9,
-        ("src/managers/PipelineCache.hpp", "UiRuntime::current()"): 7,
-        ("src/managers/ResourceProvider.cpp", "UiRuntime::current()"): 3,
-        ("src/managers/TextTextureCache.cpp", "UiRuntime::current()"): 11,
-        ("src/managers/TextureAtlas.hpp", "UiRuntime::current()"): 25,
-        ("src/renderers/FallbackBackendRenderer.hpp", "UiRuntime::current()"): 5,
-        ("src/systems/render/RenderBackend.cpp", "UiRuntime::current()"): 33,
-        ("src/systems/render/RenderFrame.cpp", "UiRuntime::current()"): 10,
-        ("src/systems/render/RenderResources.cpp", "UiRuntime::current()"): 1,
-        ("src/systems/StateSystem.cpp", "UiRuntime::current()"): 3,
-        ("src/systems/TimerSystem.cpp", "UiRuntime::current()"): 2,
-    }
-)
+ALLOWED_RUNTIME_CURRENT_COUNTS = Counter()
 
 ALLOWED_PUBLIC_CMAKE_DEBT_COUNTS = Counter({})
 

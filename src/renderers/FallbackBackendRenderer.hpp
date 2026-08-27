@@ -54,7 +54,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
         int height = 0;
     };
 
-    FallbackBackendRenderer() = default;
+    explicit FallbackBackendRenderer(utils::Logger& logger) : m_logger(&logger) {}
     ~FallbackBackendRenderer() override
     {
         cleanup();
@@ -98,13 +98,12 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
             {
                 SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
                 m_windowID = windowID;
-                ui::UiRuntime::current().logger().warn("[FallbackBackendRenderer] using SDL_Renderer driver: {}",
-                                                       driver);
+                m_logger->warn("[FallbackBackendRenderer] using SDL_Renderer driver: {}", driver);
                 return ui::Ok();
             }
         }
 
-        ui::UiRuntime::current().logger().error("[FallbackBackendRenderer] create renderer failed: {}", SDL_GetError());
+        m_logger->error("[FallbackBackendRenderer] create renderer failed: {}", SDL_GetError());
         return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, SDL_GetError());
     }
 
@@ -134,17 +133,20 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
             return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, "renderer not initialized");
         }
 
-        SDL_SetRenderClipRect(m_renderer, nullptr);
-        SDL_SetRenderDrawColorFloat(m_renderer, clearColor.r, clearColor.g, clearColor.b, clearColor.a);
-        SDL_RenderClear(m_renderer);
+        if (!SDL_SetRenderClipRect(m_renderer, nullptr) ||
+            !SDL_SetRenderDrawColorFloat(m_renderer, clearColor.r, clearColor.g, clearColor.b, clearColor.a) ||
+            !SDL_RenderClear(m_renderer))
+        {
+            return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, SDL_GetError());
+        }
         return ui::Ok();
     }
 
-    void drawBatch(const render::RenderBatch& batch, SDL_GPUTexture* whiteTextureTag) override  // NOLINT(readability-function-cognitive-complexity)
+    ui::Result<void> drawBatch(const render::RenderBatch& batch, SDL_GPUTexture* whiteTextureTag) override  // NOLINT(readability-function-cognitive-complexity)
     {
         if (m_renderer == nullptr || batch.vertices.empty())
         {
-            return;
+            return m_renderer == nullptr ? ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE) : ui::Ok();
         }
 
         if (batch.texture != nullptr && batch.texture != whiteTextureTag)
@@ -153,11 +155,11 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
             if (!m_textureSkipWarned)
             {
                 m_textureSkipWarned = true;
-                ui::UiRuntime::current().logger().warn(
+                m_logger->warn(
                     "[FallbackBackendRenderer] non-white texture batch cannot be rendered by SDL_Renderer; "
                     "image batch skipped (CPU fallback limitation)");
             }
-            return;
+            return ui::Ok();
         }
 
         if (batch.scissorRect.has_value())
@@ -245,6 +247,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
                 SDL_RenderFillRect(m_renderer, &rect);
             }
         }
+        return ui::Ok();
     }
 
     ui::Result<void> drawCachedBitmap(std::string_view cacheKey, std::span<const std::uint8_t> rgbaPixels,
@@ -279,25 +282,23 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
         return ui::Ok();
     }
 
-    void endFrame() override
+    ui::Result<void> endFrame() override
     {
         if (m_renderer == nullptr)
         {
-            return;
+            return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE);
         }
 
-        SDL_SetRenderClipRect(m_renderer, nullptr);
-        SDL_RenderPresent(m_renderer);
+        if (!SDL_SetRenderClipRect(m_renderer, nullptr) || !SDL_RenderPresent(m_renderer))
+        {
+            return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, SDL_GetError());
+        }
+        return ui::Ok();
     }
 
     [[nodiscard]] interface::BackendType getType() const override
     {
         return interface::BackendType::FALLBACK;
-    }
-
-    [[nodiscard]] bool supports(interface::BackendCapability capability) const override
-    {
-        return capability == interface::BackendCapability::CACHED_BITMAP;
     }
 
    private:
@@ -320,7 +321,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
         if (!m_unsupportedPrimitiveWarned)
         {
             m_unsupportedPrimitiveWarned = true;
-            ui::UiRuntime::current().logger().warn("[FallbackBackendRenderer] {}", primitive);
+                m_logger->warn("[FallbackBackendRenderer] {}", primitive);
         }
     }
 
@@ -391,7 +392,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
     CachedBitmapTexture* getOrCreateBitmapTexture(std::string_view cacheKey, std::span<const std::uint8_t> rgbaPixels,
                                                   int width, int height)
     {
-        auto& logger = ui::UiRuntime::current().logger();
+        auto& logger = *m_logger;
         const std::string key(cacheKey);
         auto cacheIterator = m_bitmapTextureCache.find(key);
         const bool needsRecreate = (cacheIterator == m_bitmapTextureCache.end()) ||
@@ -499,6 +500,7 @@ class FallbackBackendRenderer final : public interface::IBackendRenderer
                            static_cast<int>(indices.size()));
     }
 
+    utils::Logger* m_logger;
     SDL_Renderer* m_renderer = nullptr;
     SDL_WindowID m_windowID = 0;
     bool m_textureSkipWarned = false;

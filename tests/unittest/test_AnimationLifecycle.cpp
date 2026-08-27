@@ -56,6 +56,11 @@ class AnimationLifecycleTest : public ::testing::Test
         return m_runtime.registry();
     }
 
+    UiRuntime& runtime()
+    {
+        return m_runtime;
+    }
+
     /// 驱动一帧动画（deltaMs 毫秒）
     void tick(float deltaMs)
     {
@@ -67,7 +72,13 @@ class AnimationLifecycleTest : public ::testing::Test
     /// 创建一个带 Alpha 组件的基础实体
     ui::entity makeEntity()
     {
-        auto entity = factory::CreateBaseWidget("anim_entity");
+        auto entityResult = factory::CreateBaseWidget(m_runtime, "anim_entity");
+        EXPECT_TRUE(entityResult.has_value());
+        if (!entityResult.has_value())
+        {
+            return ui::null_entity;
+        }
+        const auto entity = entityResult->raw;
         auto& alpha = registry().get<components::Alpha>(entity);
         alpha.value = 0.0F;
         return entity;
@@ -82,7 +93,7 @@ class AnimationLifecycleTest : public ::testing::Test
 TEST_F(AnimationLifecycleTest, PauseStopsProgressAndResumeContinues)
 {
     auto entity = makeEntity();
-    animation::StartAlphaAnimation(entity, 0.0F, 1.0F,
+    animation::StartAlphaAnimation(runtime(), entity, 0.0F, 1.0F,
                                    ui::animation::TweenOptions{.duration = 100.0F, .easing = policies::Easing::LINEAR});
 
     // 推进 30ms
@@ -92,14 +103,14 @@ TEST_F(AnimationLifecycleTest, PauseStopsProgressAndResumeContinues)
     EXPECT_NEAR(time->elapsed, 30.0F, 0.1F);
 
     // 暂停：再 tick 不应推进
-    animation::PauseAnimation(entity);
+    animation::PauseAnimation(runtime(), entity);
     EXPECT_EQ(time->state, policies::AnimationState::PAUSED);
     const float pausedElapsed = time->elapsed;
     tick(30.0F);
     EXPECT_NEAR(time->elapsed, pausedElapsed, 0.1F) << "暂停期间 elapsed 不应推进";
 
     // 恢复：继续推进
-    animation::ResumeAnimation(entity);
+    animation::ResumeAnimation(runtime(), entity);
     EXPECT_EQ(time->state, policies::AnimationState::PLAYING);
     tick(30.0F);
     EXPECT_NEAR(time->elapsed, pausedElapsed + 30.0F, 0.1F) << "恢复后续播";
@@ -109,9 +120,9 @@ TEST_F(AnimationLifecycleTest, OnCompleteFiresWhenOnceFinishes)
 {
     auto entity = makeEntity();
     std::atomic<int> completed{0};
-    animation::StartAlphaAnimation(entity, 0.0F, 1.0F,
+    animation::StartAlphaAnimation(runtime(), entity, 0.0F, 1.0F,
                                    ui::animation::TweenOptions{.duration = 50.0F, .easing = policies::Easing::LINEAR});
-    animation::SetAnimationCallbacks(entity, [&completed]() { completed.fetch_add(1); });
+    animation::SetAnimationCallbacks(runtime(), entity, [&completed]() { completed.fetch_add(1); });
 
     tick(50.0F);  // 一帧完成
     EXPECT_EQ(completed.load(), 1) << "ONCE 模式完成应触发 onComplete";
@@ -122,10 +133,10 @@ TEST_F(AnimationLifecycleTest, StopAnimationFiresOnCancel)
 {
     auto entity = makeEntity();
     std::atomic<int> cancelled{0};
-    animation::StartAlphaAnimation(entity, 0.0F, 1.0F, {});
-    animation::SetAnimationCallbacks(entity, {}, [&cancelled]() { cancelled.fetch_add(1); });
+    animation::StartAlphaAnimation(runtime(), entity, 0.0F, 1.0F, {});
+    animation::SetAnimationCallbacks(runtime(), entity, {}, [&cancelled]() { cancelled.fetch_add(1); });
 
-    animation::StopAnimation(entity);
+    animation::StopAnimation(runtime(), entity);
     EXPECT_EQ(cancelled.load(), 1) << "Stop 应触发 onCancel";
 }
 
@@ -134,14 +145,14 @@ TEST_F(AnimationLifecycleTest, FinishWithSettleWritesEndValueAndFiresComplete)
     auto entity = makeEntity();
     std::atomic<int> completed{0};
     std::atomic<int> cancelled{0};
-    animation::StartAlphaAnimation(entity, 0.0F, 1.0F,
+    animation::StartAlphaAnimation(runtime(), entity, 0.0F, 1.0F,
                                    ui::animation::TweenOptions{.duration = 1000.0F, .easing = policies::Easing::LINEAR});
-    animation::SetAnimationCallbacks(entity, [&completed]() { completed.fetch_add(1); },
+    animation::SetAnimationCallbacks(runtime(), entity, [&completed]() { completed.fetch_add(1); },
                                      [&cancelled]() { cancelled.fetch_add(1); });
 
     // 只推进一半，然后 settle 到终值
     tick(10.0F);
-    animation::FinishAnimation(entity, true);
+    animation::FinishAnimation(runtime(), entity, true);
 
     auto* alpha = registry().try_get<components::Alpha>(entity);
     ASSERT_NE(alpha, nullptr);
@@ -153,7 +164,7 @@ TEST_F(AnimationLifecycleTest, FinishWithSettleWritesEndValueAndFiresComplete)
 TEST_F(AnimationLifecycleTest, StartDelayHoldsProgressUntilElapsed)
 {
     auto entity = makeEntity();
-    animation::StartAlphaAnimation(entity, 0.0F, 1.0F,
+    animation::StartAlphaAnimation(runtime(), entity, 0.0F, 1.0F,
                                    ui::animation::TweenOptions{.duration = 100.0F,
                                                                .startDelayMs = 40.0F,
                                                                .easing = policies::Easing::LINEAR});

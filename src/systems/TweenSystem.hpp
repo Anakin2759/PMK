@@ -114,7 +114,7 @@ class TweenSystem : public ui::interface::EnableRegister<TweenSystem>
 
                 if (dirty)
                 {
-                    ui::utils::MarkRenderDirty(entity);
+                    ui::utils::MarkRenderDirty(m_reg->runtime(), ui::detail::ToPublic(entity));
                 }
 
                 if (anim.mode == policies::Play::ONCE && time >= 1.0F)
@@ -198,7 +198,7 @@ class TweenSystem : public ui::interface::EnableRegister<TweenSystem>
             if (auto* pos = m_reg->try_get<components::Position>(entity))
             {
                 pos->value = animPos->from + ((animPos->to - animPos->from) * val);
-                ui::utils::MarkLayoutDirty(entity);
+                ui::utils::MarkLayoutDirty(m_reg->runtime(), ui::detail::ToPublic(entity));
                 return true;
             }
         }

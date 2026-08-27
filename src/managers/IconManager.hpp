@@ -84,17 +84,17 @@ struct CachedTextureEntry
 class IconManager
 {
    public:
-    explicit IconManager(DeviceManager* deviceManager) : m_deviceManager(deviceManager)
+    explicit IconManager(DeviceManager* deviceManager, utils::Logger& logger) : m_deviceManager(deviceManager), m_logger(&logger)
     {
         FT_Error error = FT_Init_FreeType(&m_ftLibrary);
         if (error != 0)
         {
-            UiRuntime::current().logger().error("[IconManager] Failed to initialize FreeType: error {}", error);
+            m_logger->error("[IconManager] Failed to initialize FreeType: error {}", error);
             m_ftLibrary = nullptr;
         }
         else
         {
-            UiRuntime::current().logger().info("[IconManager] FreeType initialized");
+            m_logger->info("[IconManager] FreeType initialized");
         }
     }
     ~IconManager() noexcept;
@@ -251,6 +251,7 @@ class IconManager
                                         int height);
 
     DeviceManager* m_deviceManager;
+    utils::Logger* m_logger;
     FT_Library m_ftLibrary = nullptr;
 
     StringMap<FontData> m_fonts;

@@ -54,9 +54,12 @@ class TableRenderer : public core::IRenderer
     }
 
    private:
+   /**
+    * @brief Table 渲染状态
+    */
     struct TableRenderState
     {
-        float tableX = 0.0F;
+        float tableX = 0.0F; ///< 表格左上角 X 坐标
         float tableY = 0.0F;
         float totalWidth = 0.0F;
         float totalHeight = 0.0F;

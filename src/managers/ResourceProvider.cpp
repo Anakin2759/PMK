@@ -41,6 +41,7 @@ namespace
 class CmrcResourceProvider final : public IResourceProvider
 {
    public:
+    explicit CmrcResourceProvider(utils::Logger& logger) : IResourceProvider(logger) {}
     [[nodiscard]] bool exists(std::string_view path) const override
     {
         const auto fileSystem = cmrc::ui_fonts::get_filesystem();
@@ -53,7 +54,7 @@ class CmrcResourceProvider final : public IResourceProvider
         const std::string normalizedPath(path);
         if (!fileSystem.exists(normalizedPath))
         {
-            ui::UiRuntime::current().logger().error("[ResourceProvider/cmrc] resource not found: {}", normalizedPath);
+            m_logger->error("[ResourceProvider/cmrc] resource not found: {}", normalizedPath);
             return ui::Err(ui::UiErrc::ASSET_NOT_FOUND, normalizedPath);
         }
 
@@ -71,6 +72,7 @@ class CmrcResourceProvider final : public IResourceProvider
 class StdEmbedResourceProvider final : public IResourceProvider
 {
    public:
+    explicit StdEmbedResourceProvider(utils::Logger& logger) : IResourceProvider(logger) {}
     [[nodiscard]] bool exists(std::string_view path) const override
     {
         return FindStdEmbedResource(path) != nullptr;
@@ -81,7 +83,7 @@ class StdEmbedResourceProvider final : public IResourceProvider
         const StdEmbedResourceEntry* entry = FindStdEmbedResource(path);
         if (entry == nullptr)
         {
-            ui::UiRuntime::current().logger().error("[ResourceProvider/std_embed] resource not found: {}", path);
+            m_logger->error("[ResourceProvider/std_embed] resource not found: {}", path);
             return ui::Err(ui::UiErrc::ASSET_NOT_FOUND, std::string(path));
         }
 
@@ -96,6 +98,7 @@ class StdEmbedResourceProvider final : public IResourceProvider
 class UnavailableResourceProvider final : public IResourceProvider
 {
    public:
+    explicit UnavailableResourceProvider(utils::Logger& logger) : IResourceProvider(logger) {}
     [[nodiscard]] bool exists(std::string_view path) const override
     {
         static_cast<void>(path);
@@ -104,7 +107,7 @@ class UnavailableResourceProvider final : public IResourceProvider
 
     [[nodiscard]] ui::Result<BinaryResource> loadBinary(std::string_view path) const override
     {
-        ui::UiRuntime::current().logger().error(
+        m_logger->error(
             "[ResourceProvider] no UI resource backend selected at compile time for: {}", path);
         static_cast<void>(path);
         return ui::Err(ui::UiErrc::BACKEND_UNAVAILABLE, std::string(path));
@@ -114,19 +117,19 @@ class UnavailableResourceProvider final : public IResourceProvider
 
 }  // namespace
 
-std::shared_ptr<const IResourceProvider> GetDefaultUiResourceProvider()
+std::shared_ptr<const IResourceProvider> GetDefaultUiResourceProvider(utils::Logger& logger)
 {
 #ifdef UI_RESOURCE_BACKEND_STD_EMBED
     static const std::shared_ptr<const IResourceProvider> defaultUiResourceProvider =
-        std::make_shared<StdEmbedResourceProvider>();
+        std::make_shared<StdEmbedResourceProvider>(logger);
     return defaultUiResourceProvider;
 #elifdef UI_RESOURCE_BACKEND_CMRC
     static const std::shared_ptr<const IResourceProvider> defaultUiResourceProvider =
-        std::make_shared<CmrcResourceProvider>();
+        std::make_shared<CmrcResourceProvider>(logger);
     return defaultUiResourceProvider;
 #else
     static const std::shared_ptr<const IResourceProvider> defaultUiResourceProvider =
-        std::make_shared<UnavailableResourceProvider>();
+        std::make_shared<UnavailableResourceProvider>(logger);
     return defaultUiResourceProvider;
 #endif
 }

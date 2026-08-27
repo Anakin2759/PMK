@@ -38,10 +38,10 @@ namespace ui::managers
 class FontAtlasManager
 {
    public:
-    explicit FontAtlasManager(DeviceManager& deviceManager)
-        : m_deviceManager(deviceManager), m_fontManager(std::make_unique<FontManager>())
+    explicit FontAtlasManager(DeviceManager& deviceManager, utils::Logger& logger)
+        : m_deviceManager(deviceManager), m_fontManager(std::make_unique<FontManager>(logger)), m_logger(&logger)
     {
-        ui::UiRuntime::current().logger().info("[FontAtlasManager] Initialized");
+        m_logger->info("[FontAtlasManager] Initialized");
     }
 
     ~FontAtlasManager() = default;
@@ -71,18 +71,18 @@ class FontAtlasManager
         auto generation = m_deviceManager.getGeneration();
         if (!generation || generation.Status() != detail::GpuDeviceGenerationStatus::ACTIVE)
         {
-            ui::UiRuntime::current().logger().error("[FontAtlasManager] No GPU device available");
+            m_logger->error("[FontAtlasManager] No GPU device available");
             return Err(UiErrc::DEVICE_UNAVAILABLE);
         }
 
         m_atlas.reset();
-        auto candidateAtlas = std::make_unique<TextureAtlas>(generation, 2048, 2);
+        auto candidateAtlas = std::make_unique<TextureAtlas>(generation, *m_logger, 2048, 2);
         if (!candidateAtlas->isValid())
         {
             return Err(UiErrc::ASSET_UPLOAD_FAILED, "font texture atlas");
         }
         m_atlas = std::move(candidateAtlas);
-        ui::UiRuntime::current().logger().info("[FontAtlasManager] Font loaded and atlas created");
+        m_logger->info("[FontAtlasManager] Font loaded and atlas created");
         return Ok();
     }
 
@@ -158,7 +158,7 @@ class FontAtlasManager
         GlyphInfo glyph = m_fontManager->renderGlyph(static_cast<int>(codepoint));
         if (glyph.bitmap.empty())
         {
-            ui::UiRuntime::current().logger().warn("[FontAtlasManager] Empty bitmap for codepoint {}", codepoint);
+            m_logger->warn("[FontAtlasManager] Empty bitmap for codepoint {}", codepoint);
             return std::nullopt;
         }
 
@@ -229,7 +229,7 @@ class FontAtlasManager
         {
             m_atlas->clear();
         }
-        ui::UiRuntime::current().logger().info("[FontAtlasManager] Cleared all caches");
+        m_logger->info("[FontAtlasManager] Cleared all caches");
     }
 
     /**
@@ -242,6 +242,7 @@ class FontAtlasManager
 
    private:
     DeviceManager& m_deviceManager;
+    utils::Logger* m_logger;
     std::unique_ptr<FontManager> m_fontManager;
     std::unique_ptr<TextureAtlas> m_atlas;
 };

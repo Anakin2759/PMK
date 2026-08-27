@@ -36,13 +36,17 @@ class SwitchRadioTest : public ::testing::Test
 
     void TearDown() override
     {
-        UiRuntime::current().dispatcher().update();
         m_scope.reset();
     }
 
     Registry& registry()
     {
         return m_runtime.registry();
+    }
+
+    [[nodiscard]] UiRuntime& runtime() noexcept
+    {
+        return m_runtime;
     }
 
    private:
@@ -52,7 +56,7 @@ class SwitchRadioTest : public ::testing::Test
 
 TEST_F(SwitchRadioTest, CreateSwitchAttachesComponents)
 {
-    const auto sw = factory::CreateSwitch(true, "switch");
+    const auto sw = factory::CreateSwitch(runtime(), true, "switch");
     EXPECT_TRUE(registry().all_of<components::SwitchTag>(sw));
     EXPECT_TRUE(registry().all_of<components::FocusableTag>(sw));
     const auto* switchComp = registry().try_get<components::Switch>(sw);
@@ -62,7 +66,7 @@ TEST_F(SwitchRadioTest, CreateSwitchAttachesComponents)
 
 TEST_F(SwitchRadioTest, SwitchClickTogglesChecked)
 {
-    const auto sw = factory::CreateSwitch(false, "switch");
+    const auto sw = factory::CreateSwitch(runtime(), false, "switch");
     bool observed = false;
     registry().get<components::Switch>(sw).onChanged = [&observed](bool value) { observed = value; };
 
@@ -82,7 +86,7 @@ TEST_F(SwitchRadioTest, SwitchClickTogglesChecked)
 TEST_F(SwitchRadioTest, CreateRadioGroupBuildsMutuallyExclusiveOptions)
 {
     const std::vector<std::string> options{"A", "B", "C"};
-    const auto group = factory::CreateRadioGroup(options, 1, "group");
+    const auto group = factory::CreateRadioGroup(runtime(), options, 1, "group");
 
     EXPECT_TRUE(registry().all_of<components::RadioGroupTag>(group));
     const auto* groupComp = registry().try_get<components::RadioGroup>(group);
@@ -109,7 +113,7 @@ TEST_F(SwitchRadioTest, CreateRadioGroupBuildsMutuallyExclusiveOptions)
 TEST_F(SwitchRadioTest, RadioGroupClickMovesSelectionToClickedOption)
 {
     const std::vector<std::string> options{"A", "B", "C"};
-    const auto group = factory::CreateRadioGroup(options, 0, "group");
+    const auto group = factory::CreateRadioGroup(runtime(), options, 0, "group");
 
     int observedIndex = -1;
     registry().get<components::RadioGroup>(group).onChanged = [&observedIndex](int index)
@@ -151,7 +155,7 @@ TEST_F(SwitchRadioTest, RadioGroupClickMovesSelectionToClickedOption)
 TEST_F(SwitchRadioTest, RadioGroupClickAlreadySelectedIsNoOp)
 {
     const std::vector<std::string> options{"A", "B", "C"};
-    const auto group = factory::CreateRadioGroup(options, 1, "group");
+    const auto group = factory::CreateRadioGroup(runtime(), options, 1, "group");
 
     int groupChangeCount = 0;
     registry().get<components::RadioGroup>(group).onChanged = [&groupChangeCount](int) { ++groupChangeCount; };
@@ -181,7 +185,7 @@ TEST_F(SwitchRadioTest, RadioGroupClickAlreadySelectedIsNoOp)
 TEST_F(SwitchRadioTest, RadioGroupOnlyNewlyCheckedFiresOnChanged)
 {
     const std::vector<std::string> options{"A", "B"};
-    factory::CreateRadioGroup(options, 0, "group");
+    factory::CreateRadioGroup(runtime(), options, 0, "group");
 
     // 记录被取消项的 onChanged 是否被触发
     entt::entity option0 = entt::null;

@@ -93,18 +93,18 @@ bool IconManager::loadIconFont(const std::string& name, const std::string& fontP
 {
     if (m_ftLibrary == nullptr)
     {
-        UiRuntime::current().logger().error("[IconManager] FreeType not initialized");
+        m_logger->error("[IconManager] FreeType not initialized");
         return false;
     }
 
-    UiRuntime::current().logger().info("Loading IconFont '{}' from '{}'", name, fontPath);
+    m_logger->info("Loading IconFont '{}' from '{}'", name, fontPath);
 
     // 读取字体文件
     // NOLINTNEXTLINE(hicpp-signed-bitwise) -- std::ios::openmode 底层为有符号类型，属标准库既有设计
     std::ifstream file(fontPath, std::ios::binary | std::ios::ate);
     if (!file.is_open())
     {
-        UiRuntime::current().logger().error("Failed to open font file: {}", fontPath);
+        m_logger->error("Failed to open font file: {}", fontPath);
         return false;
     }
 
@@ -119,7 +119,7 @@ bool IconManager::loadIconFont(const std::string& name, const std::string& fontP
     }
     if (buffer.size() != static_cast<size_t>(size))
     {
-        UiRuntime::current().logger().error("Failed to read font file: {}", fontPath);
+        m_logger->error("Failed to read font file: {}", fontPath);
         return false;
     }
 
@@ -129,7 +129,7 @@ bool IconManager::loadIconFont(const std::string& name, const std::string& fontP
 
     if (error != 0)
     {
-        UiRuntime::current().logger().error("Failed to load font face: {} (error {})", fontPath, error);
+        m_logger->error("Failed to load font face: {} (error {})", fontPath, error);
         return false;
     }
 
@@ -137,7 +137,7 @@ bool IconManager::loadIconFont(const std::string& name, const std::string& fontP
     error = FT_Set_Pixel_Sizes(face, 0, static_cast<FT_UInt>(fontSize));
     if (error != 0)
     {
-        UiRuntime::current().logger().error("Failed to set pixel size: {} (error {})", fontSize, error);
+        m_logger->error("Failed to set pixel size: {} (error {})", fontSize, error);
         FT_Done_Face(face);
         return false;
     }
@@ -146,14 +146,14 @@ bool IconManager::loadIconFont(const std::string& name, const std::string& fontP
     auto codepoints = parseCodepoints(codepointsPath);
     if (codepoints.empty())
     {
-        UiRuntime::current().logger().warn("No codepoints loaded from: {}", codepointsPath);
+        m_logger->warn("No codepoints loaded from: {}", codepointsPath);
     }
 
     // 存储字体和映射
     m_fonts[name] = FontData{.buffer = std::move(buffer), .face = face, .fontSize = fontSize};
     m_codepoints[name] = std::move(codepoints);
 
-    UiRuntime::current().logger().info("IconFont '{}' loaded: {} icons", name, m_codepoints[name].size());
+    m_logger->info("IconFont '{}' loaded: {} icons", name, m_codepoints[name].size());
     return true;
 }
 
@@ -162,18 +162,18 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name, const 
 {
     if (m_ftLibrary == nullptr)
     {
-        UiRuntime::current().logger().error("[IconManager] FreeType not initialized");
+        m_logger->error("[IconManager] FreeType not initialized");
         return Err(UiErrc::DEVICE_UNAVAILABLE);
     }
 
     if (fontData == nullptr || fontLength == 0)
     {
-        UiRuntime::current().logger().error("[IconManager] Invalid font data");
+        m_logger->error("[IconManager] Invalid font data");
         return Err(UiErrc::INVALID_ARGUMENT, "font data");
     }
     if (codepointsData == nullptr || codepointsLength == 0)
     {
-        UiRuntime::current().logger().error("[IconManager] Invalid codepoints data");
+        m_logger->error("[IconManager] Invalid codepoints data");
         return Err(UiErrc::INVALID_ARGUMENT, "codepoints data");
     }
 
@@ -187,8 +187,7 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name, const 
 
     if (error != 0)
     {
-        UiRuntime::current().logger().error("[IconManager] Failed to load font face from memory '{}' (error {})", name,
-                                            error);
+        m_logger->error("[IconManager] Failed to load font face from memory '{}' (error {})", name, error);
         return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_New_Memory_Face '{}' error {}", name, error));
     }
 
@@ -197,7 +196,7 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name, const 
     if (error != 0)
     {
         FT_Done_Face(face);
-        UiRuntime::current().logger().error("[IconManager] Failed to set pixel size {} (error {})", fontSize, error);
+        m_logger->error("[IconManager] Failed to set pixel size {} (error {})", fontSize, error);
         return Err(UiErrc::ASSET_LOAD_FAILED, std::format("FT_Set_Pixel_Sizes {} error {}", fontSize, error));
     }
 
@@ -227,14 +226,14 @@ Result<void> IconManager::loadIconFontFromMemory(const std::string& name, const 
 
     if (codepoints.empty())
     {
-        UiRuntime::current().logger().warn("No codepoints loaded from memory for: {}", name);
+        m_logger->warn("No codepoints loaded from memory for: {}", name);
         return Err(UiErrc::ASSET_DECODE_FAILED, name);
     }
 
     m_fonts[name] = FontData{.buffer = std::move(buffer), .face = face, .fontSize = fontSize};
     m_codepoints[name] = std::move(codepoints);
 
-    UiRuntime::current().logger().info("IconFont '{}' loaded from memory: {} icons", name, m_codepoints[name].size());
+    m_logger->info("IconFont '{}' loaded from memory: {} icons", name, m_codepoints[name].size());
     return Ok();
 }
 
@@ -246,11 +245,11 @@ uint32_t IconManager::getCodepoint(std::string_view fontName, std::string_view i
         {
             return iconIt->second;
         }
-        UiRuntime::current().logger().warn("Icon '{}' not found in font '{}'", iconName, fontName);
+        m_logger->warn("Icon '{}' not found in font '{}'", iconName, fontName);
         return 0;
     }
 
-    UiRuntime::current().logger().warn("IconFont '{}' not found", fontName);
+    m_logger->warn("IconFont '{}' not found", fontName);
     return 0;
 }
 
@@ -301,7 +300,7 @@ void IconManager::unloadIconFont(std::string_view fontName)
     {
         m_codepoints.erase(iterator);
     }
-    UiRuntime::current().logger().info("IconFont '{}' unloaded", fontName);
+    m_logger->info("IconFont '{}' unloaded", fontName);
 }
 
 void IconManager::shutdown()
@@ -328,7 +327,7 @@ void IconManager::shutdown()
         m_ftLibrary = nullptr;
     }
 
-    UiRuntime::current().logger().info("[IconManager] Shutdown complete. Total evictions: {}", m_evictionCount);
+    m_logger->info("[IconManager] Shutdown complete. Total evictions: {}", m_evictionCount);
 }
 
 const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32_t codepoint, float size)
@@ -372,7 +371,7 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
     FT_Face face = fontDataIt->second.face;
     if (face == nullptr)
     {
-        UiRuntime::current().logger().error("[IconManager] Invalid FT_Face for font '{}'", fontName);
+        m_logger->error("[IconManager] Invalid FT_Face for font '{}'", fontName);
         return nullptr;
     }
 
@@ -380,8 +379,7 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
     FT_Error error = FT_Set_Pixel_Sizes(face, 0, static_cast<FT_UInt>(quantizedSize));
     if (error != 0)
     {
-        UiRuntime::current().logger().warn("[IconManager] Failed to set pixel size {} for codepoint {}", quantizedSize,
-                                           codepoint);
+        m_logger->warn("[IconManager] Failed to set pixel size {} for codepoint {}", quantizedSize, codepoint);
         return nullptr;
     }
 
@@ -390,8 +388,7 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
     error = FT_Load_Glyph(face, glyphIndex, FT_LOAD_DEFAULT);
     if (error != 0)
     {
-        UiRuntime::current().logger().warn("[IconManager] Failed to load glyph for codepoint {}: error {}", codepoint,
-                                           error);
+        m_logger->warn("[IconManager] Failed to load glyph for codepoint {}: error {}", codepoint, error);
         return nullptr;
     }
 
@@ -399,8 +396,7 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
     error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
     if (error != 0)
     {
-        UiRuntime::current().logger().warn("[IconManager] Failed to render glyph for codepoint {}: error {}", codepoint,
-                                           error);
+        m_logger->warn("[IconManager] Failed to render glyph for codepoint {}: error {}", codepoint, error);
         return nullptr;
     }
 
@@ -410,7 +406,7 @@ const TextureInfo* IconManager::getTextureInfo(std::string_view fontName, uint32
 
     if (width == 0 || height == 0)
     {
-        UiRuntime::current().logger().warn("[IconManager] Empty bitmap for codepoint {}", codepoint);
+        m_logger->warn("[IconManager] Empty bitmap for codepoint {}", codepoint);
         return nullptr;
     }
 
@@ -479,7 +475,7 @@ IconManager::CodepointMap IconManager::parseCodepoints(const std::string& filePa
 
     if (!file.is_open())
     {
-        UiRuntime::current().logger().error("Failed to open codepoints file: {}", filePath);
+        m_logger->error("Failed to open codepoints file: {}", filePath);
         return result;
     }
 
@@ -521,7 +517,7 @@ IconManager::CodepointMap IconManager::parseCodepointsTXT(std::istream& file)
             }
             catch (...)
             {
-                UiRuntime::current().logger().warn("Invalid codepoint format: {} - {}", iconName, hexCode);
+                m_logger->warn("Invalid codepoint format: {} - {}", iconName, hexCode);
             }
         }
     }
@@ -564,7 +560,7 @@ IconManager::CodepointMap IconManager::parseCodepointsJSON(std::istream& file)
         }
         catch (...)
         {
-            UiRuntime::current().logger().warn("Invalid codepoint in JSON: {} - {}", key, value);
+            m_logger->warn("Invalid codepoint in JSON: {} - {}", key, value);
         }
 
         pos = valueEnd + 1;
@@ -604,8 +600,8 @@ void IconManager::evictLRUFromFontCache()
     }
     */
 
-    UiRuntime::current().logger().debug("[IconManager] Evicted LRU entry: {} (access count: {})",
-                                        lruEntry->first.substr(0, 50), lruEntry->second.accessCount);
+    m_logger->debug("[IconManager] Evicted LRU entry: {} (access count: {})",
+                    lruEntry->first.substr(0, 50), lruEntry->second.accessCount);
 
     m_fontTextureCache.erase(lruEntry);
     m_evictionCount++;
@@ -639,8 +635,7 @@ void IconManager::evictLRUFromFontCache()
         }
 
         m_evictionCount += evicted;
-        UiRuntime::current().logger().info("[IconManager] Batch evicted {} entries, cache size: {}", evicted,
-                                           m_fontTextureCache.size());
+        m_logger->info("[IconManager] Batch evicted {} entries, cache size: {}", evicted, m_fontTextureCache.size());
     }
 }
 /**
@@ -680,7 +675,7 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(const detail:
     auto texture = wrappers::MakeGpuResource<wrappers::UniqueGPUTexture>(generation, SDL_CreateGPUTexture, &texInfo);
     if (!texture)
     {
-        UiRuntime::current().logger().error("[IconManager] Failed to create GPU texture");
+        m_logger->error("[IconManager] Failed to create GPU texture");
         return nullptr;
     }
 
@@ -697,7 +692,7 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(const detail:
         generation, SDL_CreateGPUTransferBuffer, &transferInfo);
     if (!transferBuffer)
     {
-        UiRuntime::current().logger().error("[IconManager] Failed to create transfer buffer");
+        m_logger->error("[IconManager] Failed to create transfer buffer");
         return nullptr;
     }
 
@@ -709,7 +704,7 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(const detail:
     }
     if (mappedData == nullptr)
     {
-        UiRuntime::current().logger().error("[IconManager] Failed to map transfer buffer");
+        m_logger->error("[IconManager] Failed to map transfer buffer");
         return nullptr;
     }
 
@@ -724,7 +719,7 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(const detail:
     }
     if (cmd == nullptr)
     {
-        UiRuntime::current().logger().error("[IconManager] Failed to acquire command buffer");
+        m_logger->error("[IconManager] Failed to acquire command buffer");
         return nullptr;
     }
 
@@ -735,10 +730,10 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(const detail:
     }
     if (copyPass == nullptr)
     {
-        UiRuntime::current().logger().error("[IconManager] Failed to begin copy pass");
+        m_logger->error("[IconManager] Failed to begin copy pass");
         if (!SDL_CancelGPUCommandBuffer(cmd))
         {
-            UiRuntime::current().logger().error("[IconManager] Failed to cancel command buffer: {}", SDL_GetError());
+            m_logger->error("[IconManager] Failed to cancel command buffer: {}", SDL_GetError());
         }
         return nullptr;
     }
@@ -760,13 +755,13 @@ wrappers::UniqueGPUTexture IconManager::createAndUploadIconTexture(const detail:
     {
         if (!SDL_CancelGPUCommandBuffer(cmd))
         {
-            UiRuntime::current().logger().error("[IconManager] Failed to cancel command buffer: {}", SDL_GetError());
+            m_logger->error("[IconManager] Failed to cancel command buffer: {}", SDL_GetError());
         }
         return nullptr;
     }
     if (!SDL_SubmitGPUCommandBuffer(cmd))
     {
-        UiRuntime::current().logger().error("[IconManager] Failed to submit upload: {}", SDL_GetError());
+        m_logger->error("[IconManager] Failed to submit upload: {}", SDL_GetError());
         return nullptr;
     }
 

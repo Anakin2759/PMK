@@ -91,14 +91,15 @@ struct TextEditContentOps
         }
     }
 
-    static void applyContentChange(entt::entity entity, components::TextEdit& edit, components::Text& textComp)
+    static void applyContentChange(Registry& reg, entt::entity entity, components::TextEdit& edit,
+                                   components::Text& textComp)
     {
         syncTextContent(edit, textComp);
-        ui::utils::MarkLayoutAndVisualChanged(entity);
+        ui::utils::MarkLayoutAndVisualChanged(reg.runtime(), ui::detail::ToPublic(entity));
         notifyTextChanged(edit);
     }
 
-    static bool insertText(entt::entity entity, components::TextEdit& edit, components::Text& textComp,
+    static bool insertText(Registry& reg, entt::entity entity, components::TextEdit& edit, components::Text& textComp,
                            std::string input)
     {
         if (input.empty())
@@ -123,11 +124,12 @@ struct TextEditContentOps
 
         edit.buffer.insert(edit.cursorPosition, input);
         edit.cursorPosition += input.size();
-        applyContentChange(entity, edit, textComp);
+        applyContentChange(reg, entity, edit, textComp);
         return true;
     }
 
-    static bool handleDeletionKey(entt::entity entity, components::TextEdit& edit, components::Text& textComp,
+    static bool handleDeletionKey(Registry& reg, entt::entity entity, components::TextEdit& edit,
+                                  components::Text& textComp,
                                   SDL_Keycode key)
     {
         if (key == SDLK_BACKSPACE)
@@ -143,7 +145,7 @@ struct TextEditContentOps
                 edit.cursorPosition = prevPosition;
             }
 
-            applyContentChange(entity, edit, textComp);
+            applyContentChange(reg, entity, edit, textComp);
             return true;
         }
 
@@ -159,18 +161,19 @@ struct TextEditContentOps
                 edit.buffer.erase(edit.cursorPosition, nextPosition - edit.cursorPosition);
             }
 
-            applyContentChange(entity, edit, textComp);
+            applyContentChange(reg, entity, edit, textComp);
             return true;
         }
 
         return false;
     }
 
-    static bool handleReturnKey(entt::entity entity, components::TextEdit& edit, components::Text& textComp)
+    static bool handleReturnKey(Registry& reg, entt::entity entity, components::TextEdit& edit,
+                                components::Text& textComp)
     {
         if (TextEditModeOps::isMultiline(edit))
         {
-            return insertText(entity, edit, textComp, "\n");
+            return insertText(reg, entity, edit, textComp, "\n");
         }
 
         if (edit.onSubmit)
@@ -182,7 +185,7 @@ struct TextEditContentOps
             return true;
 
         TextEditSelectionOps::eraseSelection(edit);
-        applyContentChange(entity, edit, textComp);
+        applyContentChange(reg, entity, edit, textComp);
         return true;
     }
 };
@@ -339,7 +342,8 @@ struct TextEditNavigationOps
         edit.cursorPosition = lineEnd;
     }
 
-    static bool handleHorizontal(entt::entity entity, components::TextEdit& edit, SDL_Keycode key, bool shift)
+    static bool handleHorizontal(Registry& reg, entt::entity entity, components::TextEdit& edit, SDL_Keycode key,
+                                 bool shift)
     {
         if (key == SDLK_LEFT)
         {
@@ -357,7 +361,7 @@ struct TextEditNavigationOps
                 moveCursorLeft(edit, false);
             }
 
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(reg.runtime(), ui::detail::ToPublic(entity));
             return true;
         }
 
@@ -377,14 +381,15 @@ struct TextEditNavigationOps
                 moveCursorRight(edit, false);
             }
 
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(reg.runtime(), ui::detail::ToPublic(entity));
             return true;
         }
 
         return false;
     }
 
-    static bool handleBoundary(entt::entity entity, components::TextEdit& edit, SDL_Keycode key, bool shift)
+    static bool handleBoundary(Registry& reg, entt::entity entity, components::TextEdit& edit, SDL_Keycode key,
+                               bool shift)
     {
         if (key == SDLK_HOME)
         {
@@ -398,7 +403,7 @@ struct TextEditNavigationOps
                 moveCursorToLineStart(edit, false);
             }
 
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(reg.runtime(), ui::detail::ToPublic(entity));
             return true;
         }
 
@@ -414,14 +419,15 @@ struct TextEditNavigationOps
                 moveCursorToLineEnd(edit, false);
             }
 
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(reg.runtime(), ui::detail::ToPublic(entity));
             return true;
         }
 
         return false;
     }
 
-    static bool handleVertical(entt::entity entity, components::TextEdit& edit, SDL_Keycode key, bool shift)
+    static bool handleVertical(Registry& reg, entt::entity entity, components::TextEdit& edit, SDL_Keycode key,
+                               bool shift)
     {
         if (!TextEditModeOps::isMultiline(edit))
             return false;
@@ -438,7 +444,7 @@ struct TextEditNavigationOps
                 moveCursorToLineStart(edit, false);
             }
 
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(reg.runtime(), ui::detail::ToPublic(entity));
             return true;
         }
 
@@ -454,7 +460,7 @@ struct TextEditNavigationOps
                 moveCursorToLineEnd(edit, false);
             }
 
-            ui::utils::MarkVisualChanged(entity);
+            ui::utils::MarkVisualChanged(reg.runtime(), ui::detail::ToPublic(entity));
             return true;
         }
 
@@ -462,7 +468,7 @@ struct TextEditNavigationOps
     }
 };
 
-bool HandleReadOnlyShortcut(entt::entity entity, components::TextEdit& edit, SDL_Keycode key, bool ctrl)
+bool HandleReadOnlyShortcut(Registry& reg, entt::entity entity, components::TextEdit& edit, SDL_Keycode key, bool ctrl)
 {
     if (ctrl && key == SDLK_C)
     {
@@ -476,14 +482,15 @@ bool HandleReadOnlyShortcut(entt::entity entity, components::TextEdit& edit, SDL
     if (ctrl && key == SDLK_A)
     {
         TextEditSelectionOps::selectAll(edit);
-        ui::utils::MarkVisualChanged(entity);
+        ui::utils::MarkVisualChanged(reg.runtime(), ui::detail::ToPublic(entity));
         return true;
     }
 
     return false;
 }
 
-bool HandleClipboardShortcut(entt::entity entity, components::TextEdit& edit, components::Text& textComp,
+bool HandleClipboardShortcut(Registry& reg, entt::entity entity, components::TextEdit& edit,
+                             components::Text& textComp,
                              SDL_Keycode key, bool ctrl)
 {
     if (ctrl && key == SDLK_X)
@@ -493,7 +500,7 @@ bool HandleClipboardShortcut(entt::entity entity, components::TextEdit& edit, co
 
         TextEditClipboardOps::copySelection(edit);
         TextEditSelectionOps::eraseSelection(edit);
-        TextEditContentOps::applyContentChange(entity, edit, textComp);
+        TextEditContentOps::applyContentChange(reg, entity, edit, textComp);
         return true;
     }
 
@@ -501,7 +508,7 @@ bool HandleClipboardShortcut(entt::entity entity, components::TextEdit& edit, co
     {
         if (!TextEditClipboardOps::pasteText(edit))
             return true;
-        TextEditContentOps::applyContentChange(entity, edit, textComp);
+        TextEditContentOps::applyContentChange(reg, entity, edit, textComp);
         return true;
     }
 
@@ -523,7 +530,7 @@ void TextEditingService::handleTextInput(Registry& reg, const std::string& rawTe
             continue;
 
         auto& textComp = view.get<components::Text>(entity);
-        TextEditContentOps::insertText(entity, edit, textComp, rawText);
+        TextEditContentOps::insertText(reg, entity, edit, textComp, rawText);
     }
 }
 
@@ -539,25 +546,25 @@ void TextEditingService::handleKeyDown(Registry& reg, SDL_Keycode key, SDL_Keymo
         const bool ctrl = (modState & SDL_KMOD_CTRL) != 0;
         const bool shift = (modState & SDL_KMOD_SHIFT) != 0;
 
-        if (HandleReadOnlyShortcut(entity, edit, key, ctrl))
+        if (HandleReadOnlyShortcut(reg, entity, edit, key, ctrl))
             continue;
         if (policies::HasFlag(edit.inputMode, policies::TextFlag::READ_ONLY))
             continue;
 
         auto& textComp = view.get<components::Text>(entity);
-        if (HandleClipboardShortcut(entity, edit, textComp, key, ctrl))
+        if (HandleClipboardShortcut(reg, entity, edit, textComp, key, ctrl))
             continue;
-        if (TextEditContentOps::handleDeletionKey(entity, edit, textComp, key))
+        if (TextEditContentOps::handleDeletionKey(reg, entity, edit, textComp, key))
             continue;
-        if (TextEditNavigationOps::handleHorizontal(entity, edit, key, shift))
+        if (TextEditNavigationOps::handleHorizontal(reg, entity, edit, key, shift))
             continue;
-        if (TextEditNavigationOps::handleBoundary(entity, edit, key, shift))
+        if (TextEditNavigationOps::handleBoundary(reg, entity, edit, key, shift))
             continue;
-        if (TextEditNavigationOps::handleVertical(entity, edit, key, shift))
+        if (TextEditNavigationOps::handleVertical(reg, entity, edit, key, shift))
             continue;
         if (key == SDLK_RETURN)
         {
-            TextEditContentOps::handleReturnKey(entity, edit, textComp);
+            TextEditContentOps::handleReturnKey(reg, entity, edit, textComp);
         }
     }
 }

@@ -15,11 +15,14 @@
 namespace ui::event
 {
 
-EventConnection::EventConnection(std::uint64_t token) noexcept : m_token(token)
+EventConnection::EventConnection(std::weak_ptr<ui::detail::event_bridge::EventDomain> domain,
+                                 std::uint64_t token) noexcept
+    : m_domain(std::move(domain)), m_token(token)
 {
 }
 
-EventConnection::EventConnection(EventConnection&& other) noexcept : m_token(std::exchange(other.m_token, 0))
+EventConnection::EventConnection(EventConnection&& other) noexcept
+    : m_domain(std::move(other.m_domain)), m_token(std::exchange(other.m_token, 0))
 {
 }
 
@@ -28,6 +31,7 @@ EventConnection& EventConnection::operator=(EventConnection&& other) noexcept
     if (this != &other)
     {
         Disconnect();
+        m_domain = std::move(other.m_domain);
         m_token = std::exchange(other.m_token, 0);
     }
     return *this;
@@ -45,63 +49,74 @@ void EventConnection::Disconnect() noexcept
         return;
     }
 
-    detail::event_bridge::Disconnect(m_token);
+    if (auto domain = m_domain.lock())
+    {
+        ui::detail::event_bridge::Disconnect(*domain, m_token);
+    }
     m_token = 0;
+    m_domain.reset();
 }
 
 bool EventConnection::Connected() const noexcept
 {
-    return m_token != 0 && detail::event_bridge::Connected(m_token);
+    if (m_token == 0)
+    {
+        return false;
+    }
+    auto domain = m_domain.lock();
+    return domain != nullptr && ui::detail::event_bridge::Connected(*domain, m_token);
 }
 
-EventId RegisterEvent(std::string_view name)
+EventId RegisterEvent(UiRuntime& runtime, std::string_view name)
 {
-    return detail::event_bridge::RegisterEvent(name);
+    return ui::detail::event_bridge::RegisterEvent(runtime, name);
 }
 
-bool IsEventRegistered(EventId eventId)
+bool IsEventRegistered(UiRuntime& runtime, EventId eventId)
 {
-    return detail::event_bridge::IsEventRegistered(eventId);
+    return ui::detail::event_bridge::IsEventRegistered(runtime, eventId);
 }
 
-bool IsEventRegistered(std::string_view name)
+bool IsEventRegistered(UiRuntime& runtime, std::string_view name)
 {
-    return detail::event_bridge::IsEventRegistered(name);
+    return ui::detail::event_bridge::IsEventRegistered(runtime, name);
 }
 
-EventConnection On(EventId eventId, EventCallback callback)
+EventConnection On(UiRuntime& runtime, EventId eventId, EventCallback callback)
 {
-    return EventConnection{detail::event_bridge::Connect(eventId, std::move(callback))};
+    auto connection = ui::detail::event_bridge::Connect(runtime, eventId, std::move(callback));
+    return EventConnection{std::move(connection.domain), connection.token};
 }
 
-EventConnection On(std::string_view name, EventCallback callback)
+EventConnection On(UiRuntime& runtime, std::string_view name, EventCallback callback)
 {
-    return EventConnection{detail::event_bridge::Connect(name, std::move(callback))};
+    auto connection = ui::detail::event_bridge::Connect(runtime, name, std::move(callback));
+    return EventConnection{std::move(connection.domain), connection.token};
 }
 
-void Trigger(EventId eventId, EventPayload payload)
+void Trigger(UiRuntime& runtime, EventId eventId, EventPayload payload)
 {
-    detail::event_bridge::Trigger(eventId, std::move(payload));
+    ui::detail::event_bridge::Trigger(runtime, eventId, std::move(payload));
 }
 
-void Trigger(std::string_view name, EventPayload payload)
+void Trigger(UiRuntime& runtime, std::string_view name, EventPayload payload)
 {
-    detail::event_bridge::Trigger(name, std::move(payload));
+    ui::detail::event_bridge::Trigger(runtime, name, std::move(payload));
 }
 
-void Enqueue(EventId eventId, EventPayload payload)
+void Enqueue(UiRuntime& runtime, EventId eventId, EventPayload payload)
 {
-    detail::event_bridge::Enqueue(eventId, std::move(payload));
+    ui::detail::event_bridge::Enqueue(runtime, eventId, std::move(payload));
 }
 
-void Enqueue(std::string_view name, EventPayload payload)
+void Enqueue(UiRuntime& runtime, std::string_view name, EventPayload payload)
 {
-    detail::event_bridge::Enqueue(name, std::move(payload));
+    ui::detail::event_bridge::Enqueue(runtime, name, std::move(payload));
 }
 
-void DispatchQueued()
+void DispatchQueued(UiRuntime& runtime)
 {
-    detail::event_bridge::DispatchQueued();
+    ui::detail::event_bridge::DispatchQueued(runtime);
 }
 
 }  // namespace ui::event

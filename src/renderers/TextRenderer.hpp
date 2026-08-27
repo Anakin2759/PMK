@@ -5,6 +5,7 @@
  * @author AnakinLiu (azrael2759@qq.com)
  * @date 2026-01-30
  * @version 0.1
+ * @brief 文本渲染器 - 处理文本组件的渲染
  *
  * ************************************************************************
  * @copyright Copyright (c) 2026 AnakinLiu
@@ -13,6 +14,8 @@
  */
 
 #pragma once
+
+#include <optional>
 #include "interface/IRenderer.hpp"
 #include "utils/Registry.hpp"
 #include "common/components/Data.hpp"
@@ -59,9 +62,52 @@ class TextRenderer : public core::IRenderer
 
     void collect(entt::entity entity, core::RenderContext& context) override
     {
-        if (context.fontManager == nullptr || context.batchManager == nullptr)
+        [[maybe_unused]] const auto result = collectChecked(entity, context);
+    }
+
+    [[nodiscard]] ui::Result<void> collectChecked(entt::entity entity, core::RenderContext& context) override
+    {
+        if (context.batchManager == nullptr)
         {
-            return;
+            return ui::Err(UiErrc::DEVICE_UNAVAILABLE, "TextRenderer requires BatchManager");
+        }
+
+        if (context.fontManager == nullptr)
+        {
+            return ui::Err(UiErrc::DEVICE_UNAVAILABLE, "TextRenderer requires FontManager");
+        }
+
+        m_collectError.reset();
+        collectWithValidContext(entity, context);
+        if (m_collectError.has_value())
+        {
+            return ui::Err(*m_collectError);
+        }
+        return ui::Ok();
+    }
+
+    int getPriority() const override
+    {
+        return 10;
+    }
+
+   private:
+    void collectWithValidContext(entt::entity entity, core::RenderContext& context)
+    {
+        // 检查后端能力：如果使用 fallback 后端且不支持 CACHED_BITMAP，则跳过文本渲染
+        if (isUsingFallbackBackend(context))
+        {
+            const auto bitmapStatus = ui::cpo::backend_capability_level(
+                *context.backendRenderer, interface::BackendCapability::CACHED_BITMAP);
+            if (bitmapStatus == interface::BackendCapabilityStatus::UNSUPPORTED)
+            {
+                if (context.capabilityDiagnostics != nullptr)
+                {
+                    context.capabilityDiagnostics->report(interface::BackendCapability::CACHED_BITMAP, bitmapStatus,
+                                                          "fallback text", "text skipped");
+                }
+                return;
+            }
         }
 
         if (m_reg->any_of<components::TextTag, components::ButtonTag, components::LabelTag>(entity))
@@ -83,13 +129,6 @@ class TextRenderer : public core::IRenderer
             }
         }
     }
-
-    int getPriority() const override
-    {
-        return 10;
-    }
-
-   private:
     struct FallbackTextBitmap
     {
         std::vector<uint8_t> pixels;
@@ -707,15 +746,12 @@ class TextRenderer : public core::IRenderer
         {
             const SDL_FRect destinationRect = {drawX, drawY, textSize.x(), textSize.y()};
             const uint8_t alphaMod = static_cast<uint8_t>(std::lround(std::clamp(opacity, 0.0F, 1.0F) * 255.0F));
-            if (!ui::cpo::backend_supports(*context.backendRenderer, interface::BackendCapability::CACHED_BITMAP))
-            {
-                return;
-            }
-
-            if (!context.backendRenderer->drawCachedBitmap(
+            if (auto drawResult = context.backendRenderer->drawCachedBitmap(
                     fallbackCacheKey, fallbackBitmap->pixels, static_cast<int>(fallbackBitmap->rasterWidth),
-                    static_cast<int>(fallbackBitmap->rasterHeight), destinationRect, context.currentScissor, alphaMod))
+                    static_cast<int>(fallbackBitmap->rasterHeight), destinationRect, context.currentScissor, alphaMod);
+                !drawResult.has_value())
             {
+                m_collectError = drawResult.error();
                 return;
             }
             return;
@@ -802,6 +838,7 @@ class TextRenderer : public core::IRenderer
 
     Registry* m_reg = nullptr;
     std::unordered_map<std::string, FallbackTextBitmap> m_fallbackTextCache;
+    std::optional<ui::Error> m_collectError;
 };
 
 }  // namespace ui::renderers

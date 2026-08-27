@@ -37,13 +37,17 @@ class TooltipTest : public ::testing::Test
 
     void TearDown() override
     {
-        UiRuntime::current().dispatcher().update();
         m_scope.reset();
     }
 
     Registry& registry()
     {
         return m_runtime.registry();
+    }
+
+    [[nodiscard]] UiRuntime& runtime() noexcept
+    {
+        return m_runtime;
     }
 
    private:
@@ -53,8 +57,10 @@ class TooltipTest : public ::testing::Test
 
 TEST_F(TooltipTest, SetTooltipAttachesComponents)
 {
-    const auto button = factory::CreateButton("btn", "tooltip_btn");
-    factory::SetTooltip(button, "help text", 300);
+    const auto buttonResult = factory::CreateButton(runtime(), "btn", "tooltip_btn");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
+    factory::SetTooltip(runtime(), button, "help text", 300);
 
     const auto* tooltip = registry().try_get<components::Tooltip>(button);
     ASSERT_NE(tooltip, nullptr);
@@ -66,8 +72,10 @@ TEST_F(TooltipTest, SetTooltipAttachesComponents)
 
 TEST_F(TooltipTest, HoverCallbackSchedulesDelayedDisplay)
 {
-    const auto button = factory::CreateButton("btn", "tooltip_btn");
-    factory::SetTooltip(button, "help text", 300);
+    const auto buttonResult = factory::CreateButton(runtime(), "btn", "tooltip_btn");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
+    factory::SetTooltip(runtime(), button, "help text", 300);
 
     auto* hoverable = registry().try_get<components::Hoverable>(button);
     ASSERT_NE(hoverable, nullptr);
@@ -82,8 +90,10 @@ TEST_F(TooltipTest, HoverCallbackSchedulesDelayedDisplay)
 
 TEST_F(TooltipTest, UnhoverCallbackClearsHoveredState)
 {
-    const auto button = factory::CreateButton("btn", "tooltip_btn");
-    factory::SetTooltip(button, "help text", 300);
+    const auto buttonResult = factory::CreateButton(runtime(), "btn", "tooltip_btn");
+    ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
+    const auto button = buttonResult->raw;
+    factory::SetTooltip(runtime(), button, "help text", 300);
 
     auto* hoverable = registry().try_get<components::Hoverable>(button);
     ASSERT_NE(hoverable, nullptr);

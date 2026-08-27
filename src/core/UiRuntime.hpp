@@ -26,16 +26,26 @@ namespace ui
 
 class UiRuntime
 {
+   private:
+    struct Lifetime
+    {
+        UiRuntime* runtime = nullptr;
+    };
+
    public:
     UiRuntime()
         : m_registry(std::make_unique<Registry>()),
           m_dispatcher(std::make_unique<Dispatcher>()),
-          m_logger(std::make_unique<utils::Logger>())
+                    m_logger(std::make_unique<utils::Logger>()),
+                    m_lifetime(std::make_shared<Lifetime>())
     {
+        m_registry->m_runtime = this;
+                m_lifetime->runtime = this;
     }
 
     ~UiRuntime() noexcept
     {
+        m_lifetime->runtime = nullptr;
         // 正常路径由 UiRuntimeScope 在 Runtime 之前析构并恢复 current；
         // 这里仅处理异常的提前销毁，避免遗留指向已释放对象的 TLS 指针。
         if (s_current == this)
@@ -130,6 +140,7 @@ class UiRuntime
     std::unique_ptr<Registry> m_registry;
     std::unique_ptr<Dispatcher> m_dispatcher;
     std::unique_ptr<utils::Logger> m_logger;
+    std::shared_ptr<Lifetime> m_lifetime = std::make_shared<Lifetime>();
 };
 
 }  // namespace ui

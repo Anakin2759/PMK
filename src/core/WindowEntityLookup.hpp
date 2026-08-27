@@ -19,7 +19,6 @@
 
 #include <entt/entt.hpp>
 
-#include "UiRuntime.hpp"
 #include "common/components/Window.hpp"
 #include "utils/Registry.hpp"
 
@@ -32,20 +31,18 @@ struct WindowEntityLookupCache
     std::unordered_map<uint32_t, entt::entity> entitiesByWindowId;
 };
 
-inline WindowEntityLookupCache& Cache()
+inline WindowEntityLookupCache& Cache(Registry& registry)
 {
-    auto& runtime = UiRuntime::current();
-    if (auto* cache = runtime.tryContext<WindowEntityLookupCache>())
+    if (auto* cache = registry.findInCtx<WindowEntityLookupCache>())
     {
         return *cache;
     }
 
-    return runtime.ensureContext<WindowEntityLookupCache>();
+    return registry.getOrEmplaceInCtx<WindowEntityLookupCache>();
 }
 
-inline bool MatchesWindowId(entt::entity entity, uint32_t windowId)
+inline bool MatchesWindowId(const Registry& registry, entt::entity entity, uint32_t windowId)
 {
-    auto& registry = UiRuntime::current().registry();
     if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return false;
@@ -54,9 +51,8 @@ inline bool MatchesWindowId(entt::entity entity, uint32_t windowId)
     return registry.get<components::Window>(entity).windowID == windowId;
 }
 
-inline void RememberWindowEntity(entt::entity entity)
+inline void RememberWindowEntity(Registry& registry, entt::entity entity)
 {
-    auto& registry = UiRuntime::current().registry();
     if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return;
@@ -64,17 +60,21 @@ inline void RememberWindowEntity(entt::entity entity)
 
     const auto windowId = registry.get<components::Window>(entity).windowID;
     if (windowId == 0)
+    {
         return;
+    }
 
-    Cache().entitiesByWindowId[windowId] = entity;
+    Cache(registry).entitiesByWindowId[windowId] = entity;
 }
 
-inline void InvalidateWindowId(uint32_t windowId)
+inline void InvalidateWindowId(Registry& registry, uint32_t windowId)
 {
     if (windowId == 0)
+    {
         return;
+    }
 
-    if (auto* cache = UiRuntime::current().tryContext<WindowEntityLookupCache>())
+    if (auto* cache = registry.findInCtx<WindowEntityLookupCache>())
     {
         cache->entitiesByWindowId.erase(windowId);
     }
@@ -85,26 +85,27 @@ inline void InvalidateWindowId(uint32_t windowId)
  *
  * @param entity 要失效的实体
  */
-inline void InvalidateWindowEntity(entt::entity entity)
+inline void InvalidateWindowEntity(Registry& registry, entt::entity entity)
 {
-    auto& registry = UiRuntime::current().registry();
     if (!registry.valid(entity) || !registry.all_of<components::Window>(entity))
     {
         return;
     }
 
-    InvalidateWindowId(registry.get<components::Window>(entity).windowID);
+    InvalidateWindowId(registry, registry.get<components::Window>(entity).windowID);
 }
 
-inline entt::entity FindWindowEntityById(uint32_t windowId)
+inline entt::entity FindWindowEntityById(Registry& registry, uint32_t windowId)
 {
     if (windowId == 0)
+    {
         return entt::null;
+    }
 
-    auto& cache = Cache();
+    auto& cache = Cache(registry);
     if (const auto cacheEntry = cache.entitiesByWindowId.find(windowId); cacheEntry != cache.entitiesByWindowId.end())
     {
-        if (MatchesWindowId(cacheEntry->second, windowId))
+        if (MatchesWindowId(registry, cacheEntry->second, windowId))
         {
             return cacheEntry->second;
         }
@@ -112,7 +113,6 @@ inline entt::entity FindWindowEntityById(uint32_t windowId)
         cache.entitiesByWindowId.erase(cacheEntry);
     }
 
-    auto& registry = UiRuntime::current().registry();
     auto view = registry.view<components::Window>();
     for (auto entity : view)
     {

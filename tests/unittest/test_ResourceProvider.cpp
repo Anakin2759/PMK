@@ -3,6 +3,7 @@
 #include "src/core/UiRuntime.hpp"
 #include "src/core/UiRuntimeScope.hpp"
 #include "src/managers/ResourceProvider.hpp"
+#include "src/utils/Logger.hpp"
 
 namespace ui::tests
 {
@@ -19,7 +20,8 @@ TEST(UiCoverageTest, BinaryResourceDefaultStateIsEmpty)
 
 TEST(UiCoverageTest, DefaultResourceProviderLoadsEmbeddedFont)
 {
-    const auto provider = managers::GetDefaultUiResourceProvider();
+    utils::Logger logger;
+    const auto provider = managers::GetDefaultUiResourceProvider(logger);
 
     ASSERT_NE(provider, nullptr);
     EXPECT_TRUE(provider->exists("assets/fonts/NotoSansSC-VariableFont_wght.ttf"));
@@ -33,7 +35,8 @@ TEST(UiCoverageTest, DefaultResourceProviderLoadsEmbeddedFont)
 
 TEST(UiCoverageTest, DefaultResourceProviderLoadsEmbeddedIconCodepoints)
 {
-    const auto provider = managers::GetDefaultUiResourceProvider();
+    utils::Logger logger;
+    const auto provider = managers::GetDefaultUiResourceProvider(logger);
 
     ASSERT_NE(provider, nullptr);
     EXPECT_TRUE(provider->exists("assets/icons/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].codepoints"));
@@ -49,7 +52,8 @@ TEST(UiCoverageTest, DefaultResourceProviderReportsMissingResource)
     UiRuntime runtime;
     UiRuntimeScope const scope(runtime);
 
-    const auto provider = managers::GetDefaultUiResourceProvider();
+    utils::Logger logger;
+    const auto provider = managers::GetDefaultUiResourceProvider(logger);
 
     ASSERT_NE(provider, nullptr);
     EXPECT_FALSE(provider->exists("assets/does-not-exist.bin"));

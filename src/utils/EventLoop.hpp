@@ -105,18 +105,18 @@ class EventLoop final
         requires std::invocable<std::decay_t<Func>&>
     [[nodiscard]] bool Post(Func&& func)
     {
+        ProducerGuard const producer{*this};
         if (!accepting_.load(std::memory_order_acquire))
         {
             return false;
         }
 
         Task task(std::forward<Func>(func));
-        if (!queue_.TryEnqueue(std::move(task)))
+        if (!queue_.TryEmplaceBeforePublish(
+                [this]() noexcept { pending_tasks_.fetch_add(1, std::memory_order_release); }, std::move(task)))
         {
             return false;
         }
-
-        pending_tasks_.fetch_add(1, std::memory_order_release);
 
         WakeUpOne();
         return true;
@@ -268,6 +268,32 @@ class EventLoop final
     }
 
    private:
+    class ProducerGuard final
+    {
+       public:
+        explicit ProducerGuard(EventLoop& loop) noexcept : loop_(loop)
+        {
+            loop_.active_producers_.fetch_add(1, std::memory_order_acq_rel);
+        }
+
+        ~ProducerGuard()
+        {
+            const auto previous = loop_.active_producers_.fetch_sub(1, std::memory_order_acq_rel);
+            if (previous == 1 && loop_.exit_requested_.load(std::memory_order_acquire))
+            {
+                loop_.WakeUpAll();
+            }
+        }
+
+        ProducerGuard(const ProducerGuard&) = delete;
+        ProducerGuard& operator=(const ProducerGuard&) = delete;
+        ProducerGuard(ProducerGuard&&) = delete;
+        ProducerGuard& operator=(ProducerGuard&&) = delete;
+
+       private:
+        EventLoop& loop_;
+    };
+
     void RunLoop()
     {
         while (true)
@@ -346,7 +372,8 @@ class EventLoop final
             return true;
         }
 
-        return pending_tasks_.load(std::memory_order_acquire) == 0;
+         return pending_tasks_.load(std::memory_order_acquire) == 0 &&
+             active_producers_.load(std::memory_order_acquire) == 0;
     }
 
     void PublishExecCompletion() noexcept
@@ -403,6 +430,7 @@ class EventLoop final
     bool exec_completed_{true};
     alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> wake_epoch_{0};
     alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> pending_tasks_{0};
+    alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> active_producers_{0};
     alignas(std::hardware_destructive_interference_size) std::atomic_bool running_{false};
     alignas(std::hardware_destructive_interference_size) std::atomic_bool accepting_{true};
     alignas(std::hardware_destructive_interference_size) std::atomic_bool exit_requested_{false};
