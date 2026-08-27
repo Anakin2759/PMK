@@ -63,9 +63,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) noexcept
 
         auto app = std::move(*appResult);
 
-        auto& runtime = app->runtime();
-        example::ui_demo::view::CreateMenuDialog(runtime);
-        ui::utils::TimerCallback(runtime, 5000, [&runtime]() { ui::log::Info(runtime, "定时任务1执行！"); });
+        example::ui_demo::view::CreateMenuDialog();
+        ui::utils::TimerCallback(5000, []() { ui::log::Info("定时任务1执行！"); });
         app->exec();
         return EXIT_SUCCESS;
     }

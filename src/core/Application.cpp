@@ -59,9 +59,6 @@ class ApplicationImpl
     void onQuitRequested(events::QuitRequested& event);
     void onDropDownCloseRequested(const events::DropDownCloseRequested& event);
     void exec();
-    [[nodiscard]] UiRuntime& runtime() noexcept;
-    [[nodiscard]] const UiRuntime& runtime() const noexcept;
-
    private:
     std::unique_ptr<UiRuntime> m_runtime;            // 管理全局状态和资源
     std::unique_ptr<UiRuntimeScope> m_runtimeScope;  // 保持 legacy API 在应用生命周期内绑定当前 Runtime
@@ -180,22 +177,12 @@ void ApplicationImpl::onQuitRequested([[maybe_unused]] events::QuitRequested& /*
 
 void ApplicationImpl::onDropDownCloseRequested(const events::DropDownCloseRequested& event)
 {
-    factory::CloseDropDownPopup(*m_runtime, event.entity);
+    factory::CloseDropDownPopup(event.entity);
 }
 
 void ApplicationImpl::exec()
 {
     m_eventLoop.exec();
-}
-
-UiRuntime& ApplicationImpl::runtime() noexcept
-{
-    return *m_runtime;
-}
-
-const UiRuntime& ApplicationImpl::runtime() const noexcept
-{
-    return *m_runtime;
 }
 
 Application::Application(std::span<char*> arg) : m_impl(std::make_unique<ApplicationImpl>(arg))
@@ -214,15 +201,6 @@ void Application::exec()
     m_impl->exec();
 }
 
-UiRuntime& Application::runtime() noexcept
-{
-    return m_impl->runtime();
-}
-
-const UiRuntime& Application::runtime() const noexcept
-{
-    return m_impl->runtime();
-}
 }  // namespace ui
 
 namespace

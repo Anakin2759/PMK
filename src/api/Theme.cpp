@@ -10,24 +10,24 @@ ThemePalette DefaultDarkTheme()
     return bridge::DefaultDarkTheme();
 }
 
-void SetTheme(UiRuntime& runtime, const ThemePalette& palette)
+void SetTheme(const ThemePalette& palette)
 {
-    bridge::SetTheme(runtime, palette);
+    bridge::SetTheme(UiRuntime::current(), palette);
 }
 
-void UseDefaultDarkTheme(UiRuntime& runtime)
+void UseDefaultDarkTheme()
 {
-    SetTheme(runtime, DefaultDarkTheme());
+    SetTheme(DefaultDarkTheme());
 }
 
-void RequestThemeReapply(UiRuntime& runtime)
+void RequestThemeReapply()
 {
-    bridge::RequestThemeReapply(runtime);
+    bridge::RequestThemeReapply(UiRuntime::current());
 }
 
-const ThemePalette& CurrentTheme(UiRuntime& runtime)
+const ThemePalette& CurrentTheme()
 {
-    return bridge::CurrentTheme(runtime);
+    return bridge::CurrentTheme(UiRuntime::current());
 }
 
 }  // namespace ui::theme

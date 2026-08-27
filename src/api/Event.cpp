@@ -10,6 +10,7 @@
 
 #include <utility>
 
+#include "core/UiRuntime.hpp"
 #include "helper/Helper.hpp"
 
 namespace ui::event
@@ -67,56 +68,56 @@ bool EventConnection::Connected() const noexcept
     return domain != nullptr && ui::detail::event_bridge::Connected(*domain, m_token);
 }
 
-EventId RegisterEvent(UiRuntime& runtime, std::string_view name)
+EventId RegisterEvent(std::string_view name)
 {
-    return ui::detail::event_bridge::RegisterEvent(runtime, name);
+    return ui::detail::event_bridge::RegisterEvent(UiRuntime::current(), name);
 }
 
-bool IsEventRegistered(UiRuntime& runtime, EventId eventId)
+bool IsEventRegistered(EventId eventId)
 {
-    return ui::detail::event_bridge::IsEventRegistered(runtime, eventId);
+    return ui::detail::event_bridge::IsEventRegistered(UiRuntime::current(), eventId);
 }
 
-bool IsEventRegistered(UiRuntime& runtime, std::string_view name)
+bool IsEventRegistered(std::string_view name)
 {
-    return ui::detail::event_bridge::IsEventRegistered(runtime, name);
+    return ui::detail::event_bridge::IsEventRegistered(UiRuntime::current(), name);
 }
 
-EventConnection On(UiRuntime& runtime, EventId eventId, EventCallback callback)
+EventConnection On(EventId eventId, EventCallback callback)
 {
-    auto connection = ui::detail::event_bridge::Connect(runtime, eventId, std::move(callback));
+    auto connection = ui::detail::event_bridge::Connect(UiRuntime::current(), eventId, std::move(callback));
     return EventConnection{std::move(connection.domain), connection.token};
 }
 
-EventConnection On(UiRuntime& runtime, std::string_view name, EventCallback callback)
+EventConnection On(std::string_view name, EventCallback callback)
 {
-    auto connection = ui::detail::event_bridge::Connect(runtime, name, std::move(callback));
+    auto connection = ui::detail::event_bridge::Connect(UiRuntime::current(), name, std::move(callback));
     return EventConnection{std::move(connection.domain), connection.token};
 }
 
-void Trigger(UiRuntime& runtime, EventId eventId, EventPayload payload)
+void Trigger(EventId eventId, EventPayload payload)
 {
-    ui::detail::event_bridge::Trigger(runtime, eventId, std::move(payload));
+    ui::detail::event_bridge::Trigger(UiRuntime::current(), eventId, std::move(payload));
 }
 
-void Trigger(UiRuntime& runtime, std::string_view name, EventPayload payload)
+void Trigger(std::string_view name, EventPayload payload)
 {
-    ui::detail::event_bridge::Trigger(runtime, name, std::move(payload));
+    ui::detail::event_bridge::Trigger(UiRuntime::current(), name, std::move(payload));
 }
 
-void Enqueue(UiRuntime& runtime, EventId eventId, EventPayload payload)
+void Enqueue(EventId eventId, EventPayload payload)
 {
-    ui::detail::event_bridge::Enqueue(runtime, eventId, std::move(payload));
+    ui::detail::event_bridge::Enqueue(UiRuntime::current(), eventId, std::move(payload));
 }
 
-void Enqueue(UiRuntime& runtime, std::string_view name, EventPayload payload)
+void Enqueue(std::string_view name, EventPayload payload)
 {
-    ui::detail::event_bridge::Enqueue(runtime, name, std::move(payload));
+    ui::detail::event_bridge::Enqueue(UiRuntime::current(), name, std::move(payload));
 }
 
-void DispatchQueued(UiRuntime& runtime)
+void DispatchQueued()
 {
-    ui::detail::event_bridge::DispatchQueued(runtime);
+    ui::detail::event_bridge::DispatchQueued(UiRuntime::current());
 }
 
 }  // namespace ui::event

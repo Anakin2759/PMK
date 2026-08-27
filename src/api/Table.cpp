@@ -9,84 +9,91 @@
 namespace ui::table
 {
 
-void SetColumns(UiRuntime& runtime, ui::entity entity, int count, std::vector<std::string> headers)
+namespace
 {
-    detail::table::SetColumns(runtime.registry(), detail::ToInternal(entity), count, std::move(headers));
+Registry& CurrentRegistry()
+{
+    return UiRuntime::current().registry();
+}
+}  // namespace
+
+void SetColumns(ui::entity entity, int count, std::vector<std::string> headers)
+{
+    detail::table::SetColumns(CurrentRegistry(), detail::ToInternal(entity), count, std::move(headers));
 }
 
 
-void SetColumnWidths(UiRuntime& runtime, ui::entity entity, std::vector<float> widths)
+void SetColumnWidths(ui::entity entity, std::vector<float> widths)
 {
-    detail::table::SetColumnWidths(runtime.registry(), detail::ToInternal(entity), std::move(widths));
+    detail::table::SetColumnWidths(CurrentRegistry(), detail::ToInternal(entity), std::move(widths));
 }
 
 
-void AddRow(UiRuntime& runtime, ui::entity entity, std::vector<std::string> texts)
+void AddRow(ui::entity entity, std::vector<std::string> texts)
 {
-    detail::table::AddRow(runtime.registry(), detail::ToInternal(entity), std::move(texts));
+    detail::table::AddRow(CurrentRegistry(), detail::ToInternal(entity), std::move(texts));
 }
 
 
-void SetCell(UiRuntime& runtime, ui::entity entity, int row, int col, std::string text)
+void SetCell(ui::entity entity, int row, int col, std::string text)
 {
-    detail::table::SetCell(runtime.registry(), detail::ToInternal(entity), row, col, std::move(text));
+    detail::table::SetCell(CurrentRegistry(), detail::ToInternal(entity), row, col, std::move(text));
 }
 
 
-void SetCellColor(UiRuntime& runtime, ui::entity entity, int row, int col, Color textColor, Color bgColor)
+void SetCellColor(ui::entity entity, int row, int col, Color textColor, Color bgColor)
 {
-    detail::table::SetCellColor(runtime.registry(), detail::ToInternal(entity), row, col, textColor, bgColor);
+    detail::table::SetCellColor(CurrentRegistry(), detail::ToInternal(entity), row, col, textColor, bgColor);
 }
 
 
-void ClearRows(UiRuntime& runtime, ui::entity entity)
+void ClearRows(ui::entity entity)
 {
-    detail::table::ClearRows(runtime.registry(), detail::ToInternal(entity));
+    detail::table::ClearRows(CurrentRegistry(), detail::ToInternal(entity));
 }
 
 
-void SetSelectedRow(UiRuntime& runtime, ui::entity entity, int row)
+void SetSelectedRow(ui::entity entity, int row)
 {
-    detail::table::SetSelectedRow(runtime.registry(), detail::ToInternal(entity), row);
+    detail::table::SetSelectedRow(CurrentRegistry(), detail::ToInternal(entity), row);
 }
 
 
-void SetHeaderTextColor(UiRuntime& runtime, ui::entity entity, Color color)
+void SetHeaderTextColor(ui::entity entity, Color color)
 {
-    detail::table::SetHeaderTextColor(runtime.registry(), detail::ToInternal(entity), color);
+    detail::table::SetHeaderTextColor(CurrentRegistry(), detail::ToInternal(entity), color);
 }
 
 
-void SetColumnSizing(UiRuntime& runtime, ui::entity entity, policies::TableColumnSizing sizing)
+void SetColumnSizing(ui::entity entity, policies::TableColumnSizing sizing)
 {
-    detail::table::SetColumnSizing(runtime.registry(), detail::ToInternal(entity), sizing);
+    detail::table::SetColumnSizing(CurrentRegistry(), detail::ToInternal(entity), sizing);
 }
 
 
-void SetMinColumnWidths(UiRuntime& runtime, ui::entity entity, std::vector<float> minColumnWidths)
+void SetMinColumnWidths(ui::entity entity, std::vector<float> minColumnWidths)
 {
     detail::table::SetMinColumnWidths(
-        runtime.registry(), detail::ToInternal(entity), std::move(minColumnWidths));
+        CurrentRegistry(), detail::ToInternal(entity), std::move(minColumnWidths));
 }
 
 
-void SetMinRowHeight(UiRuntime& runtime, ui::entity entity, float height)
+void SetMinRowHeight(ui::entity entity, float height)
 {
-    detail::table::SetMinRowHeight(runtime.registry(), detail::ToInternal(entity), height);
+    detail::table::SetMinRowHeight(CurrentRegistry(), detail::ToInternal(entity), height);
 }
 
 
-void SetRowHeight(UiRuntime& runtime, ui::entity entity, float height)
+void SetRowHeight(ui::entity entity, float height)
 {
-    detail::table::SetRowHeight(runtime.registry(), detail::ToInternal(entity), height);
+    detail::table::SetRowHeight(CurrentRegistry(), detail::ToInternal(entity), height);
 }
 
 
-void SetCellWidget(
-    UiRuntime& runtime, ui::entity tableEntity, int row, int col, ui::entity widgetEntity)
+void SetCellWidget(ui::entity tableEntity, int row, int col, ui::entity widgetEntity)
 {
     detail::table::SetCellWidget(
-        runtime.registry(),
+        CurrentRegistry(),
         detail::ToInternal(tableEntity),
         row,
         col,

@@ -27,25 +27,25 @@
 
 namespace ui::animation
 {
-void StartPositionAnimation(UiRuntime& runtime, ui::entity entity, const Vec2& startPos, const Vec2& endPos,
+void StartPositionAnimation(ui::entity entity, const Vec2& startPos, const Vec2& endPos,
                             const TweenOptions& options = {});
-void StartAlphaAnimation(UiRuntime& runtime, ui::entity entity, float startAlpha, float endAlpha,
+void StartAlphaAnimation(ui::entity entity, float startAlpha, float endAlpha,
                          const TweenOptions& options = {});
-void StartScaleAnimation(UiRuntime& runtime, ui::entity entity, const Vec2& startScale, const Vec2& endScale,
+void StartScaleAnimation(ui::entity entity, const Vec2& startScale, const Vec2& endScale,
                          const TweenOptions& options = {});
-void StartRenderOffsetAnimation(UiRuntime& runtime, ui::entity entity, const Vec2& startOffset, const Vec2& endOffset,
+void StartRenderOffsetAnimation(ui::entity entity, const Vec2& startOffset, const Vec2& endOffset,
                                 const TweenOptions& options = {});
-void StartColorAnimation(UiRuntime& runtime, ui::entity entity, const Color& startColor, const Color& endColor,
+void StartColorAnimation(ui::entity entity, const Color& startColor, const Color& endColor,
                          const TweenOptions& options = {});
-void StartTransformAnimation(UiRuntime& runtime, ui::entity entity, const std::optional<Vec2>& targetScale,
+void StartTransformAnimation(ui::entity entity, const std::optional<Vec2>& targetScale,
                              const std::optional<Vec2>& targetOffset, const TweenOptions& options = {},
                              const Vec2& defaultScale = {1.0F, 1.0F}, const Vec2& defaultOffset = {0.0F, 0.0F});
-void StopAnimation(UiRuntime& runtime, ui::entity entity);
-void PauseAnimation(UiRuntime& runtime, ui::entity entity);
-void ResumeAnimation(UiRuntime& runtime, ui::entity entity);
-void FinishAnimation(UiRuntime& runtime, ui::entity entity, bool settleToEnd = false);
-void CancelAnimation(UiRuntime& runtime, ui::entity entity, bool settleToEnd = false);
-void SetAnimationCallbacks(UiRuntime& runtime, ui::entity entity, ui::Callback<> onComplete,
+void StopAnimation(ui::entity entity);
+void PauseAnimation(ui::entity entity);
+void ResumeAnimation(ui::entity entity);
+void FinishAnimation(ui::entity entity, bool settleToEnd = false);
+void CancelAnimation(ui::entity entity, bool settleToEnd = false);
+void SetAnimationCallbacks(ui::entity entity, ui::Callback<> onComplete,
                            ui::Callback<> onCancel = {}, ui::Callback<> onStart = {});
 
 }  // namespace ui::animation
@@ -57,7 +57,7 @@ inline constexpr EntityAction<&ui::animation::StartAlphaAnimation> START_ALPHA_A
 inline constexpr EntityAction<&ui::animation::StartScaleAnimation> START_SCALE_ANIMATION_ACTION{};
 inline constexpr EntityAction<&ui::animation::StartRenderOffsetAnimation> START_RENDER_OFFSET_ANIMATION_ACTION{};
 inline constexpr EntityAction<&ui::animation::StartColorAnimation> START_COLOR_ANIMATION_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, const std::optional<Vec2>&,
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, const std::optional<Vec2>&,
                                                    const std::optional<Vec2>&, const ui::animation::TweenOptions&,
                                                    const Vec2&, const Vec2&)>(
     &ui::animation::StartTransformAnimation)>

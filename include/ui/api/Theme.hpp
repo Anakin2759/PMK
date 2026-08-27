@@ -19,11 +19,6 @@
 #include "ui/Color.hpp"
 #include "ui/MathTypes.hpp"
 
-namespace ui
-{
-class UiRuntime;
-}
-
 namespace ui::theme
 {
 struct ThemePalette
@@ -87,8 +82,8 @@ struct ThemeContext
 };
 
 [[nodiscard]] ThemePalette DefaultDarkTheme();
-void SetTheme(UiRuntime& runtime, const ThemePalette& palette);
-void UseDefaultDarkTheme(UiRuntime& runtime);
-void RequestThemeReapply(UiRuntime& runtime);
-[[nodiscard]] const ThemePalette& CurrentTheme(UiRuntime& runtime);
+void SetTheme(const ThemePalette& palette);
+void UseDefaultDarkTheme();
+void RequestThemeReapply();
+[[nodiscard]] const ThemePalette& CurrentTheme();
 }  // namespace ui::theme

@@ -17,21 +17,16 @@
 #include "ui/api/Entity.hpp"
 #include "ui/api/Chains.hpp"
 
-namespace ui
-{
-class UiRuntime;
-}
-
 namespace ui::hierarchy
 {
-void RemoveChild(UiRuntime& runtime, ui::entity parent, ui::entity child);
-void AddChild(UiRuntime& runtime, ui::entity parent, ui::entity child);
-[[nodiscard]] std::vector<ui::entity> ChildrenPostOrder(UiRuntime& runtime, ui::entity parent);
+void RemoveChild(ui::entity parent, ui::entity child);
+void AddChild(ui::entity parent, ui::entity child);
+[[nodiscard]] std::vector<ui::entity> ChildrenPostOrder(ui::entity parent);
 
 template <typename Func>
-void TraverseChildren(UiRuntime& runtime, ui::entity parent, Func visitor)
+void TraverseChildren(ui::entity parent, Func visitor)
 {
-    for (const ui::entity child : ChildrenPostOrder(runtime, parent))
+    for (const ui::entity child : ChildrenPostOrder(parent))
     {
         visitor(child);
     }
@@ -43,9 +38,9 @@ template <typename ParentEntity, typename ChildEntity>
              (std::is_enum_v<std::remove_cvref_t<ParentEntity>> ||
               std::is_integral_v<std::remove_cvref_t<ParentEntity>>) &&
              (std::is_enum_v<std::remove_cvref_t<ChildEntity>> || std::is_integral_v<std::remove_cvref_t<ChildEntity>>))
-void AddChild(UiRuntime& runtime, ParentEntity parent, ChildEntity child)
+void AddChild(ParentEntity parent, ChildEntity child)
 {
-    AddChild(runtime, static_cast<ui::entity>(parent), static_cast<ui::entity>(child));
+    AddChild(static_cast<ui::entity>(parent), static_cast<ui::entity>(child));
 }
 
 template <typename ParentEntity, typename ChildEntity>
@@ -54,17 +49,17 @@ template <typename ParentEntity, typename ChildEntity>
              (std::is_enum_v<std::remove_cvref_t<ParentEntity>> ||
               std::is_integral_v<std::remove_cvref_t<ParentEntity>>) &&
              (std::is_enum_v<std::remove_cvref_t<ChildEntity>> || std::is_integral_v<std::remove_cvref_t<ChildEntity>>))
-void RemoveChild(UiRuntime& runtime, ParentEntity parent, ChildEntity child)
+void RemoveChild(ParentEntity parent, ChildEntity child)
 {
-    RemoveChild(runtime, static_cast<ui::entity>(parent), static_cast<ui::entity>(child));
+    RemoveChild(static_cast<ui::entity>(parent), static_cast<ui::entity>(child));
 }
 }  // namespace ui::hierarchy
 
 namespace ui::actions::hierarchy
 {
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, ui::entity)>(&ui::hierarchy::AddChild)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, ui::entity)>(&ui::hierarchy::AddChild)>
     ADD_CHILD_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, ui::entity)>(&ui::hierarchy::RemoveChild)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, ui::entity)>(&ui::hierarchy::RemoveChild)>
     REMOVE_CHILD_ACTION{};
 }  // namespace ui::actions::hierarchy
 

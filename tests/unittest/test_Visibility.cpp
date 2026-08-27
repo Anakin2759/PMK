@@ -10,6 +10,7 @@
 #include "src/common/Policies.hpp"
 #include "src/common/Tags.hpp"
 #include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 #include "src/core/WindowSync.hpp"
 
 #include <limits>
@@ -23,9 +24,14 @@ namespace
 class VisibilityTest : public ::testing::Test
 {
    protected:
-    [[nodiscard]] UiRuntime& runtime() noexcept
+    void SetUp() override
     {
-        return m_runtime;
+        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
+    }
+
+    void TearDown() override
+    {
+        m_scope.reset();
     }
 
     [[nodiscard]] Registry& registry() noexcept
@@ -35,6 +41,7 @@ class VisibilityTest : public ::testing::Test
 
    private:
     UiRuntime m_runtime;
+    std::unique_ptr<UiRuntimeScope> m_scope;
 };
 
 }  // namespace
@@ -43,21 +50,21 @@ class VisibilityTest : public ::testing::Test
 
 TEST_F(VisibilityTest, ShowAddsVisibleTag)
 {
-    const auto entity = factory::CreateLabel(runtime(), "Lbl", "vis_show_1");
+    const auto entity = factory::CreateLabel("Lbl", "vis_show_1");
     registry().remove<components::VisibleTag>(entity);
 
-    visibility::Show(runtime(), entity);
+    visibility::Show(entity);
 
     EXPECT_TRUE(registry().all_of<components::VisibleTag>(entity));
 }
 
 TEST_F(VisibilityTest, ShowTriggersDirtyMarks)
 {
-    const auto entity = factory::CreateLabel(runtime(), "Lbl", "vis_show_dirty");
+    const auto entity = factory::CreateLabel("Lbl", "vis_show_dirty");
     registry().remove<components::LayoutDirtyTag>(entity);
     registry().remove<components::RenderDirtyTag>(entity);
 
-    visibility::Show(runtime(), entity);
+    visibility::Show(entity);
 
     EXPECT_TRUE(registry().all_of<components::LayoutDirtyTag>(entity));
     EXPECT_TRUE(registry().all_of<components::RenderDirtyTag>(entity));
@@ -65,21 +72,21 @@ TEST_F(VisibilityTest, ShowTriggersDirtyMarks)
 
 TEST_F(VisibilityTest, HideRemovesVisibleTag)
 {
-    const auto entity = factory::CreateLabel(runtime(), "Lbl", "vis_hide_1");
+    const auto entity = factory::CreateLabel("Lbl", "vis_hide_1");
     registry().emplace_or_replace<components::VisibleTag>(entity);
 
-    visibility::Hide(runtime(), entity);
+    visibility::Hide(entity);
 
     EXPECT_FALSE(registry().all_of<components::VisibleTag>(entity));
 }
 
 TEST_F(VisibilityTest, HideTriggersDirtyMarks)
 {
-    const auto entity = factory::CreateLabel(runtime(), "Lbl", "vis_hide_dirty");
+    const auto entity = factory::CreateLabel("Lbl", "vis_hide_dirty");
     registry().remove<components::LayoutDirtyTag>(entity);
     registry().remove<components::RenderDirtyTag>(entity);
 
-    visibility::Hide(runtime(), entity);
+    visibility::Hide(entity);
 
     EXPECT_TRUE(registry().all_of<components::LayoutDirtyTag>(entity));
     EXPECT_TRUE(registry().all_of<components::RenderDirtyTag>(entity));
@@ -87,32 +94,32 @@ TEST_F(VisibilityTest, HideTriggersDirtyMarks)
 
 TEST_F(VisibilityTest, SetVisibleTrueEquivalentToShow)
 {
-    const auto entity = factory::CreateLabel(runtime(), "Lbl", "vis_set_true");
+    const auto entity = factory::CreateLabel("Lbl", "vis_set_true");
     registry().remove<components::VisibleTag>(entity);
 
-    visibility::SetVisible(runtime(), entity, true);
+    visibility::SetVisible(entity, true);
 
     EXPECT_TRUE(registry().all_of<components::VisibleTag>(entity));
 }
 
 TEST_F(VisibilityTest, SetVisibleFalseEquivalentToHide)
 {
-    const auto entity = factory::CreateLabel(runtime(), "Lbl", "vis_set_false");
+    const auto entity = factory::CreateLabel("Lbl", "vis_set_false");
     registry().emplace_or_replace<components::VisibleTag>(entity);
 
-    visibility::SetVisible(runtime(), entity, false);
+    visibility::SetVisible(entity, false);
 
     EXPECT_FALSE(registry().all_of<components::VisibleTag>(entity));
 }
 
 TEST_F(VisibilityTest, ShowOnInvalidEntityIsNoOp)
 {
-    EXPECT_NO_FATAL_FAILURE(visibility::Show(runtime(), entt::null));
+    EXPECT_NO_FATAL_FAILURE(visibility::Show(entt::null));
 }
 
 TEST_F(VisibilityTest, HideOnInvalidEntityIsNoOp)
 {
-    EXPECT_NO_FATAL_FAILURE(visibility::Hide(runtime(), entt::null));
+    EXPECT_NO_FATAL_FAILURE(visibility::Hide(entt::null));
 }
 
 TEST_F(VisibilityTest, WindowSizeTargetUsesPositiveEcsSize)
@@ -164,9 +171,9 @@ TEST_F(VisibilityTest, WindowSizeTargetRejectsNonFiniteSize)
 
 TEST_F(VisibilityTest, SetAlphaStoresValue)
 {
-    const auto entity = factory::CreateLabel(runtime(), "A", "vis_alpha_1");
+    const auto entity = factory::CreateLabel("A", "vis_alpha_1");
 
-    visibility::SetAlpha(runtime(), entity, 0.5F);
+    visibility::SetAlpha(entity, 0.5F);
 
     const auto* alpha = registry().try_get<components::Alpha>(entity);
     ASSERT_NE(alpha, nullptr);
@@ -175,9 +182,9 @@ TEST_F(VisibilityTest, SetAlphaStoresValue)
 
 TEST_F(VisibilityTest, SetAlphaClampsBelowZero)
 {
-    const auto entity = factory::CreateLabel(runtime(), "A", "vis_alpha_clamp_low");
+    const auto entity = factory::CreateLabel("A", "vis_alpha_clamp_low");
 
-    visibility::SetAlpha(runtime(), entity, -0.5F);
+    visibility::SetAlpha(entity, -0.5F);
 
     const auto* alpha = registry().try_get<components::Alpha>(entity);
     ASSERT_NE(alpha, nullptr);
@@ -186,9 +193,9 @@ TEST_F(VisibilityTest, SetAlphaClampsBelowZero)
 
 TEST_F(VisibilityTest, SetAlphaClampsAboveOne)
 {
-    const auto entity = factory::CreateLabel(runtime(), "A", "vis_alpha_clamp_high");
+    const auto entity = factory::CreateLabel("A", "vis_alpha_clamp_high");
 
-    visibility::SetAlpha(runtime(), entity, 1.8F);
+    visibility::SetAlpha(entity, 1.8F);
 
     const auto* alpha = registry().try_get<components::Alpha>(entity);
     ASSERT_NE(alpha, nullptr);
@@ -197,17 +204,17 @@ TEST_F(VisibilityTest, SetAlphaClampsAboveOne)
 
 TEST_F(VisibilityTest, SetAlphaOnInvalidEntityIsNoOp)
 {
-    EXPECT_NO_FATAL_FAILURE(visibility::SetAlpha(runtime(), entt::null, 0.5F));
+    EXPECT_NO_FATAL_FAILURE(visibility::SetAlpha(entt::null, 0.5F));
 }
 
 // ===================== SetBackgroundColor =====================
 
 TEST_F(VisibilityTest, SetBackgroundColorStoresColorAndEnablesBackground)
 {
-    const auto entity = factory::CreateLabel(runtime(), "B", "vis_bg_1");
+    const auto entity = factory::CreateLabel("B", "vis_bg_1");
     const Color red{1.0F, 0.0F, 0.0F, 1.0F};
 
-    visibility::SetBackgroundColor(runtime(), entity, red);
+    visibility::SetBackgroundColor(entity, red);
 
     const auto* background = registry().try_get<components::Background>(entity);
     ASSERT_NE(background, nullptr);
@@ -219,10 +226,10 @@ TEST_F(VisibilityTest, SetBackgroundColorStoresColorAndEnablesBackground)
 
 TEST_F(VisibilityTest, SetBackgroundColorTriggersRenderDirty)
 {
-    const auto entity = factory::CreateLabel(runtime(), "B", "vis_bg_dirty");
+    const auto entity = factory::CreateLabel("B", "vis_bg_dirty");
     registry().remove<components::RenderDirtyTag>(entity);
 
-    visibility::SetBackgroundColor(runtime(), entity, {0.2F, 0.4F, 0.6F, 1.0F});
+    visibility::SetBackgroundColor(entity, {0.2F, 0.4F, 0.6F, 1.0F});
 
     EXPECT_TRUE(registry().all_of<components::RenderDirtyTag>(entity));
 }
@@ -231,9 +238,9 @@ TEST_F(VisibilityTest, SetBackgroundColorTriggersRenderDirty)
 
 TEST_F(VisibilityTest, SetBorderRadiusAppliesUniformRadiusToBackground)
 {
-    const auto entity = factory::CreateLabel(runtime(), "R", "vis_radius_1");
+    const auto entity = factory::CreateLabel("R", "vis_radius_1");
 
-    visibility::SetBorderRadius(runtime(), entity, 8.0F);
+    visibility::SetBorderRadius(entity, 8.0F);
 
     const auto* background = registry().try_get<components::Background>(entity);
     ASSERT_NE(background, nullptr);
@@ -245,9 +252,9 @@ TEST_F(VisibilityTest, SetBorderRadiusAppliesUniformRadiusToBackground)
 
 TEST_F(VisibilityTest, SetBorderRadiusNegativeValueClampsToZero)
 {
-    const auto entity = factory::CreateLabel(runtime(), "R", "vis_radius_clamp");
+    const auto entity = factory::CreateLabel("R", "vis_radius_clamp");
 
-    visibility::SetBorderRadius(runtime(), entity, -5.0F);
+    visibility::SetBorderRadius(entity, -5.0F);
 
     const auto* background = registry().try_get<components::Background>(entity);
     ASSERT_NE(background, nullptr);
@@ -258,10 +265,10 @@ TEST_F(VisibilityTest, SetBorderRadiusNegativeValueClampsToZero)
 
 TEST_F(VisibilityTest, SetBorderColorStoresColorAndEnablesBorder)
 {
-    const auto entity = factory::CreateLabel(runtime(), "BC", "vis_border_color");
+    const auto entity = factory::CreateLabel("BC", "vis_border_color");
     const Color blue{0.0F, 0.0F, 1.0F, 1.0F};
 
-    visibility::SetBorderColor(runtime(), entity, blue);
+    visibility::SetBorderColor(entity, blue);
 
     const auto* border = registry().try_get<components::Border>(entity);
     ASSERT_NE(border, nullptr);
@@ -273,9 +280,9 @@ TEST_F(VisibilityTest, SetBorderColorStoresColorAndEnablesBorder)
 
 TEST_F(VisibilityTest, SetBorderThicknessStoresValueAndEnablesBorder)
 {
-    const auto entity = factory::CreateLabel(runtime(), "BT", "vis_border_thick");
+    const auto entity = factory::CreateLabel("BT", "vis_border_thick");
 
-    visibility::SetBorderThickness(runtime(), entity, 3.0F);
+    visibility::SetBorderThickness(entity, 3.0F);
 
     const auto* border = registry().try_get<components::Border>(entity);
     ASSERT_NE(border, nullptr);

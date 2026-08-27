@@ -5,7 +5,7 @@ namespace ui::tests
 
 TEST_F(ThemeSystemTest, AppliesDefaultButtonThemeOnUpdate)
 {
-    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button");
+    const auto buttonResult = factory::CreateButton("Theme", "theme_button");
     ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
     const auto button = buttonResult->raw;
 
@@ -31,11 +31,11 @@ TEST_F(ThemeSystemTest, AppliesDefaultButtonThemeOnUpdate)
 
 TEST_F(ThemeSystemTest, ExplicitStyleIsNotOverriddenOnFirstApply)
 {
-    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_explicit");
+    const auto buttonResult = factory::CreateButton("Theme", "theme_button_explicit");
     ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
     const auto button = buttonResult->raw;
-    visibility::SetBackgroundColor(runtime(), button, Color::Red());
-    text::SetTextColor(runtime(), button, Color::Yellow());
+    visibility::SetBackgroundColor(button, Color::Red());
+    text::SetTextColor(button, Color::Yellow());
 
     triggerThemeUpdate();
 
@@ -52,7 +52,7 @@ TEST_F(ThemeSystemTest, ExplicitStyleIsNotOverriddenOnFirstApply)
 
 TEST_F(ThemeSystemTest, SetThemeReappliesThemeOwnedValues)
 {
-    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_reapply");
+    const auto buttonResult = factory::CreateButton("Theme", "theme_button_reapply");
     ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
     const auto button = buttonResult->raw;
 
@@ -78,12 +78,12 @@ TEST_F(ThemeSystemTest, SetThemeReappliesThemeOwnedValues)
 
 TEST_F(ThemeSystemTest, SetThemeDoesNotOverwriteExplicitOverrideAfterFirstApply)
 {
-    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_override");
+    const auto buttonResult = factory::CreateButton("Theme", "theme_button_override");
     ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
     const auto button = buttonResult->raw;
 
     triggerThemeUpdate();
-    visibility::SetBackgroundColor(runtime(), button, Color::Red());
+    visibility::SetBackgroundColor(button, Color::Red());
 
     auto newTheme = theme::DefaultDarkTheme();
     newTheme.primaryButtonBackground = Color::Green();
@@ -99,7 +99,7 @@ TEST_F(ThemeSystemTest, SetThemeDoesNotOverwriteExplicitOverrideAfterFirstApply)
 
 TEST_F(ThemeSystemTest, ButtonHoverAndActiveUseThemeStateColors)
 {
-    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_states");
+    const auto buttonResult = factory::CreateButton("Theme", "theme_button_states");
     ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
     const auto button = buttonResult->raw;
 
@@ -146,7 +146,7 @@ TEST_F(ThemeSystemTest, ButtonHoverAndActiveUseThemeStateColors)
 
 TEST_F(ThemeSystemTest, ButtonDisabledUsesDisabledThemeColors)
 {
-    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_disabled");
+    const auto buttonResult = factory::CreateButton("Theme", "theme_button_disabled");
     ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
     const auto button = buttonResult->raw;
 

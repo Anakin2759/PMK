@@ -14,7 +14,6 @@
 namespace ui
 {
 class ApplicationImpl;
-class UiRuntime;
 
 namespace events
 {
@@ -33,9 +32,6 @@ class Application
 
     void onQuitRequested([[maybe_unused]] ui::events::QuitRequested& event);
     void exec();
-
-    [[nodiscard]] UiRuntime& runtime() noexcept;
-    [[nodiscard]] const UiRuntime& runtime() const noexcept;
 
    private:
     std::unique_ptr<ApplicationImpl> m_impl;

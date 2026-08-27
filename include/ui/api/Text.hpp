@@ -13,69 +13,64 @@
 #include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
 
-namespace ui
-{
-class UiRuntime;
-}
-
 namespace ui::text
 {
-void SetText(UiRuntime& runtime, ui::entity entity, const std::string& content);
-void SetButtonEnabled(UiRuntime& runtime, ui::entity entity, bool enabled);
-void SetTextContent(UiRuntime& runtime, ui::entity entity, const std::string& content);
-void SetTextWordWrap(UiRuntime& runtime, ui::entity entity, policies::TextWrap mode);
-void SetTextAlignment(UiRuntime& runtime, ui::entity entity, policies::Alignment alignment);
-void SetTextColor(UiRuntime& runtime, ui::entity entity, const Color& color);
-std::string GetTextEditContent(UiRuntime& runtime, ui::entity entity);
-void SetTextEditContent(UiRuntime& runtime, ui::entity entity, const std::string& content);
-void SetPasswordMode(UiRuntime& runtime, ui::entity entity, policies::TextFlag enabled);
-void SetClickCallback(UiRuntime& runtime, ui::entity entity, Callback<> callback);
-void SetOnSubmit(UiRuntime& runtime, ui::entity entity, Callback<> callback);
-void SetOnTextChanged(UiRuntime& runtime, ui::entity entity, Callback<const std::string&> callback);
-void SetLineHeight(UiRuntime& runtime, ui::entity entity, float height);
-void SetCharacterSpacing(UiRuntime& runtime, ui::entity entity, float spacing);
-void SetTextWrapWidth(UiRuntime& runtime, ui::entity entity, float width);
-void SetFontSize(UiRuntime& runtime, ui::entity entity, float size);
+void SetText(ui::entity entity, const std::string& content);
+void SetButtonEnabled(ui::entity entity, bool enabled);
+void SetTextContent(ui::entity entity, const std::string& content);
+void SetTextWordWrap(ui::entity entity, policies::TextWrap mode);
+void SetTextAlignment(ui::entity entity, policies::Alignment alignment);
+void SetTextColor(ui::entity entity, const Color& color);
+std::string GetTextEditContent(ui::entity entity);
+void SetTextEditContent(ui::entity entity, const std::string& content);
+void SetPasswordMode(ui::entity entity, policies::TextFlag enabled);
+void SetClickCallback(ui::entity entity, Callback<> callback);
+void SetOnSubmit(ui::entity entity, Callback<> callback);
+void SetOnTextChanged(ui::entity entity, Callback<const std::string&> callback);
+void SetLineHeight(ui::entity entity, float height);
+void SetCharacterSpacing(ui::entity entity, float spacing);
+void SetTextWrapWidth(ui::entity entity, float width);
+void SetFontSize(ui::entity entity, float size);
 }  // namespace ui::text
 
 namespace ui::actions::text
 {
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, const std::string&)>(
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, const std::string&)>(
     &ui::text::SetText)>
     SET_TEXT_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, bool)>(&ui::text::SetButtonEnabled)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, bool)>(&ui::text::SetButtonEnabled)>
     SET_BUTTON_ENABLED_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, const std::string&)>(
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, const std::string&)>(
     &ui::text::SetTextContent)>
     SET_TEXT_CONTENT_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, policies::TextWrap)>(
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, policies::TextWrap)>(
     &ui::text::SetTextWordWrap)>
     SET_TEXT_WORD_WRAP_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, policies::Alignment)>(
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, policies::Alignment)>(
     &ui::text::SetTextAlignment)>
     SET_TEXT_ALIGNMENT_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, const Color&)>(&ui::text::SetTextColor)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, const Color&)>(&ui::text::SetTextColor)>
     SET_TEXT_COLOR_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, const std::string&)>(
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, const std::string&)>(
     &ui::text::SetTextEditContent)>
     SET_TEXT_EDIT_CONTENT_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, policies::TextFlag)>(
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, policies::TextFlag)>(
     &ui::text::SetPasswordMode)>
     SET_PASSWORD_MODE_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, Callback<>)>(&ui::text::SetClickCallback)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, Callback<>)>(&ui::text::SetClickCallback)>
     SET_CLICK_CALLBACK_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, Callback<>)>(&ui::text::SetOnSubmit)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, Callback<>)>(&ui::text::SetOnSubmit)>
     SET_ON_SUBMIT_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, Callback<const std::string&>)>(
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, Callback<const std::string&>)>(
     &ui::text::SetOnTextChanged)>
     SET_ON_TEXT_CHANGED_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, float)>(&ui::text::SetLineHeight)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, float)>(&ui::text::SetLineHeight)>
     SET_LINE_HEIGHT_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, float)>(&ui::text::SetCharacterSpacing)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, float)>(&ui::text::SetCharacterSpacing)>
     SET_CHARACTER_SPACING_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, float)>(&ui::text::SetTextWrapWidth)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, float)>(&ui::text::SetTextWrapWidth)>
     SET_TEXT_WRAP_WIDTH_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, float)>(&ui::text::SetFontSize)>
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, float)>(&ui::text::SetFontSize)>
     SET_FONT_SIZE_ACTION{};
 }  // namespace ui::actions::text
 

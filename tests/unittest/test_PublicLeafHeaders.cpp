@@ -38,7 +38,7 @@ TEST(PublicLeafHeadersTest, HeadersCompileFromStableIncludePaths)
 TEST(PublicCanvasPainterTest, KeepsFluentContractWithoutAccessingRuntime)
 {
     using Painter = ui::canvas::Painter;
-    static_assert(std::is_constructible_v<Painter, ui::UiRuntime&, ui::entity>);
+    static_assert(std::is_constructible_v<Painter, ui::entity>);
     static_assert(std::is_same_v<decltype(&Painter::moveTo), Painter& (Painter::*)(ui::Vec2)>);
     static_assert(std::is_same_v<decltype(&Painter::lineTo), Painter& (Painter::*)(ui::Vec2)>);
     static_assert(std::is_same_v<decltype(&Painter::cubicTo), Painter& (Painter::*)(ui::Vec2, ui::Vec2, ui::Vec2)>);
@@ -60,12 +60,12 @@ TEST(PublicControlsTest, OwnershipBearingFunctionSignaturesRemainStable)
 {
     static_assert(
         std::is_same_v<decltype(&ui::controls::SetSliderOnValueChanged),
-                       void (*)(ui::UiRuntime&, ui::entity, ui::Callback<float>)>);
+                       void (*)(ui::entity, ui::Callback<float>)>);
     static_assert(
         std::is_same_v<decltype(&ui::controls::SetDropDownOptions),
-                       void (*)(ui::UiRuntime&, ui::entity, std::vector<std::string>)>);
+                       void (*)(ui::entity, std::vector<std::string>)>);
     static_assert(std::is_same_v<decltype(&ui::controls::SetOnDragMove),
-                                 void (*)(ui::UiRuntime&, ui::entity, ui::Callback<ui::Vec2>)>);
+                                 void (*)(ui::entity, ui::Callback<ui::Vec2>)>);
     SUCCEED();
 }
 

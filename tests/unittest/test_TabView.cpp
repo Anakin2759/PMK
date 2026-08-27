@@ -45,11 +45,6 @@ class TabViewTest : public ::testing::Test
         return m_runtime.registry();
     }
 
-    [[nodiscard]] UiRuntime& runtime() noexcept
-    {
-        return m_runtime;
-    }
-
    private:
     UiRuntime m_runtime;
     std::unique_ptr<UiRuntimeScope> m_scope;
@@ -58,7 +53,7 @@ class TabViewTest : public ::testing::Test
 TEST_F(TabViewTest, CreateTabViewBuildsHeadersAndPanels)
 {
     const std::vector<std::string> titles{"Tab A", "Tab B", "Tab C"};
-    const auto tabView = factory::CreateTabView(runtime(), titles, "tabview");
+    const auto tabView = factory::CreateTabView(titles, "tabview");
 
     EXPECT_TRUE(registry().all_of<components::TabViewTag>(tabView));
     const auto* view = registry().try_get<components::TabView>(tabView);
@@ -87,7 +82,7 @@ TEST_F(TabViewTest, CreateTabViewBuildsHeadersAndPanels)
 TEST_F(TabViewTest, InitialVisibilityOnlySelectedPanelVisible)
 {
     const std::vector<std::string> titles{"A", "B"};
-    const auto tabView = factory::CreateTabView(runtime(), titles, "tabview");
+    const auto tabView = factory::CreateTabView(titles, "tabview");
 
     const auto* view = registry().try_get<components::TabView>(tabView);
     ASSERT_NE(view, nullptr);
@@ -99,7 +94,7 @@ TEST_F(TabViewTest, InitialVisibilityOnlySelectedPanelVisible)
 TEST_F(TabViewTest, ClickTabSwitchesPanelAndFiresOnChanged)
 {
     const std::vector<std::string> titles{"A", "B"};
-    const auto tabView = factory::CreateTabView(runtime(), titles, "tabview");
+    const auto tabView = factory::CreateTabView(titles, "tabview");
 
     int observedIndex = -1;
     registry().get<components::TabView>(tabView).onChanged = [&observedIndex](int index) { observedIndex = index; };
@@ -134,15 +129,15 @@ TEST_F(TabViewTest, ClickTabSwitchesPanelAndFiresOnChanged)
 TEST_F(TabViewTest, GetTabContentReturnsPanel)
 {
     const std::vector<std::string> titles{"A", "B"};
-    const auto tabView = factory::CreateTabView(runtime(), titles, "tabview");
+    const auto tabView = factory::CreateTabView(titles, "tabview");
 
-    const auto panel = factory::GetTabContent(runtime(), tabView, 1);
+    const auto panel = factory::GetTabContent(tabView, 1);
     const auto* view = registry().try_get<components::TabView>(tabView);
     ASSERT_NE(view, nullptr);
     EXPECT_EQ(static_cast<entt::entity>(panel), view->contentPanels[1]);
 
     // 越界返回 null
-    EXPECT_EQ(factory::GetTabContent(runtime(), tabView, 99), ui::null_entity);
+    EXPECT_EQ(factory::GetTabContent(tabView, 99), ui::null_entity);
 }
 
 }  // namespace

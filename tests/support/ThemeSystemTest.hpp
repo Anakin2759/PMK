@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "src/core/UiRuntime.hpp"
+#include "src/core/UiRuntimeScope.hpp"
 
 #include <ui.hpp>
 
@@ -23,6 +24,7 @@ class ThemeSystemTest : public ::testing::Test
    protected:
     void SetUp() override
     {
+        m_scope = std::make_unique<UiRuntimeScope>(m_runtime);
         m_themeSystem = std::make_unique<systems::ThemeSystem>(m_runtime);
         m_themeSystem->registerHandlers();
     }
@@ -31,6 +33,7 @@ class ThemeSystemTest : public ::testing::Test
     {
         m_themeSystem->unregisterHandlers();
         m_themeSystem.reset();
+        m_scope.reset();
     }
 
     UiRuntime& runtime()
@@ -50,12 +53,12 @@ class ThemeSystemTest : public ::testing::Test
 
     const theme::ThemePalette& currentTheme()
     {
-        return theme::CurrentTheme(m_runtime);
+        return theme::CurrentTheme();
     }
 
     void setTheme(const theme::ThemePalette& palette)
     {
-        theme::SetTheme(m_runtime, palette);
+        theme::SetTheme(palette);
     }
 
     std::vector<entt::entity> popupChildren(ui::entity popupEntity)
@@ -71,6 +74,7 @@ class ThemeSystemTest : public ::testing::Test
 
    private:
     UiRuntime m_runtime;
+    std::unique_ptr<UiRuntimeScope> m_scope;
     std::unique_ptr<systems::ThemeSystem> m_themeSystem;
 };
 

@@ -47,43 +47,44 @@ std::atomic<ui::log::Level>& LevelStorage()
 namespace ui::log
 {
 
-void SetLevel(UiRuntime& /*runtime*/, Level level)
+void SetLevel(Level level)
 {
     LevelStorage().store(level, std::memory_order_relaxed);
 }
 
-void SetCallback(UiRuntime& /*runtime*/, Callback callback)
+void SetCallback(Callback callback)
 {
     CallbackStorage().store(callback, std::memory_order_relaxed);
 }
 
-void SetFilePath(UiRuntime& runtime, std::string_view path)
+void SetFilePath(std::string_view path)
 {
-    runtime.logger().reconfigure(path);
+    UiRuntime::current().logger().reconfigure(path);
 }
 
-void LogImpl(UiRuntime& runtime, Level level, std::string_view message)
+void LogImpl(Level level, std::string_view message)
 {
     if (level < LevelStorage().load(std::memory_order_relaxed))
         return;
 
+    auto& logger = UiRuntime::current().logger();
     // 转发到内部 spdlog Logger
     switch (level)
     {
         case Level::DEBUG:
-            runtime.logger().debug("{}", message);
+            logger.debug("{}", message);
             break;
         case Level::INFO:
-            runtime.logger().info("{}", message);
+            logger.info("{}", message);
             break;
         case Level::WARNING:
-            runtime.logger().warn("{}", message);
+            logger.warn("{}", message);
             break;
         case Level::ERROR:
-            runtime.logger().error("{}", message);
+            logger.error("{}", message);
             break;
         case Level::CRITICAL:
-            runtime.logger().error("[CRITICAL] {}", message);
+            logger.error("[CRITICAL] {}", message);
             break;
         default:
             break;

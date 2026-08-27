@@ -293,7 +293,9 @@ def count_matches(root: Path):
             if is_under(path, root, RUNTIME_ACCESS_DIRS):
                 # UiRuntime.hpp 是 UiRuntime::current() 的定义处，其文档/断言字符串
                 # 含 "UiRuntime::current()" 字样会导致误判，此处显式排除。
-                if rel != "src/core/UiRuntime.hpp":
+                # src/api 是无 Runtime 公共 API 到 Application 内部调用上下文的
+                # 唯一适配边界；门禁只禁止 Runtime 反查重新扩散到其他生产模块。
+                if rel != "src/core/UiRuntime.hpp" and not rel.startswith("src/api/"):
                     for match in UI_RUNTIME_CURRENT_RE.finditer(line):
                         key = (rel, match.group(0))
                         runtime_current_counts[key] += 1

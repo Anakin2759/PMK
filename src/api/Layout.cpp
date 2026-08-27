@@ -5,29 +5,29 @@
 namespace ui::layout
 {
 
-void SetLayoutDirection(UiRuntime& runtime, ui::entity entity, policies::LayoutDirection direction)
+void SetLayoutDirection(ui::entity entity, policies::LayoutDirection direction)
 {
-    ui::detail::layout::SetLayoutDirection(runtime.registry(), ui::detail::ToInternal(entity), direction);
+    ui::detail::layout::SetLayoutDirection(UiRuntime::current().registry(), ui::detail::ToInternal(entity), direction);
 }
 
-void SetLayoutSpacing(UiRuntime& runtime, ui::entity entity, float spacing)
+void SetLayoutSpacing(ui::entity entity, float spacing)
 {
-    ui::detail::layout::SetLayoutSpacing(runtime.registry(), ui::detail::ToInternal(entity), spacing);
+    ui::detail::layout::SetLayoutSpacing(UiRuntime::current().registry(), ui::detail::ToInternal(entity), spacing);
 }
 
-void SetPadding(UiRuntime& runtime, ui::entity entity, float left, float top, float right, float bottom)
+void SetPadding(ui::entity entity, float left, float top, float right, float bottom)
 {
-    ui::detail::layout::SetPadding(runtime.registry(), ui::detail::ToInternal(entity), left, top, right, bottom);
+    ui::detail::layout::SetPadding(UiRuntime::current().registry(), ui::detail::ToInternal(entity), left, top, right, bottom);
 }
 
-void SetPadding(UiRuntime& runtime, ui::entity entity, float padding)
+void SetPadding(ui::entity entity, float padding)
 {
-    ui::detail::layout::SetPadding(runtime.registry(), ui::detail::ToInternal(entity), padding);
+    ui::detail::layout::SetPadding(UiRuntime::current().registry(), ui::detail::ToInternal(entity), padding);
 }
 
-void CenterInParent(UiRuntime& runtime, ui::entity entity)
+void CenterInParent(ui::entity entity)
 {
-    ui::detail::layout::CenterInParent(runtime.registry(), ui::detail::ToInternal(entity));
+    ui::detail::layout::CenterInParent(UiRuntime::current().registry(), ui::detail::ToInternal(entity));
 }
 
 }  // namespace ui::layout

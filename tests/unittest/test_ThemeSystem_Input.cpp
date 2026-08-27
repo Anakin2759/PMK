@@ -5,7 +5,7 @@ namespace ui::tests
 
 TEST_F(ThemeSystemTest, TextEditFocusedUsesThemeFocusBorderColor)
 {
-    const auto textEdit = factory::CreateTextEdit(runtime(), "placeholder", false, "theme_text_edit_focus");
+    const auto textEdit = factory::CreateTextEdit("placeholder", false, "theme_text_edit_focus");
 
     triggerThemeUpdate();
     {
@@ -36,11 +36,11 @@ TEST_F(ThemeSystemTest, TextEditFocusedUsesThemeFocusBorderColor)
 
 TEST_F(ThemeSystemTest, SetThemeReappliesThemeOwnedControlRadii)
 {
-    const auto buttonResult = factory::CreateButton(runtime(), "Theme", "theme_button_radius_reapply");
+    const auto buttonResult = factory::CreateButton("Theme", "theme_button_radius_reapply");
     ASSERT_TRUE(buttonResult.has_value()) << buttonResult.error().ToString();
     const auto button = buttonResult->raw;
-    const auto textEdit = factory::CreateTextEdit(runtime(), "placeholder", false, "theme_text_edit_radius_reapply");
-    const auto dropDown = factory::CreateDropDown(runtime(), {"A", "B"}, 0, "theme_dropdown_radius_reapply");
+    const auto textEdit = factory::CreateTextEdit("placeholder", false, "theme_text_edit_radius_reapply");
+    const auto dropDown = factory::CreateDropDown({"A", "B"}, 0, "theme_dropdown_radius_reapply");
 
     triggerThemeUpdate();
 
@@ -88,7 +88,7 @@ TEST_F(ThemeSystemTest, SetThemeReappliesThemeOwnedControlRadii)
 
 TEST_F(ThemeSystemTest, CheckBoxHoverActiveAndDisabledUseThemeStateColors)
 {
-    const auto checkBox = factory::CreateCheckBox(runtime(), "Theme", true, "theme_checkbox_states");
+    const auto checkBox = factory::CreateCheckBox("Theme", true, "theme_checkbox_states");
 
     triggerThemeUpdate();
     {

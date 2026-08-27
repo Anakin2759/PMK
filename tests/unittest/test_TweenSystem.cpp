@@ -67,7 +67,7 @@ TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
     systems::TweenSystem tweenSystem{UiRuntime::current()};
     tweenSystem.registerHandlers();
 
-    const auto entity = factory::CreateLabel(UiRuntime::current(), "Tween", "tween_label");
+    const auto entity = factory::CreateLabel("Tween", "tween_label");
     auto& registry = ActiveRegistry();
     auto& position = registry.get<components::Position>(entity);
     position.value = {4.0F, 6.0F};
@@ -75,7 +75,7 @@ TEST_F(UiTweenSystemTest, PositionTweenCompletesAndCleansUp)
     animation::TweenOptions options;
     options.duration = 16.0F;
 
-    animation::StartPositionAnimation(runtime(), entity, position.value, {24.0F, 36.0F}, options);
+    animation::StartPositionAnimation(entity, position.value, {24.0F, 36.0F}, options);
 
     ASSERT_TRUE(registry.all_of<components::AnimatingTag>(entity));
     ASSERT_NE(registry.try_get<components::AnimationTime>(entity), nullptr);
@@ -98,7 +98,7 @@ TEST_F(UiTweenSystemTest, InteractiveAnimationFlowsThroughTweenPipeline)
     actionSystem.registerHandlers();
     tweenSystem.registerHandlers();
 
-    const auto entityResult = factory::CreateButton(UiRuntime::current(), "Hover", "hover_btn");
+    const auto entityResult = factory::CreateButton("Hover", "hover_btn");
     ASSERT_TRUE(entityResult.has_value()) << entityResult.error().ToString();
     const auto entity = entityResult->raw;
     auto& registry = ActiveRegistry();
@@ -158,14 +158,14 @@ TEST(UiTweenSystemRuntimeIsolationTest, TweenStaysWithinActiveRuntimeScope)
         systems::TweenSystem defaultTween{UiRuntime::current()};
         defaultTween.registerHandlers();
 
-        const auto defaultEntity = factory::CreateLabel(defaultRuntime, "Tween-Default", "tween_default");
+        const auto defaultEntity = factory::CreateLabel("Tween-Default", "tween_default");
         auto& defaultRegistry = ActiveRegistry();
         auto& defaultPos = defaultRegistry.get<components::Position>(defaultEntity);
         defaultPos.value = {0.0F, 0.0F};
 
         animation::TweenOptions opts;
         opts.duration = 16.0F;
-        animation::StartPositionAnimation(defaultRuntime, defaultEntity, defaultPos.value, {10.0F, 20.0F}, opts);
+        animation::StartPositionAnimation(defaultEntity, defaultPos.value, {10.0F, 20.0F}, opts);
 
         ASSERT_TRUE(defaultRegistry.all_of<components::AnimatingTag>(defaultEntity));
 

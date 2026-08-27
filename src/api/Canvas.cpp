@@ -8,44 +8,44 @@
 namespace ui::canvas
 {
 
-void Clear(UiRuntime& runtime, ui::entity entity)
+void Clear(ui::entity entity)
 {
-    detail::canvas::Clear(runtime.registry(), detail::ToInternal(entity));
+    detail::canvas::Clear(UiRuntime::current().registry(), detail::ToInternal(entity));
 }
 
-void DrawLine(UiRuntime& runtime, ui::entity entity, Vec2 from, Vec2 endPos, Color color, float lineWidth)
+void DrawLine(ui::entity entity, Vec2 from, Vec2 endPos, Color color, float lineWidth)
 {
-    detail::canvas::DrawLine(runtime.registry(), detail::ToInternal(entity), from, endPos, color, lineWidth);
+    detail::canvas::DrawLine(UiRuntime::current().registry(), detail::ToInternal(entity), from, endPos, color, lineWidth);
 }
 
-void DrawRect(UiRuntime& runtime, ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, float lineWidth)
+void DrawRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color, float lineWidth)
 {
-    detail::canvas::DrawRect(runtime.registry(), detail::ToInternal(entity), topLeft, bottomRight, color, lineWidth);
+    detail::canvas::DrawRect(UiRuntime::current().registry(), detail::ToInternal(entity), topLeft, bottomRight, color, lineWidth);
 }
 
-void DrawFilledRect(UiRuntime& runtime, ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color)
+void DrawFilledRect(ui::entity entity, Vec2 topLeft, Vec2 bottomRight, Color color)
 {
-    detail::canvas::DrawFilledRect(runtime.registry(), detail::ToInternal(entity), topLeft, bottomRight, color);
+    detail::canvas::DrawFilledRect(UiRuntime::current().registry(), detail::ToInternal(entity), topLeft, bottomRight, color);
 }
 
-void DrawCircle(UiRuntime& runtime, ui::entity entity, Vec2 center, float radius, Color color, float lineWidth)
+void DrawCircle(ui::entity entity, Vec2 center, float radius, Color color, float lineWidth)
 {
-    detail::canvas::DrawCircle(runtime.registry(), detail::ToInternal(entity), center, radius, color, lineWidth);
+    detail::canvas::DrawCircle(UiRuntime::current().registry(), detail::ToInternal(entity), center, radius, color, lineWidth);
 }
 
-void DrawFilledCircle(UiRuntime& runtime, ui::entity entity, Vec2 center, float radius, Color color)
+void DrawFilledCircle(ui::entity entity, Vec2 center, float radius, Color color)
 {
-    detail::canvas::DrawFilledCircle(runtime.registry(), detail::ToInternal(entity), center, radius, color);
+    detail::canvas::DrawFilledCircle(UiRuntime::current().registry(), detail::ToInternal(entity), center, radius, color);
 }
 
-void DrawPolyline(UiRuntime& runtime, ui::entity entity, std::vector<Vec2> points, Color color, float lineWidth)
+void DrawPolyline(ui::entity entity, std::vector<Vec2> points, Color color, float lineWidth)
 {
-    detail::canvas::DrawPolyline(runtime.registry(), detail::ToInternal(entity), std::move(points), color, lineWidth);
+    detail::canvas::DrawPolyline(UiRuntime::current().registry(), detail::ToInternal(entity), std::move(points), color, lineWidth);
 }
 
-void DrawCubicBezier(UiRuntime& runtime, ui::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color, float lineWidth)
+void DrawCubicBezier(ui::entity entity, Vec2 startPos, Vec2 cp1, Vec2 cp2, Vec2 endPos, Color color, float lineWidth)
 {
-    detail::canvas::DrawCubicBezier(runtime.registry(), detail::ToInternal(entity), startPos, cp1, cp2, endPos, color, lineWidth);
+    detail::canvas::DrawCubicBezier(UiRuntime::current().registry(), detail::ToInternal(entity), startPos, cp1, cp2, endPos, color, lineWidth);
 }
 
 // ---- Painter 实现 ----
@@ -148,7 +148,7 @@ Painter& Painter::commit(Color color, float lineWidth)
 {
     if (m_path.size() >= 2)
     {
-        DrawPolyline(*m_runtime, m_canvas, m_path, color, lineWidth);
+        DrawPolyline(m_canvas, m_path, color, lineWidth);
     }
     m_path.clear();
     return *this;

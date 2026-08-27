@@ -4,20 +4,20 @@
 
 namespace ui::hierarchy
 {
-void RemoveChild(UiRuntime& runtime, ui::entity parent, ui::entity child)
+void RemoveChild(ui::entity parent, ui::entity child)
 {
-    ui::detail::hierarchy::RemoveChild(runtime.registry(), detail::ToInternal(parent), detail::ToInternal(child));
+    ui::detail::hierarchy::RemoveChild(UiRuntime::current().registry(), detail::ToInternal(parent), detail::ToInternal(child));
 }
 
-void AddChild(UiRuntime& runtime, ui::entity parent, ui::entity child)
+void AddChild(ui::entity parent, ui::entity child)
 {
-    ui::detail::hierarchy::AddChild(runtime.registry(), detail::ToInternal(parent), detail::ToInternal(child));
+    ui::detail::hierarchy::AddChild(UiRuntime::current().registry(), detail::ToInternal(parent), detail::ToInternal(child));
 }
 
-std::vector<ui::entity> ChildrenPostOrder(UiRuntime& runtime, ui::entity parent)
+std::vector<ui::entity> ChildrenPostOrder(ui::entity parent)
 {
     std::vector<ui::entity> children;
-    for (const auto CHILD : ui::detail::hierarchy::ChildrenPostOrder(runtime.registry(), detail::ToInternal(parent)))
+    for (const auto CHILD : ui::detail::hierarchy::ChildrenPostOrder(UiRuntime::current().registry(), detail::ToInternal(parent)))
     {
         children.push_back(detail::ToPublic(CHILD));
     }

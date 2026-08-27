@@ -5,27 +5,27 @@
 namespace ui::size
 {
 
-void SetFixedSize(UiRuntime& runtime, ui::entity entity, float width, float height)
+void SetFixedSize(ui::entity entity, float width, float height)
 {
-    ui::detail::size::SetFixedSize(runtime.registry(), ui::detail::ToInternal(entity), width, height);
+    ui::detail::size::SetFixedSize(UiRuntime::current().registry(), ui::detail::ToInternal(entity), width, height);
 }
 
 
-void SetSizePolicy(UiRuntime& runtime, ui::entity entity, policies::Size policy)
+void SetSizePolicy(ui::entity entity, policies::Size policy)
 {
-    ui::detail::size::SetSizePolicy(runtime.registry(), ui::detail::ToInternal(entity), policy);
+    ui::detail::size::SetSizePolicy(UiRuntime::current().registry(), ui::detail::ToInternal(entity), policy);
 }
 
 
-void SetSize(UiRuntime& runtime, ui::entity entity, float width, float height)
+void SetSize(ui::entity entity, float width, float height)
 {
-    ui::detail::size::SetSize(runtime.registry(), ui::detail::ToInternal(entity), width, height);
+    ui::detail::size::SetSize(UiRuntime::current().registry(), ui::detail::ToInternal(entity), width, height);
 }
 
 
-void SetPosition(UiRuntime& runtime, ui::entity entity, float positionX, float positionY)
+void SetPosition(ui::entity entity, float positionX, float positionY)
 {
-    ui::detail::size::SetPosition(runtime.registry(), ui::detail::ToInternal(entity), positionX, positionY);
+    ui::detail::size::SetPosition(UiRuntime::current().registry(), ui::detail::ToInternal(entity), positionX, positionY);
 }
 
 

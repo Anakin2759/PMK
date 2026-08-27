@@ -33,11 +33,6 @@
 #include <memory>
 #include <utility>
 
-namespace ui
-{
-class UiRuntime;
-}
-
 namespace ui::actions
 {
 template <auto Fn>
@@ -51,7 +46,7 @@ struct ChainActionTag
 };
 
 template <typename T>
-concept Action = std::invocable<T, UiRuntime&, ui::entity>;
+concept Action = std::invocable<T, ui::entity>;
 
 template <typename T>
 concept TaggedAsChainAction = std::derived_from<std::remove_cvref_t<T>, ChainActionTag> ||
@@ -72,7 +67,7 @@ class AnyChain : public ChainActionTag
         Concept& operator=(const Concept&) = delete;
         Concept(Concept&&) = delete;
         Concept& operator=(Concept&&) = delete;
-        virtual void invoke(UiRuntime&, ui::entity) = 0;
+        virtual void invoke(ui::entity) = 0;
         virtual ~Concept() = default;
     };
 
@@ -88,9 +83,9 @@ class AnyChain : public ChainActionTag
     AnyChain& operator=(const AnyChain&) = delete;
     ~AnyChain() = default;
 
-    void operator()(UiRuntime& runtime, ui::entity entity)
+    void operator()(ui::entity entity)
     {
-        m_impl->invoke(runtime, entity);
+        m_impl->invoke(entity);
     }
 
     friend AnyChain operator|(AnyChain&& lhs, AnyChain&& rhs);
@@ -103,9 +98,9 @@ class AnyChain : public ChainActionTag
         explicit Model(F callable) : func(std::move(callable))
         {
         }
-        void invoke(UiRuntime& runtime, ui::entity entity) override
+        void invoke(ui::entity entity) override
         {
-            std::invoke(func, runtime, entity);
+            std::invoke(func, entity);
         }
     };
 
@@ -124,10 +119,10 @@ inline AnyChain operator|(AnyChain&& lhs, AnyChain&& rhs)
         Combined(AnyChain lhsChain, AnyChain rhsChain) : left(std::move(lhsChain)), right(std::move(rhsChain))
         {
         }
-        void invoke(UiRuntime& runtime, ui::entity entity) override
+        void invoke(ui::entity entity) override
         {
-            left(runtime, entity);
-            right(runtime, entity);
+            left(entity);
+            right(entity);
         }
     };
     return AnyChain{std::make_unique<Combined>(std::move(lhs), std::move(rhs))};
@@ -148,18 +143,17 @@ struct Chain : ChainActionTag
     auto operator|(this Self&& self, Next&& next)
     {
         auto combined =
-            [lhs = std::forward_like<Self>(self.func), rhs = std::forward<Next>(next)](UiRuntime& runtime,
-                                                                                         ui::entity entity) mutable
+            [lhs = std::forward_like<Self>(self.func), rhs = std::forward<Next>(next)](ui::entity entity) mutable
         {
-            std::invoke(lhs, runtime, entity);
-            std::invoke(rhs, runtime, entity);
+            std::invoke(lhs, entity);
+            std::invoke(rhs, entity);
         };
         return Chain<decltype(combined)>{std::move(combined)};
     }
 
-    void operator()(this auto&& self, UiRuntime& runtime, ui::entity entity)
+    void operator()(this auto&& self, ui::entity entity)
     {
-        std::invoke(std::forward_like<decltype(self)>(self.func), runtime, entity);
+        std::invoke(std::forward_like<decltype(self)>(self.func), entity);
     }
 };
 
@@ -167,36 +161,36 @@ template <typename F>
 Chain(F&&) -> Chain<std::decay_t<F>>;
 
 template <Action F>
-ui::entity WithRuntime(UiRuntime& runtime, ui::entity entity, Chain<F>& chain)
+ui::entity Apply(ui::entity entity, Chain<F>& chain)
 {
-    chain(runtime, entity);
+    chain(entity);
     return entity;
 }
 
 template <Action F>
-ui::entity WithRuntime(UiRuntime& runtime, ui::entity entity, const Chain<F>& chain)
+ui::entity Apply(ui::entity entity, const Chain<F>& chain)
 {
-    chain(runtime, entity);
+    chain(entity);
     return entity;
 }
 
 template <Action F>
-ui::entity WithRuntime(UiRuntime& runtime, ui::entity entity, Chain<F>&& chain)
+ui::entity Apply(ui::entity entity, Chain<F>&& chain)
 {
-    std::move(chain)(runtime, entity);
+    std::move(chain)(entity);
     return entity;
 }
 
-inline ui::entity WithRuntime(UiRuntime& runtime, ui::entity entity, AnyChain& chain)
+inline ui::entity Apply(ui::entity entity, AnyChain& chain)
 {
-    chain(runtime, entity);
+    chain(entity);
     return entity;
 }
 
-inline ui::entity WithRuntime(UiRuntime& runtime, ui::entity entity, AnyChain&& chain)
+inline ui::entity Apply(ui::entity entity, AnyChain&& chain)
 {
     auto owned = std::move(chain);
-    owned(runtime, entity);
+    owned(entity);
     return entity;
 }
 
@@ -204,6 +198,13 @@ template <auto Func, typename... Args>
 auto Call(Args&&... args)
 {
     return ui::actions::EntityAction<Func>{}.bind(std::forward<Args>(args)...);
+}
+
+template <ChainAction Action>
+ui::entity operator|(ui::entity entity, Action&& action)
+{
+    std::invoke(std::forward<Action>(action), entity);
+    return entity;
 }
 
 }  // namespace ui::chains
@@ -214,16 +215,16 @@ template <auto Fn>
 struct EntityAction
 {
     template <typename... Args>
-    void operator()(UiRuntime& runtime, ui::entity entity, Args&&... args) const
+    void operator()(ui::entity entity, Args&&... args) const
     {
-        Fn(runtime, entity, std::forward<Args>(args)...);
+        Fn(entity, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
     auto bind(Args&&... args) const
     {
-        return ui::chains::Chain{[... args = std::forward<Args>(args)](UiRuntime& runtime, ui::entity entity) mutable
-                     { Fn(runtime, entity, std::move(args)...); }};
+        return ui::chains::Chain{[... args = std::forward<Args>(args)](ui::entity entity) mutable
+                 { Fn(entity, std::move(args)...); }};
     }
 };
 }  // namespace ui::actions

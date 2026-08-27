@@ -25,30 +25,25 @@
 #include "ui/api/Chains.hpp"
 #include "ui/api/Entity.hpp"
 
-namespace ui
-{
-class UiRuntime;
-}
-
 namespace ui::icon
 {
 inline constexpr float DEFAULT_ICON_SIZE = 16.0F;    // NOLINT(readability-magic-numbers)
 inline constexpr float DEFAULT_ICON_SPACING = 4.0F;  // NOLINT(readability-magic-numbers)
 
-void SetIcon(UiRuntime& runtime, ui::entity entity, const std::string& textureId, policies::IconFlag iconflag = policies::IconFlag::DEFAULT,
+void SetIcon(ui::entity entity, const std::string& textureId, policies::IconFlag iconflag = policies::IconFlag::DEFAULT,
              float iconSize = DEFAULT_ICON_SIZE, float spacing = DEFAULT_ICON_SPACING);
-void SetIcon(UiRuntime& runtime, ui::entity entity, const std::string& fontName, uint32_t codepoint,
+void SetIcon(ui::entity entity, const std::string& fontName, uint32_t codepoint,
              policies::IconFlag iconflag = policies::IconFlag::DEFAULT, float iconSize = DEFAULT_ICON_SIZE,
              float spacing = DEFAULT_ICON_SPACING);
-void RemoveIcon(UiRuntime& runtime, ui::entity entity);
+void RemoveIcon(ui::entity entity);
 }  // namespace ui::icon
 
 namespace ui::actions::icon
 {
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, const std::string&, uint32_t,
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, const std::string&, uint32_t,
                                                    policies::IconFlag, float, float)>(&ui::icon::SetIcon)>
     SET_FONT_ICON_ACTION{};
-inline constexpr EntityAction<static_cast<void (*)(UiRuntime&, ui::entity, const std::string&, policies::IconFlag,
+inline constexpr EntityAction<static_cast<void (*)(ui::entity, const std::string&, policies::IconFlag,
                                                    float, float)>(&ui::icon::SetIcon)>
     SET_TEXTURE_ICON_ACTION{};
 inline constexpr EntityAction<&ui::icon::RemoveIcon> REMOVE_ICON_ACTION{};

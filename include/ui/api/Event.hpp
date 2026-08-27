@@ -12,11 +12,6 @@
 
 #include "ui/api/Entity.hpp"
 
-namespace ui
-{
-class UiRuntime;
-}
-
 namespace ui::detail::event_bridge
 {
 struct EventDomain;
@@ -58,17 +53,16 @@ class EventConnection
     std::uint64_t m_token = 0;
 };
 
-[[nodiscard]] EventId RegisterEvent(UiRuntime& runtime, std::string_view name);
-[[nodiscard]] bool IsEventRegistered(UiRuntime& runtime, EventId eventId);
-[[nodiscard]] bool IsEventRegistered(UiRuntime& runtime, std::string_view name);
-[[nodiscard]] EventConnection On(UiRuntime& runtime, EventId eventId, EventCallback callback);
-[[nodiscard]] EventConnection On(UiRuntime& runtime, std::string_view name, EventCallback callback);
-void Trigger(UiRuntime& runtime, EventId eventId, EventPayload payload = {});
-void Trigger(UiRuntime& runtime, std::string_view name, EventPayload payload = {});
-void Enqueue(UiRuntime& runtime, EventId eventId, EventPayload payload = {});
-void Enqueue(UiRuntime& runtime, std::string_view name, EventPayload payload = {});
-void DispatchQueued(UiRuntime& runtime);
-/// 入队并在所属 Runtime 的下一次 QueuedTask 阶段自动派发。
-/// 入队并在所属 Runtime 的下一次 QueuedTask 阶段自动派发。
+[[nodiscard]] EventId RegisterEvent(std::string_view name);
+[[nodiscard]] bool IsEventRegistered(EventId eventId);
+[[nodiscard]] bool IsEventRegistered(std::string_view name);
+[[nodiscard]] EventConnection On(EventId eventId, EventCallback callback);
+[[nodiscard]] EventConnection On(std::string_view name, EventCallback callback);
+void Trigger(EventId eventId, EventPayload payload = {});
+void Trigger(std::string_view name, EventPayload payload = {});
+/// 入队并在当前 Runtime 的下一次 QueuedTask 阶段自动派发。
+void Enqueue(EventId eventId, EventPayload payload = {});
+void Enqueue(std::string_view name, EventPayload payload = {});
 /// 立即清空当前 Runtime 的公开事件队列；保留供测试和显式调度使用。
+void DispatchQueued();
 }  // namespace ui::event

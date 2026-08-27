@@ -39,14 +39,14 @@ namespace ui::chains
 inline auto OnKeyPress(ui::shortcut::KeyCode key, ui::shortcut::Callback callback)
 {
     auto sharedCallback = std::make_shared<ui::shortcut::Callback>(std::move(callback));
-    return Chain{[key, sharedCallback](UiRuntime& /*runtime*/, ui::entity /*entity*/) mutable
+    return Chain{[key, sharedCallback](ui::entity /*entity*/) mutable
                  { ui::shortcut::Register(key, [sharedCallback] { (*sharedCallback)(); }); }};
 }
 
 inline auto OnKeyPress(ui::shortcut::KeyCode key, ui::shortcut::Mod mod, ui::shortcut::Callback callback)
 {
     auto sharedCallback = std::make_shared<ui::shortcut::Callback>(std::move(callback));
-    return Chain{[key, mod, sharedCallback](UiRuntime& /*runtime*/, ui::entity /*entity*/) mutable
+    return Chain{[key, mod, sharedCallback](ui::entity /*entity*/) mutable
                  { ui::shortcut::Register(key, mod, [sharedCallback] { (*sharedCallback)(); }); }};
 }
 }  // namespace ui::chains

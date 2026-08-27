@@ -24,38 +24,39 @@ namespace ui::timer
 {
 namespace
 {
-[[nodiscard]] systems::TimerSystem timerSystemFor(UiRuntime& runtime)
+[[nodiscard]] systems::TimerSystem CurrentTimerSystem()
 {
+    auto& runtime = UiRuntime::current();
     runtime.registry().getOrEmplaceInCtx<globalcontext::FrameContext>();
     return systems::TimerSystem{runtime};
 }
 }  // namespace
 
-Handle SetTimeout(UiRuntime& runtime, std::function<void()> callback, std::uint32_t delayMs)
+Handle SetTimeout(std::function<void()> callback, std::uint32_t delayMs)
 {
     if (callback == nullptr || delayMs == 0)
     {
         return NULL_HANDLE;
     }
-    auto timerSystem = timerSystemFor(runtime);
+    auto timerSystem = CurrentTimerSystem();
     return timerSystem.addTask(delayMs, std::move(callback), true);
 }
 
-Handle SetInterval(UiRuntime& runtime, std::function<void()> callback, std::uint32_t intervalMs)
+Handle SetInterval(std::function<void()> callback, std::uint32_t intervalMs)
 {
     if (callback == nullptr || intervalMs == 0)
     {
         return NULL_HANDLE;
     }
-    auto timerSystem = timerSystemFor(runtime);
+    auto timerSystem = CurrentTimerSystem();
     return timerSystem.addTask(intervalMs, std::move(callback), false);
 }
 
-void Clear(UiRuntime& runtime, Handle handle) noexcept
+void Clear(Handle handle) noexcept
 {
     if (handle != NULL_HANDLE)
     {
-        auto timerSystem = timerSystemFor(runtime);
+        auto timerSystem = CurrentTimerSystem();
         timerSystem.cancelTask(handle);
     }
 }

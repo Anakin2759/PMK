@@ -8,20 +8,20 @@
 namespace ui::icon
 {
 
-void SetIcon(UiRuntime& runtime, ui::entity entity, const std::string& textureId, policies::IconFlag iconflag, float iconSize,
+void SetIcon(ui::entity entity, const std::string& textureId, policies::IconFlag iconflag, float iconSize,
              float spacing)
 {
-    ui::detail::icon::SetIcon(runtime.registry(), ui::detail::ToInternal(entity), textureId, iconflag, iconSize, spacing);
+    ui::detail::icon::SetIcon(UiRuntime::current().registry(), ui::detail::ToInternal(entity), textureId, iconflag, iconSize, spacing);
 }
 
-void SetIcon(UiRuntime& runtime, ui::entity entity, const std::string& fontName, uint32_t codepoint, policies::IconFlag iconflag,
+void SetIcon(ui::entity entity, const std::string& fontName, uint32_t codepoint, policies::IconFlag iconflag,
              float iconSize, float spacing)
 {
-    ui::detail::icon::SetIcon(runtime.registry(), ui::detail::ToInternal(entity), fontName, codepoint, iconflag, iconSize, spacing);
+    ui::detail::icon::SetIcon(UiRuntime::current().registry(), ui::detail::ToInternal(entity), fontName, codepoint, iconflag, iconSize, spacing);
 }
 
-void RemoveIcon(UiRuntime& runtime, ui::entity entity)
+void RemoveIcon(ui::entity entity)
 {
-    ui::detail::icon::RemoveIcon(runtime.registry(), ui::detail::ToInternal(entity));
+    ui::detail::icon::RemoveIcon(UiRuntime::current().registry(), ui::detail::ToInternal(entity));
 }
 }  // namespace ui::icon

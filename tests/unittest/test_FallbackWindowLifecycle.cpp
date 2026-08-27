@@ -1,5 +1,6 @@
 #include "ui/api/Factory.hpp"
 #include "ui/api/Utils.hpp"
+#include "src/core/UiRuntime.hpp"
 #include "src/common/Events.hpp"
 #include "src/renderers/FallbackBackendRenderer.hpp"
 #include "src/systems/render/WindowRenderState.hpp"
@@ -145,14 +146,14 @@ TEST(FallbackWindowLifecycleTest, CreatesAndClosesOneHundredOffscreenSoftwareWin
     for (std::size_t iteration = 0; iteration < ITERATION_COUNT; ++iteration)
     {
         const std::string alias = "fallback_lifecycle_" + std::to_string(iteration);
-        auto windowResult = factory::CreateWindow(application->runtime(), "Fallback lifecycle", alias);
+        auto windowResult = factory::CreateWindow("Fallback lifecycle", alias);
         ASSERT_TRUE(windowResult.has_value())
             << "iteration=" << iteration << ", error=" << windowResult.error().ToString();
 
         const WindowHandle handle = windowResult.value();
         ASSERT_NE(handle.raw, null_entity) << "iteration=" << iteration;
         ASSERT_NE(handle.windowId, 0U) << "iteration=" << iteration;
-        ASSERT_TRUE(application->runtime().registry().valid(handle.raw)) << "iteration=" << iteration;
+        ASSERT_TRUE(UiRuntime::current().registry().valid(handle.raw)) << "iteration=" << iteration;
 
         SDL_Window* window = SDL_GetWindowFromID(handle.windowId);
         ASSERT_NE(window, nullptr) << "iteration=" << iteration << ", SDL=" << SDL_GetError();
@@ -160,10 +161,10 @@ TEST(FallbackWindowLifecycleTest, CreatesAndClosesOneHundredOffscreenSoftwareWin
         ASSERT_NE(renderer, nullptr) << "iteration=" << iteration << ", SDL=" << SDL_GetError();
         ASSERT_STREQ(SDL_GetRendererName(renderer), "software") << "iteration=" << iteration;
 
-        utils::CloseWindow(application->runtime(), handle.raw);
-        application->runtime().dispatcher().update<events::CloseWindow>();
+        utils::CloseWindow(handle.raw);
+        UiRuntime::current().dispatcher().update<events::CloseWindow>();
 
-        EXPECT_FALSE(application->runtime().registry().valid(handle.raw)) << "iteration=" << iteration;
+        EXPECT_FALSE(UiRuntime::current().registry().valid(handle.raw)) << "iteration=" << iteration;
         EXPECT_EQ(SDL_GetWindowFromID(handle.windowId), nullptr)
             << "iteration=" << iteration << ", windowId=" << handle.windowId << ", SDL=" << SDL_GetError();
     }
@@ -179,8 +180,8 @@ TEST(FallbackWindowLifecycleTest, TwoWindowsKeepIndependentRenderersAcrossAltern
     ASSERT_NE(application, nullptr);
     ASSERT_STREQ(SDL_GetCurrentVideoDriver(), "offscreen");
 
-    auto firstResult = factory::CreateWindow(application->runtime(), "Fallback A", "fallback_multi_a");
-    auto secondResult = factory::CreateWindow(application->runtime(), "Fallback B", "fallback_multi_b");
+    auto firstResult = factory::CreateWindow("Fallback A", "fallback_multi_a");
+    auto secondResult = factory::CreateWindow("Fallback B", "fallback_multi_b");
     ASSERT_TRUE(firstResult.has_value()) << firstResult.error().ToString();
     ASSERT_TRUE(secondResult.has_value()) << secondResult.error().ToString();
     const WindowHandle first = firstResult.value();
@@ -199,16 +200,16 @@ TEST(FallbackWindowLifecycleTest, TwoWindowsKeepIndependentRenderersAcrossAltern
     ASSERT_TRUE(SDL_RenderPresent(secondRenderer));
     ASSERT_TRUE(SDL_RenderPresent(firstRenderer));
 
-    utils::CloseWindow(application->runtime(), second.raw);
-    application->runtime().dispatcher().update<events::CloseWindow>();
+    utils::CloseWindow(second.raw);
+    UiRuntime::current().dispatcher().update<events::CloseWindow>();
     EXPECT_EQ(SDL_GetWindowFromID(second.windowId), nullptr);
     firstWindow = SDL_GetWindowFromID(first.windowId);
     ASSERT_NE(firstWindow, nullptr);
     EXPECT_EQ(SDL_GetRenderer(firstWindow), firstRenderer);
     EXPECT_TRUE(SDL_RenderPresent(firstRenderer));
 
-    utils::CloseWindow(application->runtime(), first.raw);
-    application->runtime().dispatcher().update<events::CloseWindow>();
+    utils::CloseWindow(first.raw);
+    UiRuntime::current().dispatcher().update<events::CloseWindow>();
     application.reset();
     EXPECT_EQ(SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO, 0U);
 }

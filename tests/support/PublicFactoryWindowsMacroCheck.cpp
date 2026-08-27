@@ -14,8 +14,8 @@ static_assert(&CreateWindowExW != nullptr);
 static_assert(&CreateDialogParamW != nullptr);
 #endif
 
-void CompileFactoryCallsAfterWindowsHeaders(ui::UiRuntime& runtime)
+void CompileFactoryCallsAfterWindowsHeaders()
 {
-    static_cast<void>(ui::factory::CreateWindow(runtime, "window", "alias"));
-    static_cast<void>(ui::factory::CreateDialog(runtime, "dialog", "alias"));
+    static_cast<void>(ui::factory::CreateWindow("window", "alias"));
+    static_cast<void>(ui::factory::CreateDialog("dialog", "alias"));
 }

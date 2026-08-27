@@ -20,6 +20,14 @@
 #include "common/components/Data.hpp"
 namespace ui::utils
 {
+namespace
+{
+Registry& CurrentRegistry()
+{
+    return UiRuntime::current().registry();
+}
+}  // namespace
+
 void MarkLayoutChanged(UiRuntime& runtime, ui::entity entity)
 {
     auto& reg = runtime.registry();
@@ -29,12 +37,17 @@ void MarkLayoutChanged(UiRuntime& runtime, ui::entity entity)
     }
 
     entt::entity current = detail::ToInternal(entity);
-    while (current != ::entt::null && reg.valid(current))
+    while (current != entt::null && reg.valid(current))
     {
         reg.emplace_or_replace<components::LayoutDirtyTag>(current);
         const auto* hierarchy = reg.try_get<components::Hierarchy>(current);
         current = hierarchy != nullptr ? hierarchy->parent : entt::null;
     }
+}
+
+void MarkLayoutChanged(ui::entity entity)
+{
+    MarkLayoutChanged(UiRuntime::current(), entity);
 }
 
 void MarkVisualChanged(UiRuntime& runtime, ui::entity entity)
@@ -45,43 +58,47 @@ void MarkVisualChanged(UiRuntime& runtime, ui::entity entity)
 
     reg.emplace_or_replace<components::RenderDirtyTag>(entity);
 
-    // 向上查找所属根窗口/对话框，确保 RenderSystem 能捕获渲染脏标记
     entt::entity current = detail::ToInternal(entity);
     entt::entity rootWindow = entt::null;
-
     while (current != entt::null && reg.valid(current))
     {
         if (reg.any_of<components::WindowTag, components::DialogTag>(current))
-        {
             rootWindow = current;
-        }
         const auto* hierarchy = reg.try_get<components::Hierarchy>(current);
         current = hierarchy != nullptr ? hierarchy->parent : entt::null;
     }
 
     if (rootWindow != entt::null && rootWindow != detail::ToInternal(entity))
-    {
         reg.emplace_or_replace<components::RenderDirtyTag>(rootWindow);
-    }
+}
+
+void MarkVisualChanged(ui::entity entity)
+{
+    MarkVisualChanged(UiRuntime::current(), entity);
 }
 
 void MarkLayoutAndVisualChanged(UiRuntime& runtime, ui::entity entity)
 {
-    if (!runtime.registry().valid(entity))
-        return;
-
     MarkLayoutChanged(runtime, entity);
     MarkVisualChanged(runtime, entity);
 }
 
-void MarkLayoutDirty(UiRuntime& runtime, ui::entity entity)
+void MarkLayoutAndVisualChanged(ui::entity entity)
 {
-    MarkLayoutChanged(runtime, entity);
+    MarkLayoutAndVisualChanged(UiRuntime::current(), entity);
 }
 
-void MarkRenderDirty(UiRuntime& runtime, ui::entity entity)
+void MarkLayoutDirty(UiRuntime& runtime, ui::entity entity) { MarkLayoutChanged(runtime, entity); }
+void MarkRenderDirty(UiRuntime& runtime, ui::entity entity) { MarkVisualChanged(runtime, entity); }
+
+void MarkLayoutDirty(ui::entity entity)
 {
-    MarkVisualChanged(runtime, entity);
+    MarkLayoutChanged(entity);
+}
+
+void MarkRenderDirty(ui::entity entity)
+{
+    MarkVisualChanged(entity);
 }
 
 bool HasAlignment(policies::Alignment value, policies::Alignment flag)
@@ -89,9 +106,9 @@ bool HasAlignment(policies::Alignment value, policies::Alignment flag)
     return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0;
 }
 
-void SetWindowFlag(UiRuntime& runtime, ui::entity entity, policies::WindowFlag flag)
+void SetWindowFlag(ui::entity entity, policies::WindowFlag flag)
 {
-    auto& reg = runtime.registry();
+    auto& reg = CurrentRegistry();
     if (!reg.valid(entity))
         return;
     auto& windowComp = reg.get_or_emplace<components::Window>(entity);
@@ -99,22 +116,58 @@ void SetWindowFlag(UiRuntime& runtime, ui::entity entity, policies::WindowFlag f
     windowComp.flags |= flag;
 }
 
-void CloseWindow(UiRuntime& runtime, ui::entity entity)
+void CloseWindow(ui::entity entity)
 {
+    auto& runtime = UiRuntime::current();
     auto& reg = runtime.registry();
     if (!reg.valid(entity))
         return;
     runtime.dispatcher().enqueue<events::CloseWindow>(events::CloseWindow{detail::ToInternal(entity)});
 }
 
-void QuitUiEventLoop(UiRuntime& runtime)
+void QuitUiEventLoop()
 {
-    runtime.dispatcher().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
+    UiRuntime::current().dispatcher().trigger<ui::events::QuitRequested>(ui::events::QuitRequested{});
 };
 
-Vec2 GetAbsolutePosition(UiRuntime& runtime, ui::entity entity)
+Vec2 GetAbsolutePosition(UiRuntime& /*runtime*/, ui::entity entity)
 {
-    auto& reg = runtime.registry();
+    return GetAbsolutePosition(entity);
+}
+
+Rect GetEntityRect(UiRuntime& /*runtime*/, ui::entity entity)
+{
+    return GetEntityRect(entity);
+}
+
+Rect GetScrollViewportRect(UiRuntime& /*runtime*/, ui::entity entity)
+{
+    return GetScrollViewportRect(entity);
+}
+
+float GetScrollViewportLength(UiRuntime& /*runtime*/, ui::entity entity, bool isVertical)
+{
+    return GetScrollViewportLength(entity, isVertical);
+}
+
+float GetScrollContentLength(UiRuntime& /*runtime*/, ui::entity entity, bool isVertical)
+{
+    return GetScrollContentLength(entity, isVertical);
+}
+
+float GetScrollMaxOffset(UiRuntime& /*runtime*/, ui::entity entity, bool isVertical)
+{
+    return GetScrollMaxOffset(entity, isVertical);
+}
+
+VerticalScrollbarGeometry GetVerticalScrollbarGeometry(UiRuntime& /*runtime*/, ui::entity entity)
+{
+    return GetVerticalScrollbarGeometry(entity);
+}
+
+Vec2 GetAbsolutePosition(ui::entity entity)
+{
+    auto& reg = CurrentRegistry();
     std::vector<entt::entity> path;
     entt::entity current = detail::ToInternal(entity);
     while (current != entt::null && reg.valid(current))
@@ -154,9 +207,9 @@ Vec2 GetAbsolutePosition(UiRuntime& runtime, ui::entity entity)
     return position;
 }
 
-Rect GetEntityRect(UiRuntime& runtime, ui::entity entity)
+Rect GetEntityRect(ui::entity entity)
 {
-    auto& reg = runtime.registry();
+    auto& reg = CurrentRegistry();
     if (!reg.valid(entity))
     {
         return {};
@@ -165,16 +218,16 @@ Rect GetEntityRect(UiRuntime& runtime, ui::entity entity)
     const auto* sizeComp = reg.try_get<components::Size>(entity);
     if (sizeComp == nullptr)
     {
-        return {GetAbsolutePosition(runtime, entity), Vec2(0.0F, 0.0F)};
+        return {GetAbsolutePosition(entity), Vec2(0.0F, 0.0F)};
     }
 
-    return {GetAbsolutePosition(runtime, entity), sizeComp->size};
+    return {GetAbsolutePosition(entity), sizeComp->size};
 }
 
-Rect GetScrollViewportRect(UiRuntime& runtime, ui::entity entity)
+Rect GetScrollViewportRect(ui::entity entity)
 {
-    const Rect entityRect = GetEntityRect(runtime, entity);
-    const auto* padding = runtime.registry().try_get<components::Padding>(entity);
+    const Rect entityRect = GetEntityRect(entity);
+    const auto* padding = CurrentRegistry().try_get<components::Padding>(entity);
     if (padding == nullptr)
     {
         return entityRect;
@@ -189,15 +242,15 @@ Rect GetScrollViewportRect(UiRuntime& runtime, ui::entity entity)
             std::max(0.0F, entityRect.height() - top - bottom)};
 }
 
-float GetScrollViewportLength(UiRuntime& runtime, ui::entity entity, bool isVertical)
+float GetScrollViewportLength(ui::entity entity, bool isVertical)
 {
-    const Rect viewportRect = GetScrollViewportRect(runtime, entity);
+    const Rect viewportRect = GetScrollViewportRect(entity);
     return isVertical ? viewportRect.height() : viewportRect.width();
 }
 
-float GetScrollContentLength(UiRuntime& runtime, ui::entity entity, bool isVertical)
+float GetScrollContentLength(ui::entity entity, bool isVertical)
 {
-    const auto* scrollArea = runtime.registry().try_get<components::ScrollArea>(entity);
+    const auto* scrollArea = CurrentRegistry().try_get<components::ScrollArea>(entity);
     if (scrollArea == nullptr)
     {
         return 0.0F;
@@ -206,17 +259,17 @@ float GetScrollContentLength(UiRuntime& runtime, ui::entity entity, bool isVerti
     return isVertical ? scrollArea->contentSize.y() : scrollArea->contentSize.x();
 }
 
-float GetScrollMaxOffset(UiRuntime& runtime, ui::entity entity, bool isVertical)
+float GetScrollMaxOffset(ui::entity entity, bool isVertical)
 {
-    const float contentLength = GetScrollContentLength(runtime, entity, isVertical);
-    const float viewportLength = GetScrollViewportLength(runtime, entity, isVertical);
+    const float contentLength = GetScrollContentLength(entity, isVertical);
+    const float viewportLength = GetScrollViewportLength(entity, isVertical);
     return std::max(0.0F, contentLength - viewportLength);
 }
 
-VerticalScrollbarGeometry GetVerticalScrollbarGeometry(UiRuntime& runtime, ui::entity entity)
+VerticalScrollbarGeometry GetVerticalScrollbarGeometry(ui::entity entity)
 {
     VerticalScrollbarGeometry geometry;
-    const auto* scrollArea = runtime.registry().try_get<components::ScrollArea>(entity);
+    const auto* scrollArea = CurrentRegistry().try_get<components::ScrollArea>(entity);
     if (scrollArea == nullptr)
     {
         return geometry;
@@ -229,8 +282,8 @@ VerticalScrollbarGeometry GetVerticalScrollbarGeometry(UiRuntime& runtime, ui::e
         return geometry;
     }
 
-    const Rect containerRect = GetEntityRect(runtime, entity);
-    const Rect viewportRect = GetScrollViewportRect(runtime, entity);
+    const Rect containerRect = GetEntityRect(entity);
+    const Rect viewportRect = GetScrollViewportRect(entity);
     geometry.containerRect = {containerRect.x(), containerRect.y(), containerRect.width(), containerRect.height()};
     geometry.viewportRect = {viewportRect.x(), viewportRect.y(), viewportRect.width(), viewportRect.height()};
     geometry.viewportHeight = geometry.viewportRect.height;
@@ -267,9 +320,9 @@ VerticalScrollbarGeometry GetVerticalScrollbarGeometry(UiRuntime& runtime, ui::e
     return geometry;
 }
 
-void InvokeTask(UiRuntime& runtime, VoidCallback func)
+void InvokeTask(VoidCallback func)
 {
-    auto timerSystem = systems::TimerSystem{runtime};
+    auto timerSystem = systems::TimerSystem{UiRuntime::current()};
     timerSystem.addTask(0, std::move(func), true);
 }
 /**
@@ -278,9 +331,9 @@ void InvokeTask(UiRuntime& runtime, VoidCallback func)
  * @param func 任务函数
  * @return 任务句柄
  */
-TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, VoidCallback func)
+TaskHandle TimerCallback(uint32_t interval, VoidCallback func)
 {
-    auto timerSystem = systems::TimerSystem{runtime};
+    auto timerSystem = systems::TimerSystem{UiRuntime::current()};
     return timerSystem.addTask(interval, std::move(func));
 }
 
@@ -288,9 +341,9 @@ TaskHandle TimerCallback(UiRuntime& runtime, uint32_t interval, VoidCallback fun
  * @brief 取消注册一个定时任务
  * @param handle 任务句柄
  */
-void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle)
+void CancelQueuedTask(TaskHandle handle)
 {
-    auto timerSystem = systems::TimerSystem{runtime};
+    auto timerSystem = systems::TimerSystem{UiRuntime::current()};
     timerSystem.cancelTask(handle);
 }
 /**
@@ -299,9 +352,9 @@ void CancelQueuedTask(UiRuntime& runtime, TaskHandle handle)
  * @return true 实体存在
  * @return false 实体不存在
  */
-bool IsEntityExist(UiRuntime& runtime, const std::string& alias)
+bool IsEntityExist(const std::string& alias)
 {
-    auto& reg = runtime.registry();
+    auto& reg = CurrentRegistry();
     auto view = reg.view<components::BaseInfo>();
 
     return std::ranges::any_of(view, [&view, &alias](entt::entity entity) -> bool
