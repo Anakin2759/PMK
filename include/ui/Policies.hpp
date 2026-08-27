@@ -67,24 +67,44 @@ enum class Focus : std::uint8_t
     STRONG_FOCUS
 };
 
-enum class Size : std::uint8_t
+/**
+ * @brief Qt QSizePolicy 风格的双轴尺寸策略。
+ *
+ * 每个轴占用 4 个 bit：低 4 bit 是水平策略，高 4 bit 是垂直策略。
+ * AUTO 对应 Qt 的 Preferred：以 size/内容为首选尺寸，同时允许伸展和收缩。
+ */
+enum class Size : std::uint16_t
 {
     NONE = 0,
-    H_FIXED = 1 << 0,
-    H_AUTO = 1 << 1,
-    H_FILL = 1 << 2,
-    H_PERCENTAGE = 1 << 3,
-    V_FIXED = 1 << 4,
-    V_AUTO = 1 << 5,
-    V_FILL = 1 << 6,
-    V_PERCENTAGE = 1 << 7,
+    H_FIXED = 0x0001,
+    H_AUTO = 0x0002,              // Qt Preferred：允许扩展/收缩
+    H_FILL = 0x0003,              // 兼容名：Qt Expanding
+    H_MINIMUM = 0x0004,
+    H_MAXIMUM = 0x0005,
+    H_EXPANDING = 0x0006,
+    H_MINIMUM_EXPANDING = 0x0007,
+    H_IGNORED = 0x0008,
+    H_PERCENTAGE = 0x0009,
+    V_FIXED = 0x0100,
+    V_AUTO = 0x0200,              // Qt Preferred：允许扩展/收缩
+    V_FILL = 0x0300,              // 兼容名：Qt Expanding
+    V_MINIMUM = 0x0400,
+    V_MAXIMUM = 0x0500,
+    V_EXPANDING = 0x0600,
+    V_MINIMUM_EXPANDING = 0x0700,
+    V_IGNORED = 0x0800,
+    V_PERCENTAGE = 0x0900,
     FIXED = H_FIXED | V_FIXED,
-    AUTO = H_AUTO | V_AUTO,
+    AUTO = H_AUTO | V_AUTO,       // Preferred / 可扩展
     FILL_PARENT = H_FILL | V_FILL,
     PERCENTAGE = H_PERCENTAGE | V_PERCENTAGE,
     H_FIXED_V_AUTO = H_FIXED | V_AUTO,
     H_AUTO_V_FIXED = H_AUTO | V_FIXED,
-    H_FILL_V_AUTO = H_FILL | V_AUTO
+    H_FILL_V_AUTO = H_FILL | V_AUTO,
+    H_MINIMUM_V_AUTO = H_MINIMUM | V_AUTO,
+    H_MAXIMUM_V_AUTO = H_MAXIMUM | V_AUTO,
+    H_EXPANDING_V_AUTO = H_EXPANDING | V_AUTO,
+    H_MINIMUM_EXPANDING_V_AUTO = H_MINIMUM_EXPANDING | V_AUTO
 };
 
 enum class Feature : std::uint8_t

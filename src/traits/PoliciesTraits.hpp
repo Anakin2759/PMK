@@ -23,7 +23,7 @@
 
 namespace ui::policies
 {
-enum class Size : uint8_t;
+enum class Size : uint16_t;
 enum class LayoutDirection : uint8_t;
 enum class Alignment : uint8_t;
 enum class Play : uint8_t;

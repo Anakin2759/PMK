@@ -993,8 +993,12 @@ void StateSystem::WindowStateHelpers::handlePixelSizeChanged(StateSystem& system
     bool sizeChanged = false;
 
     const bool preserveFixedSize = reg.any_of<components::DialogTag>(entity);
-    const bool widthFixed = preserveFixedSize && policies::HasFlag(size.sizePolicy, policies::Size::H_FIXED);
-    const bool heightFixed = preserveFixedSize && policies::HasFlag(size.sizePolicy, policies::Size::V_FIXED);
+    const bool widthFixed = preserveFixedSize &&
+                            (static_cast<std::uint16_t>(size.sizePolicy) & 0x000FU) ==
+                                static_cast<std::uint16_t>(policies::Size::H_FIXED);
+    const bool heightFixed = preserveFixedSize &&
+                             (static_cast<std::uint16_t>(size.sizePolicy) & 0x0F00U) ==
+                                 static_cast<std::uint16_t>(policies::Size::V_FIXED);
 
     if (!widthFixed && size.size.x() != logicalWidth)
     {

@@ -308,7 +308,10 @@ class TextRenderer : public core::IRenderer
         {
             if (auto* sizeComp = m_reg->try_get<components::Size>(entity))
             {
-                if (policies::HasFlag(sizeComp->sizePolicy, policies::Size::V_AUTO))
+                const auto policy = static_cast<std::uint16_t>(sizeComp->sizePolicy);
+                const auto verticalPolicy = policy & 0x0F00U;
+                if (verticalPolicy != static_cast<std::uint16_t>(policies::Size::V_FIXED) &&
+                    verticalPolicy != static_cast<std::uint16_t>(policies::Size::V_PERCENTAGE))
                 {
                     const auto lineHeight = static_cast<float>(context.fontManager->getFontHeight(fontSize));
                     if (lineHeight > 0.0F)

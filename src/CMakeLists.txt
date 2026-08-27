@@ -137,8 +137,8 @@ endif()
 
 
 # ==================== 按模块拆分的 Object 库源列表（编译优化） ====================
-# 将 ui 拆分为多个 OBJECT 库，每个库拥有独立的编译配置与可选的 JOB_POOL：
-#   - 模块级并行度控制：重型模板模块（systems/render/managers）可限制并发，轻量模块（api）可放开；
+# 将 ui 拆分为多个 OBJECT 库，每个库拥有独立的编译配置并共享全局内存感知 JOB_POOL：
+#   - 全局并行度由顶层按可用内存计算，防止模块独立池叠加绕过内存预算；
 #   - 增量构建边界清晰：仅依赖某模块的改动不会触发整库重新编译语义混乱；
 #   - 聚合静态库 ui 由这些 object 库拼装，对外行为（VMPUI::ui / 合并 / install）完全不变。
 
@@ -506,8 +506,8 @@ if(UI_RESOURCE_BACKEND STREQUAL "CMRC")
 endif()
 
 # ==================== Object 库拆分（编译优化） ====================
-# 将 ui 拆分为多个 OBJECT 库，每个库拥有独立的编译配置与可选的 JOB_POOL：
-#   - 模块级并行度控制：重型模板模块（systems/render/managers）可限制并发，轻量模块（api）可放开；
+# 将 ui 拆分为多个 OBJECT 库，每个库拥有独立的编译配置并共享全局内存感知 JOB_POOL：
+#   - 全局并行度由顶层按可用内存计算，防止模块独立池叠加绕过内存预算；
 #   - 增量构建边界清晰，各模块可独立重编译；
 #   - 聚合静态库 ui 由这些 object 库拼装，对外行为（VMPUI::ui / 合并 / install）完全不变。
 # 共享编译选项（提取为变量，供每个 object 库应用）
@@ -534,16 +534,7 @@ set(_UI_COMMON_COMPILE_OPTIONS
 
 option(UI_ENABLE_PCH "Enable precompiled headers in UI object libraries" ON)
 
-# 可选：按模块覆盖全局编译并行度（空 = 继承全局 JOB_POOL_COMPILE）
-set(UI_POOL_CORE "" CACHE STRING "Compile job pool for ui_core_objects (empty = global)")
-set(UI_POOL_SYSTEMS "" CACHE STRING "Compile job pool for ui_systems_objects (empty = global)")
-set(UI_POOL_RENDER "" CACHE STRING "Compile job pool for ui_render_objects (empty = global)")
-set(UI_POOL_MANAGERS "" CACHE STRING "Compile job pool for ui_managers_objects (empty = global)")
-set(UI_POOL_RENDERERS "" CACHE STRING "Compile job pool for ui_renderers_objects (empty = global)")
-set(UI_POOL_API "" CACHE STRING "Compile job pool for ui_api_objects (empty = global)")
-set(UI_POOL_RESOURCES "" CACHE STRING "Compile job pool for ui_resources_objects (empty = global)")
-
-function(ui_configure_object_library target_name pool_value pch_mode)
+function(ui_configure_object_library target_name pch_mode)
     target_compile_features(${target_name} PRIVATE cxx_std_23)
     target_include_directories(${target_name} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -607,46 +598,31 @@ function(ui_configure_object_library target_name pool_value pch_mode)
         target_compile_options(${target_name} PRIVATE /Zi /Od)
     endif()
 
-    # 可选模块级 JOB_POOL：空值继承全局 JOB_POOL_COMPILE。
-    # 每个模块池是独立额度；低内存模式禁止启用，以免多个池并发叠加导致 OOM。
-    if(NOT "${pool_value}" STREQUAL "")
-        if(UI_LOW_MEMORY_MODE)
-            message(FATAL_ERROR
-                "${target_name} sets an independent compile pool while UI_LOW_MEMORY_MODE=ON. "
-                "Clear UI_POOL_* values so all targets share the global single-job pool.")
-        endif()
-        if(NOT "${pool_value}" MATCHES "^[1-9][0-9]*$")
-            message(FATAL_ERROR "${target_name} pool must be a positive integer or empty: '${pool_value}'")
-        endif()
-        set_property(GLOBAL APPEND PROPERTY JOB_POOLS "ui_pool_${target_name}=${pool_value}")
-        set_property(TARGET ${target_name} PROPERTY JOB_POOL_COMPILE "ui_pool_${target_name}")
-        message(STATUS "[UI Build] ${target_name} compile pool = ${pool_value}")
-    endif()
 endfunction()
 
 # 各模块 Object 库
 # PCH 策略：core 生成唯一 PCH，systems/render/managers 复用该产物，避免四次
 # 重复编译相同 pch.hpp；api/renderers/resources 不使用 PCH。
 add_library(ui_core_objects OBJECT ${UI_OBJECT_CORE_SOURCES})
-ui_configure_object_library(ui_core_objects "${UI_POOL_CORE}" CREATE)
+ui_configure_object_library(ui_core_objects CREATE)
 
 add_library(ui_systems_objects OBJECT ${UI_OBJECT_SYSTEMS_SOURCES})
-ui_configure_object_library(ui_systems_objects "${UI_POOL_SYSTEMS}" REUSE)
+ui_configure_object_library(ui_systems_objects REUSE)
 
 add_library(ui_render_objects OBJECT ${UI_OBJECT_RENDER_SOURCES})
-ui_configure_object_library(ui_render_objects "${UI_POOL_RENDER}" REUSE)
+ui_configure_object_library(ui_render_objects REUSE)
 
 add_library(ui_managers_objects OBJECT ${UI_OBJECT_MANAGERS_SOURCES})
-ui_configure_object_library(ui_managers_objects "${UI_POOL_MANAGERS}" REUSE)
+ui_configure_object_library(ui_managers_objects REUSE)
 
 add_library(ui_renderers_objects OBJECT ${UI_OBJECT_RENDERERS_SOURCES})
-ui_configure_object_library(ui_renderers_objects "${UI_POOL_RENDERERS}" OFF)
+ui_configure_object_library(ui_renderers_objects OFF)
 
 add_library(ui_api_objects OBJECT ${UI_OBJECT_API_SOURCES})
-ui_configure_object_library(ui_api_objects "${UI_POOL_API}" OFF)
+ui_configure_object_library(ui_api_objects OFF)
 
 add_library(ui_resources_objects OBJECT ${UI_OBJECT_RESOURCES_SOURCES})
-ui_configure_object_library(ui_resources_objects "${UI_POOL_RESOURCES}" OFF)
+ui_configure_object_library(ui_resources_objects OFF)
 
 # ==================== 聚合库 ====================
 # BUILD_SHARED_LIBS=ON 时产出单 DLL；默认产出含第三方对象的静态单库。

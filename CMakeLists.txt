@@ -45,40 +45,80 @@ if(NOT UI_COMPILER_CACHE STREQUAL "OFF")
     endif()
 endif()
 
-# clang-cl 编译 EnTT/Eigen 等模板密集型翻译单元时单进程内存占用较高。
-# Ninja 默认按 CPU 核心数并行，完整构建可能同时启动大量编译进程并耗尽内存。
-# 使用全局任务池约束所有后续目标（包括第三方库、示例和测试）的并发度。
-option(UI_LOW_MEMORY_MODE
-    "Serialize compile/link jobs to minimize peak memory usage" ON)
-set(UI_COMPILE_JOB_LIMIT 2 CACHE STRING
-    "Maximum concurrent compiler processes for memory-intensive Ninja builds")
-set(UI_LINK_JOB_LIMIT 1 CACHE STRING
-    "Maximum concurrent linker processes for memory-intensive Ninja builds")
+# 参考 LLVM HandleLLVMOptions.cmake：根据配置时的可用物理内存和逻辑核心数
+# 自动计算 Ninja job pool 深度。显式 UI_PARALLEL_*_JOBS 优先于自动结果。
+# clang-cl 编译本项目的 EnTT/Eigen 重型 TU 峰值约 3 GiB，保守预留 4 GiB；
+# 链接/静态库合并同样预留 4 GiB，避免与编译任务叠加时耗尽系统提交量。
+set(UI_RAM_PER_COMPILE_JOB 4096 CACHE STRING
+    "Estimated available RAM required per compiler job in MiB (0 disables auto limit)")
+set(UI_RAM_PER_LINK_JOB 4096 CACHE STRING
+    "Estimated available RAM required per linker job in MiB (0 disables auto limit)")
+set(UI_PARALLEL_COMPILE_JOBS "" CACHE STRING
+    "Explicit maximum concurrent compiler jobs (empty = derive from available RAM)")
+set(UI_PARALLEL_LINK_JOBS "" CACHE STRING
+    "Explicit maximum concurrent linker jobs (empty = derive from available RAM)")
 
 if(CMAKE_GENERATOR MATCHES "Ninja")
-    if(NOT UI_COMPILE_JOB_LIMIT MATCHES "^[1-9][0-9]*$")
-        message(FATAL_ERROR "UI_COMPILE_JOB_LIMIT must be a positive integer")
-    endif()
-    if(NOT UI_LINK_JOB_LIMIT MATCHES "^[1-9][0-9]*$")
-        message(FATAL_ERROR "UI_LINK_JOB_LIMIT must be a positive integer")
+    foreach(_ui_memory_value IN ITEMS UI_RAM_PER_COMPILE_JOB UI_RAM_PER_LINK_JOB)
+        if(NOT "${${_ui_memory_value}}" MATCHES "^[0-9]+$")
+            message(FATAL_ERROR "${_ui_memory_value} must be a non-negative integer")
+        endif()
+    endforeach()
+    foreach(_ui_jobs_value IN ITEMS UI_PARALLEL_COMPILE_JOBS UI_PARALLEL_LINK_JOBS)
+        if(NOT "${${_ui_jobs_value}}" STREQUAL "" AND
+           NOT "${${_ui_jobs_value}}" MATCHES "^[1-9][0-9]*$")
+            message(FATAL_ERROR "${_ui_jobs_value} must be a positive integer or empty")
+        endif()
+    endforeach()
+
+    cmake_host_system_information(
+        RESULT _UI_AVAILABLE_PHYSICAL_MEMORY_MB
+        QUERY AVAILABLE_PHYSICAL_MEMORY)
+    cmake_host_system_information(
+        RESULT _UI_LOGICAL_CORES
+        QUERY NUMBER_OF_LOGICAL_CORES)
+
+    set(_UI_EFFECTIVE_COMPILE_JOB_LIMIT "${UI_PARALLEL_COMPILE_JOBS}")
+    if(NOT _UI_EFFECTIVE_COMPILE_JOB_LIMIT AND UI_RAM_PER_COMPILE_JOB GREATER 0)
+        math(EXPR _UI_EFFECTIVE_COMPILE_JOB_LIMIT
+            "${_UI_AVAILABLE_PHYSICAL_MEMORY_MB} / ${UI_RAM_PER_COMPILE_JOB}")
+        if(_UI_EFFECTIVE_COMPILE_JOB_LIMIT LESS 1)
+            set(_UI_EFFECTIVE_COMPILE_JOB_LIMIT 1)
+        elseif(_UI_EFFECTIVE_COMPILE_JOB_LIMIT GREATER _UI_LOGICAL_CORES)
+            set(_UI_EFFECTIVE_COMPILE_JOB_LIMIT ${_UI_LOGICAL_CORES})
+        endif()
     endif()
 
-    if(UI_LOW_MEMORY_MODE)
-        set(_UI_EFFECTIVE_COMPILE_JOB_LIMIT 1)
-        set(_UI_EFFECTIVE_LINK_JOB_LIMIT 1)
+    set(_UI_EFFECTIVE_LINK_JOB_LIMIT "${UI_PARALLEL_LINK_JOBS}")
+    if(NOT _UI_EFFECTIVE_LINK_JOB_LIMIT AND UI_RAM_PER_LINK_JOB GREATER 0)
+        math(EXPR _UI_EFFECTIVE_LINK_JOB_LIMIT
+            "${_UI_AVAILABLE_PHYSICAL_MEMORY_MB} / ${UI_RAM_PER_LINK_JOB}")
+        if(_UI_EFFECTIVE_LINK_JOB_LIMIT LESS 1)
+            set(_UI_EFFECTIVE_LINK_JOB_LIMIT 1)
+        elseif(_UI_EFFECTIVE_LINK_JOB_LIMIT GREATER _UI_LOGICAL_CORES)
+            set(_UI_EFFECTIVE_LINK_JOB_LIMIT ${_UI_LOGICAL_CORES})
+        endif()
+    endif()
+
+    if(_UI_EFFECTIVE_COMPILE_JOB_LIMIT)
+        set_property(GLOBAL APPEND PROPERTY JOB_POOLS
+            ui_compile_pool=${_UI_EFFECTIVE_COMPILE_JOB_LIMIT})
+        set(CMAKE_JOB_POOL_COMPILE ui_compile_pool)
     else()
-        set(_UI_EFFECTIVE_COMPILE_JOB_LIMIT ${UI_COMPILE_JOB_LIMIT})
-        set(_UI_EFFECTIVE_LINK_JOB_LIMIT ${UI_LINK_JOB_LIMIT})
+        set(_UI_EFFECTIVE_COMPILE_JOB_LIMIT "unlimited")
     endif()
-
-    set_property(GLOBAL PROPERTY JOB_POOLS
-        ui_compile_pool=${_UI_EFFECTIVE_COMPILE_JOB_LIMIT}
-        ui_link_pool=${_UI_EFFECTIVE_LINK_JOB_LIMIT})
-    set(CMAKE_JOB_POOL_COMPILE ui_compile_pool)
-    set(CMAKE_JOB_POOL_LINK ui_link_pool)
+    if(_UI_EFFECTIVE_LINK_JOB_LIMIT)
+        set_property(GLOBAL APPEND PROPERTY JOB_POOLS
+            ui_link_pool=${_UI_EFFECTIVE_LINK_JOB_LIMIT})
+        set(CMAKE_JOB_POOL_LINK ui_link_pool)
+    else()
+        set(_UI_EFFECTIVE_LINK_JOB_LIMIT "unlimited")
+    endif()
     message(STATUS
-        "Ninja job pools: compile=${_UI_EFFECTIVE_COMPILE_JOB_LIMIT}, "
-        "link=${_UI_EFFECTIVE_LINK_JOB_LIMIT}, low-memory=${UI_LOW_MEMORY_MODE}")
+        "Ninja memory-aware job pools: available=${_UI_AVAILABLE_PHYSICAL_MEMORY_MB} MiB, "
+        "logical-cores=${_UI_LOGICAL_CORES}, compile=${_UI_EFFECTIVE_COMPILE_JOB_LIMIT} "
+        "(${UI_RAM_PER_COMPILE_JOB} MiB/job), link=${_UI_EFFECTIVE_LINK_JOB_LIMIT} "
+        "(${UI_RAM_PER_LINK_JOB} MiB/job)")
 endif()
 
 #==================== IPO / LTO 设置 ====================

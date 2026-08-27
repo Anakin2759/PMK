@@ -234,11 +234,15 @@ inline void SyncWindowSizeConstraints(const Registry& registry, entt::entity ent
     int newMinH = static_cast<int>(windowComp.minSize.y());
     if (sizeComp != nullptr)
     {
-        if (policies::HasFlag(sizeComp->sizePolicy, policies::Size::H_FIXED) && sizeComp->size.x() > 0.0F)
+        if ((static_cast<std::uint16_t>(sizeComp->sizePolicy) & 0x000FU) ==
+                static_cast<std::uint16_t>(policies::Size::H_FIXED) &&
+            sizeComp->size.x() > 0.0F)
         {
             newMinW = std::min(newMinW, static_cast<int>(std::round(sizeComp->size.x())));
         }
-        if (policies::HasFlag(sizeComp->sizePolicy, policies::Size::V_FIXED) && sizeComp->size.y() > 0.0F)
+        if ((static_cast<std::uint16_t>(sizeComp->sizePolicy) & 0x0F00U) ==
+                static_cast<std::uint16_t>(policies::Size::V_FIXED) &&
+            sizeComp->size.y() > 0.0F)
         {
             newMinH = std::min(newMinH, static_cast<int>(std::round(sizeComp->size.y())));
         }

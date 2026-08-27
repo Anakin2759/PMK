@@ -45,6 +45,35 @@ constexpr float SCROLLBAR_GUTTER = 14.0F;
 constexpr float DEFAULT_LEAF_WIDTH = 100.0F;
 constexpr float DEFAULT_LEAF_HEIGHT = 20.0F;
 
+[[nodiscard]] std::uint16_t GetSizeAxisPolicy(policies::Size policy, bool horizontal)
+{
+    const auto value = static_cast<std::uint16_t>(policy);
+    return value & (horizontal ? 0x000FU : 0x0F00U);
+}
+
+[[nodiscard]] bool IsSizePolicyExpanding(std::uint16_t policy, bool horizontal)
+{
+    return policy == (horizontal ? static_cast<std::uint16_t>(policies::Size::H_FILL)
+                                 : static_cast<std::uint16_t>(policies::Size::V_FILL)) ||
+           policy == (horizontal ? static_cast<std::uint16_t>(policies::Size::H_EXPANDING)
+                                 : static_cast<std::uint16_t>(policies::Size::V_EXPANDING)) ||
+           policy == (horizontal ? static_cast<std::uint16_t>(policies::Size::H_MINIMUM_EXPANDING)
+                                 : static_cast<std::uint16_t>(policies::Size::V_MINIMUM_EXPANDING));
+}
+
+[[nodiscard]] bool IsSizePolicyAuto(std::uint16_t policy, bool horizontal)
+{
+    return policy == (horizontal ? static_cast<std::uint16_t>(policies::Size::H_AUTO)
+                                 : static_cast<std::uint16_t>(policies::Size::V_AUTO)) ||
+           policy == (horizontal ? static_cast<std::uint16_t>(policies::Size::H_MINIMUM)
+                                 : static_cast<std::uint16_t>(policies::Size::V_MINIMUM)) ||
+           IsSizePolicyExpanding(policy, horizontal) ||
+           policy == (horizontal ? static_cast<std::uint16_t>(policies::Size::H_MAXIMUM)
+                                 : static_cast<std::uint16_t>(policies::Size::V_MAXIMUM)) ||
+           policy == (horizontal ? static_cast<std::uint16_t>(policies::Size::H_IGNORED)
+                                 : static_cast<std::uint16_t>(policies::Size::V_IGNORED));
+}
+
 [[nodiscard]] bool IsLayoutParticipant(Registry& reg, entt::entity entity)
 {
     if (reg.any_of<components::TableCellWidgetTag>(entity))
@@ -232,25 +261,36 @@ void ConfigurePadding(Registry& reg, entt::entity entity, YGNodeRef node)
 
 void ConfigureMainAxisFlex(const components::Size& sizeComp, YGNodeRef node, bool isRow, bool parentIsScrollArea)
 {
-    const bool widthFill = policies::HasFlag(sizeComp.sizePolicy, policies::Size::H_FILL);
-    const bool widthFixed = policies::HasFlag(sizeComp.sizePolicy, policies::Size::H_FIXED);
-    const bool heightFill = policies::HasFlag(sizeComp.sizePolicy, policies::Size::V_FILL);
-    const bool heightFixed = policies::HasFlag(sizeComp.sizePolicy, policies::Size::V_FIXED);
+    const std::uint16_t axisPolicy = GetSizeAxisPolicy(sizeComp.sizePolicy, isRow);
+    const bool fixed = axisPolicy == (isRow ? static_cast<std::uint16_t>(policies::Size::H_FIXED)
+                                            : static_cast<std::uint16_t>(policies::Size::V_FIXED));
+    const bool minimum = axisPolicy == (isRow ? static_cast<std::uint16_t>(policies::Size::H_MINIMUM)
+                                              : static_cast<std::uint16_t>(policies::Size::V_MINIMUM));
+    const bool maximum = axisPolicy == (isRow ? static_cast<std::uint16_t>(policies::Size::H_MAXIMUM)
+                                              : static_cast<std::uint16_t>(policies::Size::V_MAXIMUM));
+    const bool expanding = IsSizePolicyExpanding(axisPolicy, isRow);
+    const bool ignored = axisPolicy == (isRow ? static_cast<std::uint16_t>(policies::Size::H_IGNORED)
+                                              : static_cast<std::uint16_t>(policies::Size::V_IGNORED));
+    const bool preferred = IsSizePolicyAuto(axisPolicy, isRow);
 
-    const bool mainAxisFill = (isRow && widthFill) || (!isRow && heightFill);
-    if (mainAxisFill)
+    if (expanding || ignored || preferred || minimum || maximum)
     {
-        if (YGNodeStyleGetFlexGrow(node) != 1.0F)
+        // Qt Preferred/Minimum/Maximum 使用首选尺寸参与布局，但不会像
+        // Expanding/MinimumExpanding 一样主动争抢额外空间。
+        const float grow = (expanding || ignored) ? 1.0F : 0.0F;
+        const float shrink = (fixed || minimum) ? 0.0F : 1.0F;
+        if (YGNodeStyleGetFlexGrow(node) != grow)
         {
-            YGNodeStyleSetFlexGrow(node, 1.0F);
+            YGNodeStyleSetFlexGrow(node, grow);
         }
-        if (YGNodeStyleGetFlexShrink(node) != 1.0F)
+        if (YGNodeStyleGetFlexShrink(node) != shrink)
         {
-            YGNodeStyleSetFlexShrink(node, 1.0F);
+            YGNodeStyleSetFlexShrink(node, shrink);
         }
 
         const YGValue basis = YGNodeStyleGetFlexBasis(node);
-        if (basis.unit != YGUnitPoint || basis.value != 0.0F)
+        const bool zeroBasis = expanding || ignored;
+        if (zeroBasis && (basis.unit != YGUnitPoint || basis.value != 0.0F))
         {
             YGNodeStyleSetFlexBasis(node, 0.0F);
         }
@@ -262,8 +302,7 @@ void ConfigureMainAxisFlex(const components::Size& sizeComp, YGNodeRef node, boo
         YGNodeStyleSetFlexGrow(node, 0.0F);
     }
 
-    const bool mainAxisFixed = (isRow && widthFixed) || (!isRow && heightFixed);
-    const float shrinkValue = (mainAxisFixed || parentIsScrollArea) ? 0.0F : 1.0F;
+    const float shrinkValue = (fixed || parentIsScrollArea) ? 0.0F : 1.0F;
     if (YGNodeStyleGetFlexShrink(node) != shrinkValue)
     {
         YGNodeStyleSetFlexShrink(node, shrinkValue);
@@ -272,9 +311,8 @@ void ConfigureMainAxisFlex(const components::Size& sizeComp, YGNodeRef node, boo
 
 void ConfigureCrossAxisStretch(const components::Size& sizeComp, YGNodeRef node, bool isRow)
 {
-    const bool widthFill = policies::HasFlag(sizeComp.sizePolicy, policies::Size::H_FILL);
-    const bool heightFill = policies::HasFlag(sizeComp.sizePolicy, policies::Size::V_FILL);
-    const bool crossAxisFill = (isRow && heightFill) || (!isRow && widthFill);
+    const std::uint16_t crossAxisPolicy = GetSizeAxisPolicy(sizeComp.sizePolicy, !isRow);
+    const bool crossAxisFill = IsSizePolicyExpanding(crossAxisPolicy, !isRow);
     if (crossAxisFill && YGNodeStyleGetAlignSelf(node) != YGAlignStretch)
     {
         YGNodeStyleSetAlignSelf(node, YGAlignStretch);
@@ -290,9 +328,11 @@ void ConfigureFlexBehaviorFromSize(const components::Size& sizeComp, YGNodeRef n
 
 void ConfigureExplicitWidth(const components::Size& sizeComp, YGNodeRef node)
 {
-    const bool widthFixed = policies::HasFlag(sizeComp.sizePolicy, policies::Size::H_FIXED);
-    const bool widthAuto = policies::HasFlag(sizeComp.sizePolicy, policies::Size::H_AUTO);
-    const bool widthPercent = policies::HasFlag(sizeComp.sizePolicy, policies::Size::H_PERCENTAGE);
+    const bool widthFixed = GetSizeAxisPolicy(sizeComp.sizePolicy, true) ==
+                            static_cast<std::uint16_t>(policies::Size::H_FIXED);
+    const bool widthAuto = IsSizePolicyAuto(GetSizeAxisPolicy(sizeComp.sizePolicy, true), true);
+    const bool widthPercent = GetSizeAxisPolicy(sizeComp.sizePolicy, true) ==
+                              static_cast<std::uint16_t>(policies::Size::H_PERCENTAGE);
 
     const YGValue currentWidth = YGNodeStyleGetWidth(node);
     if (widthFixed && sizeComp.size.x() > 0.0F)
@@ -322,9 +362,11 @@ void ConfigureExplicitWidth(const components::Size& sizeComp, YGNodeRef node)
 
 void ConfigureExplicitHeight(const components::Size& sizeComp, YGNodeRef node)
 {
-    const bool heightFixed = policies::HasFlag(sizeComp.sizePolicy, policies::Size::V_FIXED);
-    const bool heightAuto = policies::HasFlag(sizeComp.sizePolicy, policies::Size::V_AUTO);
-    const bool heightPercent = policies::HasFlag(sizeComp.sizePolicy, policies::Size::V_PERCENTAGE);
+    const bool heightFixed = GetSizeAxisPolicy(sizeComp.sizePolicy, false) ==
+                             static_cast<std::uint16_t>(policies::Size::V_FIXED);
+    const bool heightAuto = IsSizePolicyAuto(GetSizeAxisPolicy(sizeComp.sizePolicy, false), false);
+    const bool heightPercent = GetSizeAxisPolicy(sizeComp.sizePolicy, false) ==
+                               static_cast<std::uint16_t>(policies::Size::V_PERCENTAGE);
 
     const YGValue currentHeight = YGNodeStyleGetHeight(node);
     if (heightFixed && sizeComp.size.y() > 0.0F)
@@ -596,7 +638,7 @@ void ConfigureLeafAutoSize(Registry& reg, entt::entity entity, YGNodeRef node)
         }
     }
 
-    if (policies::HasFlag(sizeComp->sizePolicy, policies::Size::H_AUTO))
+    if (IsSizePolicyAuto(GetSizeAxisPolicy(sizeComp->sizePolicy, true), true))
     {
         const YGValue currentMinWidth = YGNodeStyleGetMinWidth(node);
         if (currentMinWidth.unit != YGUnitPoint || currentMinWidth.value != defaultWidth)
@@ -605,7 +647,7 @@ void ConfigureLeafAutoSize(Registry& reg, entt::entity entity, YGNodeRef node)
         }
     }
 
-    if (policies::HasFlag(sizeComp->sizePolicy, policies::Size::V_AUTO))
+    if (IsSizePolicyAuto(GetSizeAxisPolicy(sizeComp->sizePolicy, false), false))
     {
         const YGValue currentMinHeight = YGNodeStyleGetMinHeight(node);
         if (currentMinHeight.unit != YGUnitPoint || currentMinHeight.value != defaultHeight)
@@ -699,7 +741,10 @@ void UpdateEntityLayoutFromYoga(Registry& reg, entt::entity entity, YGNodeRef no
     {
         // FIXED 节点的 size 由用户显式指定，不应被 Yoga 溢出计算结果覆盖；
         // Yoga 已用该精确值约束了子节点布局，position 回写不受影响。
-        const bool isFixed = policies::HasFlag(sizeComp->sizePolicy, policies::Size::FIXED);
+        const bool isFixed = GetSizeAxisPolicy(sizeComp->sizePolicy, true) ==
+                                 static_cast<std::uint16_t>(policies::Size::H_FIXED) &&
+                             GetSizeAxisPolicy(sizeComp->sizePolicy, false) ==
+                                 static_cast<std::uint16_t>(policies::Size::V_FIXED);
         if (!isFixed)
         {
             const bool widthChanged = (!std::isnan(width) && width > 0.0F && sizeComp->size.x() != width);
